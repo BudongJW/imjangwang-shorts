@@ -1,0 +1,36 @@
+# 시크릿 / 토큰 — 절대 커밋 금지
+.env
+config/client_secret.json
+config/youtube_token.json
+refreshed_token.json
+*.pem
+
+# 생성 산출물
+output/audio/*
+output/srt/*
+output/video/*
+output/final/*
+!output/**/.gitkeep
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 로컬 테스트 잔여물
+smoke*.log
+_recompose.py
+_t/
+_frames/
+
+# 런타임 로그/상태(워크플로우가 topic_history를 -f로 커밋)
+output/logs/
+output/topic_history.json

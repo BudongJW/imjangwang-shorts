@@ -1,0 +1,27 @@
+# LLM (대본 생성)
+google-generativeai>=0.8.0
+
+# TTS
+edge-tts>=6.1.0
+
+# 뉴스 수집 / 파싱
+requests>=2.31.0
+feedparser>=6.0.10
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# 기사 스크린샷 캡처
+playwright>=1.44.0
+
+# 영상/이미지
+Pillow>=10.0.0
+imageio-ffmpeg>=0.4.9
+numpy>=1.24.0
+
+# YouTube 업로드
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.0.0
+
+# 유틸
+python-dotenv>=1.0.0

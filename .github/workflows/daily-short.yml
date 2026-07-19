@@ -1,0 +1,97 @@
+name: Daily Real-Estate Short
+
+on:
+  schedule:
+    # cron은 UTC. 부동산 시청자 아침 브리핑 타이밍.
+    - cron: '0 23 * * *'   # 08:00 KST
+  workflow_dispatch:
+    inputs:
+      skip_upload:
+        description: "업로드 없이 생성·합성만 (검증용)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-short
+  cancel-in-progress: false
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install ffmpeg + 한글 폰트(나눔고딕)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-nanum
+          sudo fc-cache -f
+          ffmpeg -version | head -1
+          fc-list | grep -i nanum | head -2 || { echo "NanumGothic missing!"; exit 1; }
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Generate and upload short
+        id: generate
+        env:
+          CI: true
+          PYTHONIOENCODING: utf-8
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
+        run: |
+          set +e
+          SKIP=""
+          if [ "${{ github.event.inputs.skip_upload }}" = "true" ]; then
+            SKIP="--skip-upload"; echo "검증 모드: 업로드 생략"
+          fi
+          python -m src.orchestrator.main $SKIP
+          code=$?
+          if [ $code -eq 2 ]; then
+            echo "전체 실패(exit 2) — 60초 후 1회 재시도"; sleep 60
+            python -m src.orchestrator.main $SKIP
+            code=$?
+          fi
+          exit $code
+
+      - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)
+        if: always() && hashFiles('refreshed_token.json') != ''
+        env:
+          GH_TOKEN: ${{ secrets.YOUTUBE_TOKEN_UPDATE_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "YOUTUBE_TOKEN_UPDATE_PAT 미설정 - 토큰 회전 스킵"; exit 0
+          fi
+          gh secret set YOUTUBE_TOKEN_JSON --body "$(cat refreshed_token.json)" --repo "${{ github.repository }}"
+          echo "secret rotated"
+
+      - name: Cleanup token file
+        if: always()
+        run: rm -f refreshed_token.json
+
+      - name: Persist topic history
+        if: steps.generate.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f output/topic_history.json ]; then
+            git add -f output/topic_history.json
+            git diff --cached --quiet || git commit -m "chore: update topic history [skip ci]"
+            git push || echo "push 실패(무시)"
+          fi
