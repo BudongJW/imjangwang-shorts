@@ -11,8 +11,9 @@ import sys
 import traceback
 from datetime import datetime
 
-from config.settings import CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS
+from config.settings import CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL
 from src.collector import news, images
+from src.collector.ai_image import generate_background
 from src.collector.article_capture import build_article_visual
 from src.collector.history import record_topic
 from src.script_gen.generator import generate
@@ -63,7 +64,12 @@ def run(skip_upload: bool = False) -> int:
 
     # 4) 배경 이미지 + 기사 캡처
     bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=4)
-    title_card = render_title_card(plan.headline, plan.hook_word, background=bg_paths[0] if bg_paths else None)
+    # AI 썸네일 배경(성공 시 타이틀카드 배경 + 첫 컷으로 사용, 실패 시 폴백)
+    ai_bg = generate_background(" ".join(plan.headline) or plan.youtube_title) if AI_THUMBNAIL else None
+    if ai_bg:
+        bg_paths = [ai_bg] + bg_paths
+    title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
+    title_card = render_title_card(plan.headline, plan.hook_word, background=title_bg)
     try:
         article_img = build_article_visual(art, highlight=plan.highlight_sentence)
     except Exception as e:
@@ -85,6 +91,8 @@ def run(skip_upload: bool = False) -> int:
             description=_build_description(plan, art),
             tags=[t.lstrip("#") for t in (plan.hashtags or DEFAULT_HASHTAGS)],
         )
+        # 타이틀카드(AI배경+헤드라인)를 커스텀 썸네일로 설정
+        youtube.set_thumbnail(video_id, title_card)
 
     record_topic(art.title, video_id)
     log.info("=== 완료 ===")

@@ -137,3 +137,27 @@ def upload(
     video_id = response["id"]
     print(f"Upload complete: https://www.youtube.com/shorts/{video_id}")
     return video_id
+
+
+def set_thumbnail(video_id: str, image_path: Path) -> bool:
+    """업로드된 영상에 커스텀 썸네일을 설정한다(전화 인증 채널 필요).
+
+    실패(권한/미인증 등)해도 예외를 삼키고 False 반환 — 파이프라인을 막지 않는다.
+    """
+    if not Path(image_path).exists():
+        return False
+    try:
+        youtube = get_youtube_service()
+        youtube.thumbnails().set(
+            videoId=video_id,
+            media_body=MediaFileUpload(str(image_path), mimetype="image/png"),
+        ).execute()
+        print(f"[youtube] custom thumbnail set for {video_id}")
+        return True
+    except HttpError as e:
+        status = getattr(e.resp, "status", "?")
+        print(f"[youtube] 썸네일 설정 실패(status={status}) — 무시하고 진행")
+        return False
+    except Exception as e:
+        print(f"[youtube] 썸네일 설정 예외 — 무시: {e}")
+        return False

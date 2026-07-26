@@ -36,3 +36,4 @@ output/logs/
 output/topic_history.json
 oauth_out.log
 live_test*.log
+img_final_test.log
