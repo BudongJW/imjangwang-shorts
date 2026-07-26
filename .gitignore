@@ -34,3 +34,5 @@ _frames/
 # 런타임 로그/상태(워크플로우가 topic_history를 -f로 커밋)
 output/logs/
 output/topic_history.json
+oauth_out.log
+live_test*.log

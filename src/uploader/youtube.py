@@ -117,7 +117,8 @@ def upload(
             "categoryId": category_id,
         },
         "status": {
-            "privacyStatus": "public",
+            # 기본은 공개. 첫 검토용 등은 PRIVACY_STATUS=unlisted/private 로 오버라이드.
+            "privacyStatus": os.getenv("PRIVACY_STATUS", "public"),
             "selfDeclaredMadeForKids": False,
         },
     }
