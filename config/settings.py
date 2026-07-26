@@ -30,7 +30,8 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 # Gemini 이미지 생성(썸네일/타이틀카드 배경). 키는 'AQ.' 신형 포맷.
 GEMINI_IMAGE_KEY = os.getenv("GEMINI_IMAGE_KEY", "")
 GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
-AI_THUMBNAIL = os.getenv("AI_THUMBNAIL", "1") == "1"  # 실패 시 자동 폴백
+# AI 이미지 생성은 결제(billing) 필요 → 기본 OFF. 결제 켜면 AI_THUMBNAIL=1 로 재활성화.
+AI_THUMBNAIL = os.getenv("AI_THUMBNAIL", "0") == "1"
 
 # ── 영상 규격 ───────────────────────────────────────────
 SHORTS_WIDTH = 1080
