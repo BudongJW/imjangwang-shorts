@@ -52,6 +52,7 @@ jobs:
           PYTHONIOENCODING: utf-8
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_IMAGE_KEY: ${{ secrets.GEMINI_IMAGE_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
