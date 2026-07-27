@@ -91,6 +91,42 @@ def render_title_card(headline: list[str], hook_word: str,
     return out
 
 
+def render_headline_banner(headline: list[str], hook_word: str,
+                           out_name: str = "headline_banner") -> Path:
+    """영상 전체에 상시 오버레이할 상단 헤드라인 배너(투명 PNG).
+
+    타이틀카드 이후 모든 프레임 상단에 헤드라인을 노출해, YouTube가 어떤 프레임을
+    Shorts 그리드 썸네일로 자동 선택하든 '헤드라인이 박힌 썸네일'처럼 보이게 한다.
+    """
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    img = Image.new("RGBA", (SHORTS_WIDTH, SHORTS_HEIGHT), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    lines = headline[:2]  # 배너는 최대 2줄로 압축
+    font = ImageFont.truetype(font_bold(), 74)
+    line_h = 92
+    top = 60
+    band_h = len(lines) * line_h + 44
+    # 반투명 검정 밴드 + 빨강 좌측 액센트
+    draw.rectangle([0, top, SHORTS_WIDTH, top + band_h], fill=(10, 10, 12, 210))
+    draw.rectangle([0, top, 20, top + band_h], fill=RED)
+
+    y = top + 22
+    for line in lines:
+        parts = _split_hook(line, hook_word)
+        widths = [draw.textlength(t, font=font) for t, _ in parts]
+        x = (SHORTS_WIDTH - sum(widths)) // 2
+        for (txt, is_hook), wdt in zip(parts, widths):
+            draw.text((x, y), txt, font=font, fill=(YELLOW if is_hook else WHITE),
+                      stroke_width=4, stroke_fill=DARK)
+            x += wdt
+        y += line_h
+
+    out = VIDEO_DIR / f"{out_name}.png"
+    img.save(out)
+    return out
+
+
 def _split_hook(line: str, hook_word: str) -> list[tuple[str, bool]]:
     """줄에서 hook_word 부분만 강조 플래그로 분리."""
     if hook_word and hook_word in line:

@@ -190,11 +190,13 @@ def _sub_filter(ass_path: Path, fonts_dir: Path) -> str:
 
 def compose(caption_script: str, audio_path: Path, title_card: Path,
             article_img: Path | None, bg_paths: list[Path],
-            out_name: str = "final") -> Path:
-    """단일 filter_complex 패스로 켄번즈+concat+자막번인+오디오mux.
+            out_name: str = "final", banner: Path | None = None) -> Path:
+    """단일 filter_complex 패스로 켄번즈+concat+(상단배너)+자막번인+오디오mux.
 
     per-세그먼트 클립을 만들어 concat 데뮤서로 잇는 방식은 zoompan 타임스탬프
     문제로 세그먼트가 유실될 수 있어, concat '필터'로 한 번에 합친다.
+    banner가 주어지면 타이틀카드 이후 전 구간 상단에 헤드라인 배너를 오버레이해
+    어떤 프레임이 Shorts 썸네일로 뽑혀도 헤드라인이 보이게 한다.
     """
     FINAL_DIR.mkdir(parents=True, exist_ok=True)
     out_path = FINAL_DIR / f"{out_name}.mp4"
@@ -212,22 +214,31 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     segs = _plan_segments(title_card, article_img, bg_paths, dur)
     log.info(f"  세그먼트 {len(segs)}개 (타이틀 {segs[0][1]:.1f}s 등)")
 
-    # 입력 구성: 각 세그먼트 이미지 + 오디오
+    # 입력 구성: 각 세그먼트 이미지 (+상단 배너) + 오디오
     inputs: list[str] = []
     for img, d in segs:
         # -framerate FPS 로 입력 프레임수를 dur*FPS 로 고정 (zoompan d=1 과 정합)
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{d:.3f}", "-i", str(img)]
+    banner_idx = None
+    if banner and Path(banner).exists():
+        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(banner)]
+        banner_idx = len(segs)
     inputs += ["-i", str(audio_path)]
-    audio_idx = len(segs)
+    audio_idx = len(segs) + (1 if banner_idx is not None else 0)
 
-    # 필터그래프: 세그먼트별 켄번즈 → concat → 자막 번인
+    # 필터그래프: 세그먼트별 켄번즈 → concat → (배너 오버레이) → 자막 번인
     parts = [_seg_filter(i, d, zoom_in=(i % 2 == 0)) for i, (img, d) in enumerate(segs)]
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
-    graph = (
-        ";".join(parts)
-        + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
-        + f";[vc]{_sub_filter(ass, asset_dir)}[vout]"
-    )
+    graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
+    sub_src = "vc"
+    if banner_idx is not None:
+        title_dur = segs[0][1]
+        graph += (
+            f";[{banner_idx}:v]scale={W}:{H}[bn]"
+            f";[vc][bn]overlay=0:0:enable='gte(t,{title_dur:.2f})'[vb]"
+        )
+        sub_src = "vb"
+    graph += f";[{sub_src}]{_sub_filter(ass, asset_dir)}[vout]"
 
     cmd = [
         _ffmpeg(), "-y", *inputs,

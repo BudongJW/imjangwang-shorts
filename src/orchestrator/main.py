@@ -18,7 +18,7 @@ from src.collector.article_capture import build_article_visual
 from src.collector.history import record_topic
 from src.script_gen.generator import generate
 from src.tts.narrate import narrate
-from src.editor.title_card import render_title_card
+from src.editor.title_card import render_title_card, render_headline_banner
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
 
@@ -70,6 +70,8 @@ def run(skip_upload: bool = False) -> int:
         bg_paths = [ai_bg] + bg_paths
     title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
     title_card = render_title_card(plan.headline, plan.hook_word, background=title_bg)
+    # 상단 헤드라인 배너(타이틀카드 이후 전 구간) — 자동 프레임 썸네일 품질 개선
+    banner = render_headline_banner(plan.headline, plan.hook_word)
     try:
         article_img = build_article_visual(art, highlight=plan.highlight_sentence)
     except Exception as e:
@@ -77,7 +79,7 @@ def run(skip_upload: bool = False) -> int:
         article_img = None
 
     # 5) 합성
-    final = compose(plan.caption_script, audio, title_card, article_img, bg_paths)
+    final = compose(plan.caption_script, audio, title_card, article_img, bg_paths, banner=banner)
 
     # 6) 업로드
     video_id = ""
