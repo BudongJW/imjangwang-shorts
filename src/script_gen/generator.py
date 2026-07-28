@@ -15,7 +15,9 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from config.settings import GEMINI_API_KEYS, GEMINI_MODEL, DEFAULT_HASHTAGS, FIXED_CTA
+from config.settings import (
+    GEMINI_API_KEYS, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, DEFAULT_HASHTAGS, FIXED_CTA,
+)
 from src.script_gen.correct_terms import normalize_caption, to_speech
 from src.utils.logger import setup_logger
 
@@ -72,18 +74,22 @@ def _gemini(prompt: str) -> str | None:
     except Exception:
         log.info("google-generativeai 미설치 → 폴백")
         return None
+    # 주 모델 → 백업 모델 순으로, 각 모델마다 키 로테이션
+    models = list(dict.fromkeys([GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]))
     last = None
-    for _ in range(min(3, len(GEMINI_API_KEYS))):
-        key = next(_key_cycle)
-        try:
-            genai.configure(api_key=key)
-            model = genai.GenerativeModel(GEMINI_MODEL)
-            resp = model.generate_content(prompt)
-            return resp.text
-        except Exception as e:  # 키 소진/쿼터 → 다음 키
-            last = e
-            log.info(f"  Gemini 키 실패, 로테이션: {e}")
-    log.info(f"  Gemini 전체 실패: {last}")
+    for model_name in models:
+        for _ in range(min(len(GEMINI_API_KEYS), 3)):
+            key = next(_key_cycle)
+            try:
+                genai.configure(api_key=key)
+                resp = genai.GenerativeModel(model_name).generate_content(prompt)
+                if resp.text:
+                    log.info(f"  Gemini 생성({model_name})")
+                    return resp.text
+            except Exception as e:  # 쿼터/모델명/키 → 다음 키·모델
+                last = e
+                log.info(f"  Gemini 실패({model_name}), 로테이션: {str(e)[:80]}")
+    log.info(f"  Gemini 전체 실패: {str(last)[:120]}")
     return None
 
 
@@ -98,17 +104,28 @@ def _parse_json(raw: str) -> dict | None:
 
 
 def _fallback_plan(art) -> ShortPlan:
-    """Gemini 실패 시 기사 메타로 최소 대본 구성."""
-    title = getattr(art, "title", "부동산 시장 이슈")
-    summary = getattr(art, "summary", "") or title
+    """Gemini 실패 시 기사 메타로 최소 대본 구성(제목 중복 제거, 본문 활용)."""
+    title = (getattr(art, "title", "") or "부동산 시장 이슈").strip()
+    summary = (getattr(art, "summary", "") or "").strip()
     words = title.split()
     hl = words[0] if words else "부동산"
     head = _split_headline(title)
-    script = (
-        f"{title}. {summary[:220]} "
-        "지금 시장 흐름을 놓치면 내 집 마련 타이밍도 달라질 수 있습니다. "
-        "앞으로의 방향, 꼭 확인해 두세요."
-    )
+
+    # 본문에서 제목과 겹치는 앞부분 제거 후, 문장 단위로 2~3문장 추출
+    body = summary
+    if body[:20] and body[:20] in title:
+        body = body[len(title):].strip(" .,·-")
+    sents = [s.strip() for s in re.split(r"(?<=[.!?다요])\s+", body) if len(s.strip()) >= 15]
+    body_text = " ".join(sents[:3])[:280]
+
+    hook = f"{title.rstrip('.')}, 지금 무슨 일이 벌어지고 있을까요?"
+    if body_text:
+        script = f"{hook} {body_text} 지금 시장 흐름, 놓치면 내 집 마련 타이밍이 달라질 수 있습니다."
+    else:
+        script = (
+            f"{hook} 정부 정책과 대출·전세 시장이 맞물리며 실수요자 부담이 커지는 흐름입니다. "
+            "앞으로의 방향, 지금 꼭 확인해 두세요."
+        )
     return ShortPlan(
         headline=head,
         hook_word=hl,

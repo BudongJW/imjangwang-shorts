@@ -22,7 +22,10 @@ FONT_DIR = ASSETS_DIR / "fonts"
 GEMINI_API_KEYS = [
     k.strip() for k in os.getenv("GEMINI_API_KEYS", os.getenv("GEMINI_API_KEY", "")).split(",") if k.strip()
 ]
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# 빈 문자열(워크플로우가 미정의 vars를 넘길 때)도 기본값으로 처리 — `or` 사용
+GEMINI_MODEL = os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
+# 주 모델 실패(쿼터/모델명) 시 시도할 백업 모델
+GEMINI_FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-flash-latest"]
 
 # ── 이미지 (선택) ───────────────────────────────────────
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")

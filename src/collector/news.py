@@ -100,10 +100,24 @@ def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
         og = soup.find("meta", property="og:image")
         if og and og.get("content"):
             art.image_url = og["content"]
-        # 본문 발췌: <p> 태그 중 길이 있는 문단 상위 몇 개
-        paras = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
-        paras = [p for p in paras if len(p) >= 40][:6]
-        art.summary = " ".join(paras)[:1500]
+        # 요약 소스1: 메타 설명(og:description / description) — 대개 기사 1~2문장 요약
+        desc = ""
+        for attrs in ({"property": "og:description"}, {"name": "description"}):
+            m = soup.find("meta", attrs=attrs)
+            c = (m.get("content").strip() if m and m.get("content") else "")
+            # 구글뉴스 자체 보일러플레이트는 본문이 아니므로 제외
+            if len(c) >= 30 and "Google News" not in c and "aggregated from sources" not in c:
+                desc = c
+                break
+        # 요약 소스2: 본문 <p> 중 한글 포함·충분한 길이 문단(중복 제거)
+        seen, paras = set(), []
+        for p in soup.find_all("p"):
+            t = p.get_text(" ", strip=True)
+            if len(t) >= 50 and re.search(r"[가-힣]", t) and t[:30] not in seen:
+                seen.add(t[:30])
+                paras.append(t)
+        body = " ".join(paras[:6])
+        art.summary = ((desc + " " if desc else "") + body).strip()[:1500]
     except Exception as e:  # 네트워크/파싱 실패는 후보에서 조용히 스킵 가능
         log.info(f"  enrich 실패({art.source}): {e}")
 
