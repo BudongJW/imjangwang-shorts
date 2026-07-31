@@ -79,11 +79,27 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,NanumGothic,60,&H00FFFFFF,&H000000FF,&H00101010,&H90000000,-1,0,0,0,100,100,0,0,1,5,2,2,50,50,300,1
+Style: Cap,NanumGothic,58,&H00FFFFFF,&H000000FF,&H80101010,&H00000000,-1,0,0,0,100,100,0,0,3,10,0,2,60,60,300,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+
+# 자막 인라인 강조색(ASS는 &HBBGGRR). 노랑=RGB(255,214,10)
+_HL_ON = r"{\c&H0AD6FF&}"
+_HL_OFF = r"{\c&HFFFFFF&}"
+# 숫자+단위, 임팩트 키워드를 노랑 강조
+_NUM_RE = re.compile(r"\d[\d,\.]*\s?(?:%|퍼센트|억|만원|만|천|년|배|채|가구|평|㎡|조|위|건|일|개월)?")
+_KEYWORDS = ["폭등", "급등", "급락", "폭락", "역대급", "신고가", "최고치", "최고", "최저",
+             "하락", "급증", "반등", "규제", "완화", "비상", "경고"]
+
+
+def _highlight(text: str) -> str:
+    """숫자·핵심 키워드를 노랑으로 감싸 시선을 끈다(ASS 인라인 태그)."""
+    text = _NUM_RE.sub(lambda m: f"{_HL_ON}{m.group(0)}{_HL_OFF}", text)
+    for kw in _KEYWORDS:
+        text = text.replace(kw, f"{_HL_ON}{kw}{_HL_OFF}")
+    return text
 
 
 def _split_phrases(text: str) -> list[str]:
@@ -111,21 +127,48 @@ def _split_phrases(text: str) -> list[str]:
     return [p for p in phrases if p]
 
 
-def build_caption_ass(caption_script: str, total_sec: float, out: Path) -> Path:
-    """교정된 자막을 오디오 길이에 비례 배분해 ASS로 저장(스타일 내장)."""
+def _phrase_timings(caption_script: str, total_sec: float) -> list[tuple[str, float, float]]:
+    """구절을 오디오 길이에 비례 배분해 (구절, 시작, 끝) 리스트로."""
     phrases = _split_phrases(caption_script)
     total_chars = sum(len(p) for p in phrases) or 1
-    out.parent.mkdir(parents=True, exist_ok=True)
     t = 0.0
-    body = []
+    out = []
     for ph in phrases:
         dur = max(0.9, total_sec * len(ph) / total_chars)
         start, end = t, min(total_sec, t + dur)
-        text = ph.replace("\n", " ").strip()
-        body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
+        out.append((ph, start, end))
         t = end
+    return out
+
+
+def build_caption_ass(caption_script: str, total_sec: float, out: Path) -> Path:
+    """교정된 자막을 오디오 길이에 비례 배분해 ASS로 저장(스타일 내장)."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    body = []
+    for ph, start, end in _phrase_timings(caption_script, total_sec):
+        text = _highlight(ph.replace("\n", " ").strip())
+        body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
     out.write_text(ASS_HEADER + "\n".join(body) + "\n", encoding="utf-8")
     return out
+
+
+def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
+                        max_n: int = 3) -> list[tuple[Path, float, float]]:
+    """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성."""
+    from src.editor.stat_callout import pick_stat, render_stat_card
+    overlays: list[tuple[Path, float, float]] = []
+    for ph, s, e in _phrase_timings(caption_script, total_sec):
+        if e <= title_dur:      # 타이틀카드 구간은 건너뜀
+            continue
+        st = pick_stat(ph)
+        if not st:
+            continue
+        path = VIDEO_DIR / f"stat_{len(overlays)}.png"
+        render_stat_card(st[0], st[1], path)
+        overlays.append((path, max(s, title_dur), min(total_sec, e + 0.4)))
+        if len(overlays) >= max_n:
+            break
+    return overlays
 
 
 def _seg_filter(idx: int, dur: float, zoom_in: bool) -> str:
@@ -212,9 +255,13 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             shutil.copyfile(ttf, dst)
     ass = build_caption_ass(caption_script, dur, asset_dir / "display.ass")
     segs = _plan_segments(title_card, article_img, bg_paths, dur)
-    log.info(f"  세그먼트 {len(segs)}개 (타이틀 {segs[0][1]:.1f}s 등)")
+    title_dur = segs[0][1]
+    log.info(f"  세그먼트 {len(segs)}개 (타이틀 {title_dur:.1f}s 등)")
+    stats = _plan_stat_overlays(caption_script, dur, title_dur)
+    if stats:
+        log.info(f"  숫자 콜아웃 {len(stats)}개")
 
-    # 입력 구성: 각 세그먼트 이미지 (+상단 배너) + 오디오
+    # 입력 구성: 각 세그먼트 이미지 (+상단 배너 +스탯카드) + 오디오
     inputs: list[str] = []
     for img, d in segs:
         # -framerate FPS 로 입력 프레임수를 dur*FPS 로 고정 (zoompan d=1 과 정합)
@@ -223,22 +270,31 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     if banner and Path(banner).exists():
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(banner)]
         banner_idx = len(segs)
+    stat_start_idx = len(segs) + (1 if banner_idx is not None else 0)
+    for path, _s, _e in stats:
+        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(path)]
     inputs += ["-i", str(audio_path)]
-    audio_idx = len(segs) + (1 if banner_idx is not None else 0)
+    audio_idx = stat_start_idx + len(stats)
 
-    # 필터그래프: 세그먼트별 켄번즈 → concat → (배너 오버레이) → 자막 번인
+    # 필터그래프: 세그먼트별 켄번즈 → concat → (배너) → (스탯 콜아웃) → 자막 번인
     parts = [_seg_filter(i, d, zoom_in=(i % 2 == 0)) for i, (img, d) in enumerate(segs)]
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
-    sub_src = "vc"
+    cur = "vc"
     if banner_idx is not None:
-        title_dur = segs[0][1]
         graph += (
             f";[{banner_idx}:v]scale={W}:{H}[bn]"
-            f";[vc][bn]overlay=0:0:enable='gte(t,{title_dur:.2f})'[vb]"
+            f";[{cur}][bn]overlay=0:0:enable='gte(t,{title_dur:.2f})'[vb]"
         )
-        sub_src = "vb"
-    graph += f";[{sub_src}]{_sub_filter(ass, asset_dir)}[vout]"
+        cur = "vb"
+    for i, (path, s, e) in enumerate(stats):
+        idx = stat_start_idx + i
+        graph += (
+            f";[{idx}:v]scale={W}:{H}[sc{i}]"
+            f";[{cur}][sc{i}]overlay=0:0:enable='between(t,{s:.2f},{e:.2f})'[vs{i}]"
+        )
+        cur = f"vs{i}"
+    graph += f";[{cur}]{_sub_filter(ass, asset_dir)}[vout]"
 
     cmd = [
         _ffmpeg(), "-y", *inputs,
