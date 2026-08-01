@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import math
+import random
 from pathlib import Path
 
 import requests
@@ -55,6 +56,28 @@ def _download(url: str) -> Image.Image | None:
         return None
 
 
+def _draw_skyline(base: Image.Image, idx: int) -> None:
+    """하단에 야경 도시 스카이라인(실루엣 건물 + 창문 불빛)을 그린다."""
+    rnd = random.Random(idx * 7 + 13)
+    draw = ImageDraw.Draw(base, "RGBA")
+    W, H = base.size
+    x = -20
+    while x < W + 20:
+        bw = rnd.randint(70, 150)
+        bh = rnd.randint(int(H * 0.14), int(H * 0.38))
+        top = H - bh
+        shade = rnd.randint(6, 20)
+        draw.rectangle([x, top, x + bw, H], fill=(shade, shade, shade + 10, 240))
+        # 창문 불빛
+        for wy in range(top + 20, H - 24, 36):
+            for wx in range(x + 14, x + bw - 12, 28):
+                if rnd.random() < 0.26:
+                    c = rnd.choice([(255, 214, 120), (255, 236, 180), (170, 195, 255)])
+                    a = rnd.randint(120, 210)
+                    draw.rectangle([wx, wy, wx + 9, wy + 13], fill=c + (a,))
+        x += bw + rnd.randint(-6, 12)
+
+
 def _gradient(idx: int) -> Image.Image:
     c1, c2 = GRADIENTS[idx % len(GRADIENTS)]
     base = Image.new("RGB", (SHORTS_WIDTH, SHORTS_HEIGHT))
@@ -63,6 +86,7 @@ def _gradient(idx: int) -> Image.Image:
         t = y / SHORTS_HEIGHT
         top.putpixel((0, y), tuple(int(a + (b - a) * t) for a, b in zip(c1, c2)))
     base = top.resize((SHORTS_WIDTH, SHORTS_HEIGHT))
+    _draw_skyline(base, idx)   # 도시 스카이라인 실루엣 + 창문 불빛
     # 은은한 비네트
     v = Image.new("L", (SHORTS_WIDTH, SHORTS_HEIGHT), 0)
     dv = ImageDraw.Draw(v)

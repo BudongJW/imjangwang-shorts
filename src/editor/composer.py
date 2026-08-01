@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import math
+import random
 import re
 import shutil
 import subprocess
@@ -19,8 +20,8 @@ from itertools import cycle
 from pathlib import Path
 
 from config.settings import (
-    SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR,
-    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, KENBURNS,
+    SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
+    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, KENBURNS, BGM_VOLUME,
 )
 from src.editor.fonts import font_bold
 from src.utils.logger import setup_logger
@@ -275,6 +276,12 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(path)]
     inputs += ["-i", str(audio_path)]
     audio_idx = stat_start_idx + len(stats)
+    # 배경음(BGM): 나레이션 아래 저음량. 랜덤 트랙, 루프.
+    bgm_idx = None
+    bgms = list(BGM_DIR.glob("*.mp3")) if BGM_VOLUME > 0 else []
+    if bgms:
+        inputs += ["-stream_loop", "-1", "-i", str(random.choice(bgms))]
+        bgm_idx = audio_idx + 1
 
     # 필터그래프: 세그먼트별 켄번즈 → concat → (배너) → (스탯 콜아웃) → 자막 번인
     parts = [_seg_filter(i, d, zoom_in=(i % 2 == 0)) for i, (img, d) in enumerate(segs)]
@@ -296,10 +303,20 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         cur = f"vs{i}"
     graph += f";[{cur}]{_sub_filter(ass, asset_dir)}[vout]"
 
+    # 오디오: 나레이션 + (BGM 저음량, 끝 페이드아웃) 믹스
+    if bgm_idx is not None:
+        graph += (
+            f";[{bgm_idx}:a]volume={BGM_VOLUME},afade=t=out:st={max(0.0, dur - 2):.2f}:d=2[bgm]"
+            f";[{audio_idx}:a][bgm]amix=inputs=2:duration=first:normalize=0[aout]"
+        )
+        amap = "[aout]"
+    else:
+        amap = f"{audio_idx}:a"
+
     cmd = [
         _ffmpeg(), "-y", *inputs,
         "-filter_complex", graph,
-        "-map", "[vout]", "-map", f"{audio_idx}:a",
+        "-map", "[vout]", "-map", amap,
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
         "-r", str(FPS), "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
     ]

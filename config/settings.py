@@ -16,6 +16,10 @@ VIDEO_DIR = OUTPUT_DIR / "video"
 FINAL_DIR = OUTPUT_DIR / "final"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 FONT_DIR = ASSETS_DIR / "fonts"
+BGM_DIR = ASSETS_DIR / "bgm"
+
+# 배경음: 나레이션 아래 '들리되 방해 안 되는' 수준 (0=무음)
+BGM_VOLUME = float(os.getenv("BGM_VOLUME", "0.25"))
 
 # ── LLM (대본 생성) ─────────────────────────────────────
 # Gemini 키는 콤마로 여러 개 넣으면 라운드로빈 로테이션.
