@@ -172,12 +172,20 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     return overlays
 
 
-def _seg_filter(idx: int, dur: float, zoom_in: bool) -> str:
-    """한 세그먼트의 zoompan 켄번즈 필터 체인([idx:v] → [vidx]).
+def _seg_filter(idx: int, dur: float, zoom_in: bool, scroll: bool = False) -> str:
+    """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
-    핵심: d=1 로 두고 줌을 '출력 프레임 인덱스(on)'로 구동한다.
-    (d=frames + 루프 입력은 프레임 수가 N×d로 폭증하므로 금지)
+    scroll=True(기사): 폭을 프레임에 맞추고 위→아래로 천천히 세로 스크롤.
+    그 외: zoompan 켄번즈(d=1, 출력프레임 on 으로 줌 구동).
     """
+    if scroll:
+        # 폭 1080에 맞춘 세로 긴 기사 이미지를 위→아래로 스크롤(끝 0.4s는 정지)
+        hold = max(0.1, dur - 0.4)
+        chain = (
+            f"scale={W}:-2,"
+            f"crop={W}:{H}:0:'(ih-{H})*min(1,t/{hold:.3f})'"
+        )
+        return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if KENBURNS:
         # 과도한 업스케일은 CI에서 느리다 → 1.2배(1296x2304)면 충분.
         if zoom_in:
@@ -283,8 +291,12 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         inputs += ["-stream_loop", "-1", "-i", str(random.choice(bgms))]
         bgm_idx = audio_idx + 1
 
-    # 필터그래프: 세그먼트별 켄번즈 → concat → (배너) → (스탯 콜아웃) → 자막 번인
-    parts = [_seg_filter(i, d, zoom_in=(i % 2 == 0)) for i, (img, d) in enumerate(segs)]
+    # 필터그래프: 세그먼트별 켄번즈(기사는 스크롤) → concat → (배너) → (스탯) → 자막
+    art_p = str(article_img) if article_img else None
+    parts = [
+        _seg_filter(i, d, zoom_in=(i % 2 == 0), scroll=(str(img) == art_p))
+        for i, (img, d) in enumerate(segs)
+    ]
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
     cur = "vc"
