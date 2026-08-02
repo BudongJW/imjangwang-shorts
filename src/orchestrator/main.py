@@ -18,7 +18,7 @@ from src.collector.article_capture import build_article_visual
 from src.collector.history import record_topic
 from src.script_gen.generator import generate
 from src.tts.narrate import narrate
-from src.editor.title_card import render_title_card, render_headline_banner
+from src.editor.title_card import render_title_card, render_headline_banner, pick_accent
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
 
@@ -69,9 +69,10 @@ def run(skip_upload: bool = False) -> int:
     if ai_bg:
         bg_paths = [ai_bg] + bg_paths
     title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
-    title_card = render_title_card(plan.headline, plan.hook_word, background=title_bg)
+    accent = pick_accent()   # 영상마다 액센트 색 변주(획일성 완화)
+    title_card = render_title_card(plan.headline, plan.hook_word, background=title_bg, accent=accent)
     # 상단 헤드라인 배너(타이틀카드 이후 전 구간) — 자동 프레임 썸네일 품질 개선
-    banner = render_headline_banner(plan.headline, plan.hook_word)
+    banner = render_headline_banner(plan.headline, plan.hook_word, accent=accent)
     try:
         article_img = build_article_visual(art, highlight=plan.highlight_sentence)
     except Exception as e:

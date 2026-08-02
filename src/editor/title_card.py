@@ -21,6 +21,14 @@ YELLOW = (255, 214, 10)
 WHITE = (245, 245, 245)
 DARK = (18, 18, 20)
 
+# 영상마다 액센트 색을 변주해 '찍어낸 템플릿' 느낌을 줄인다(YouTube inauthentic 정책 대응).
+ACCENTS = [(206, 32, 32), (230, 150, 20), (30, 158, 148), (44, 96, 220), (168, 60, 190)]
+
+
+def pick_accent() -> tuple:
+    import random
+    return random.choice(ACCENTS)
+
 
 def _darken(im: Image.Image, factor: float = 0.5) -> Image.Image:
     im = im.convert("RGB").resize((SHORTS_WIDTH, SHORTS_HEIGHT), Image.LANCZOS)
@@ -47,7 +55,8 @@ def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
 
 def render_title_card(headline: list[str], hook_word: str,
                       background: Path | None = None,
-                      out_name: str = "title_card") -> Path:
+                      out_name: str = "title_card",
+                      accent: tuple = RED) -> Path:
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     if background and Path(background).exists():
         base = _darken(Image.open(background), 0.45)
@@ -70,8 +79,8 @@ def render_title_card(headline: list[str], hook_word: str,
     band_top = top - pad
     band_bottom = top + total_h + pad
     draw.rectangle([40, band_top, SHORTS_WIDTH - 40, band_bottom], fill=(10, 10, 12, 205))
-    # 좌측 빨강 액센트 바
-    draw.rectangle([40, band_top, 64, band_bottom], fill=RED)
+    # 좌측 액센트 바(영상마다 색 변주)
+    draw.rectangle([40, band_top, 64, band_bottom], fill=accent)
 
     y = top
     for line in headline:
@@ -92,7 +101,8 @@ def render_title_card(headline: list[str], hook_word: str,
 
 
 def render_headline_banner(headline: list[str], hook_word: str,
-                           out_name: str = "headline_banner") -> Path:
+                           out_name: str = "headline_banner",
+                           accent: tuple = RED) -> Path:
     """영상 전체에 상시 오버레이할 상단 헤드라인 배너(투명 PNG).
 
     타이틀카드 이후 모든 프레임 상단에 헤드라인을 노출해, YouTube가 어떤 프레임을
@@ -109,7 +119,7 @@ def render_headline_banner(headline: list[str], hook_word: str,
     band_h = len(lines) * line_h + 44
     # 반투명 검정 밴드 + 빨강 좌측 액센트
     draw.rectangle([0, top, SHORTS_WIDTH, top + band_h], fill=(10, 10, 12, 210))
-    draw.rectangle([0, top, 20, top + band_h], fill=RED)
+    draw.rectangle([0, top, 20, top + band_h], fill=accent)
 
     y = top + 22
     for line in lines:
