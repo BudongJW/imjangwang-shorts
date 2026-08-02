@@ -14,7 +14,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from config.settings import VIDEO_DIR, ARTICLE_HIGHLIGHT
+from config.settings import VIDEO_DIR, ARTICLE_HIGHLIGHT, SHORTS_WIDTH, SHORTS_HEIGHT
 from src.editor.fonts import font_bold, font_regular
 from src.utils.logger import setup_logger
 
@@ -145,19 +145,48 @@ def _wrap(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
     return lines
 
 
+def _fit_to_frame(card_path: Path) -> Path:
+    """카드/스크린샷을 1080x1920 프레임 중앙에 '전체가 보이게' 담는다.
+
+    카드는 가로 1000px의 별도 이미지라, 그대로 배경처럼 쓰면 합성기가 9:16로
+    커버-크롭하며 과도하게 확대·잘린다. 어두운 캔버스에 fit 배치해 이를 막는다.
+    """
+    W, H = SHORTS_WIDTH, SHORTS_HEIGHT
+    canvas = Image.new("RGB", (W, H), (16, 22, 38))
+    try:
+        card = Image.open(card_path).convert("RGB")
+    except Exception:
+        canvas.save(card_path)
+        return card_path
+    # 배너(상단)·자막(하단) 피해 안전영역 안에 맞춤. 켄번즈 줌 여유로 다소 작게.
+    max_w, max_h = int(W * 0.86), int(H * 0.56)
+    ratio = min(max_w / card.width, max_h / card.height)
+    nw, nh = max(1, int(card.width * ratio)), max(1, int(card.height * ratio))
+    card = card.resize((nw, nh), Image.LANCZOS)
+    cx, cy = W // 2, int(H * 0.47)
+    # 카드 뒤 옅은 그림자/테두리
+    d = ImageDraw.Draw(canvas)
+    d.rounded_rectangle([cx - nw // 2 - 8, cy - nh // 2 - 8, cx + nw // 2 + 8, cy + nh // 2 + 8],
+                        radius=18, fill=(8, 10, 16))
+    canvas.paste(card, (cx - nw // 2, cy - nh // 2))
+    canvas.save(card_path)
+    return card_path
+
+
 def build_article_visual(art, highlight: str = "") -> Path:
-    """기사 비주얼 PNG를 만든다. 실제 캡처 우선, 실패 시 카드 렌더."""
+    """기사 비주얼을 1080x1920 프레임으로 만든다. 실제 캡처 우선, 실패 시 카드 렌더."""
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     out = VIDEO_DIR / "article"
+    shot = None
     if getattr(art, "url", ""):
         shot = _capture_with_playwright(art.url, highlight, out)
-        if shot:
-            return shot
-    return _render_news_card(
-        title=getattr(art, "title", ""),
-        source=getattr(art, "source", ""),
-        published=getattr(art, "published", ""),
-        lead=getattr(art, "summary", ""),
-        highlight=highlight,
-        out=out,
-    )
+    if not shot:
+        shot = _render_news_card(
+            title=getattr(art, "title", ""),
+            source=getattr(art, "source", ""),
+            published=getattr(art, "published", ""),
+            lead=getattr(art, "summary", ""),
+            highlight=highlight,
+            out=out,
+        )
+    return _fit_to_frame(shot)
