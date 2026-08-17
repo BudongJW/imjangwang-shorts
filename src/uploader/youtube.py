@@ -94,6 +94,7 @@ def upload(
     description: str = "",
     tags: list[str] | None = None,
     category_id: str = "22",  # People & Blogs
+    publish_at: str | None = None,
 ) -> str:
     """YouTube에 영상을 업로드한다.
 
@@ -103,12 +104,23 @@ def upload(
         description: 영상 설명
         tags: 태그 리스트
         category_id: YouTube 카테고리 ID
+        publish_at: 예약 공개 시각(RFC3339, 예 '2026-08-17T03:45:00Z'). 주면
+            비공개로 올린 뒤 해당 시각에 자동 공개.
 
     Returns:
         업로드된 영상의 video ID
     """
     youtube = get_youtube_service()
 
+    if publish_at:
+        status = {"privacyStatus": "private", "publishAt": publish_at,
+                  "selfDeclaredMadeForKids": False}
+    else:
+        status = {
+            # 기본은 공개. 첫 검토용 등은 PRIVACY_STATUS=unlisted/private 로 오버라이드.
+            "privacyStatus": os.getenv("PRIVACY_STATUS", "public"),
+            "selfDeclaredMadeForKids": False,
+        }
     body = {
         "snippet": {
             "title": title,
@@ -116,11 +128,7 @@ def upload(
             "tags": tags or [],
             "categoryId": category_id,
         },
-        "status": {
-            # 기본은 공개. 첫 검토용 등은 PRIVACY_STATUS=unlisted/private 로 오버라이드.
-            "privacyStatus": os.getenv("PRIVACY_STATUS", "public"),
-            "selfDeclaredMadeForKids": False,
-        },
+        "status": status,
     }
 
     media = MediaFileUpload(str(video_path), mimetype="video/mp4", resumable=True)
