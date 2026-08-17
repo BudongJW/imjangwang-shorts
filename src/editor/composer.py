@@ -172,10 +172,12 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     return overlays
 
 
-def _seg_filter(idx: int, dur: float, zoom_in: bool, scroll: bool = False) -> str:
+def _seg_filter(idx: int, dur: float, zoom_in: bool,
+                scroll: bool = False, fit: bool = False) -> str:
     """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
-    scroll=True(기사): 폭을 프레임에 맞추고 위→아래로 천천히 세로 스크롤.
+    scroll=True(긴 기사): 폭 맞추고 위→아래로 천천히 세로 스크롤.
+    fit=True(짧은 기사 카드): 폭 맞추고 어두운 배경 중앙에 정적 배치(잘림·백지 없음).
     그 외: zoompan 켄번즈(d=1, 출력프레임 on 으로 줌 구동).
     """
     if scroll:
@@ -185,6 +187,11 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool, scroll: bool = False) -> st
             f"scale={W}:-2,"
             f"crop={W}:{H}:0:'(ih-{H})*min(1,t/{hold:.3f})'"
         )
+        return f"[{idx}:v]{chain},setsar=1[v{idx}]"
+    if fit:
+        # 짧은 카드: 폭 맞춘 뒤 어두운 캔버스 중앙에 배치(패딩)
+        chain = (f"scale={W}:-2,"
+                 f"pad={W}:{H}:0:(oh-ih)/2:color=0x101624")
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if KENBURNS:
         # 과도한 업스케일은 CI에서 느리다 → 1.2배(1296x2304)면 충분.
@@ -291,12 +298,24 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         inputs += ["-stream_loop", "-1", "-i", str(random.choice(bgms))]
         bgm_idx = audio_idx + 1
 
-    # 필터그래프: 세그먼트별 켄번즈(기사는 스크롤) → concat → (배너) → (스탯) → 자막
+    # 기사 세그먼트는 높이에 따라 스크롤(긴 캡처) 또는 정적 맞춤(짧은 카드)
     art_p = str(article_img) if article_img else None
-    parts = [
-        _seg_filter(i, d, zoom_in=(i % 2 == 0), scroll=(str(img) == art_p))
-        for i, (img, d) in enumerate(segs)
-    ]
+    art_h = 0
+    if art_p:
+        try:
+            from PIL import Image as _Img
+            with _Img.open(art_p) as _im:
+                art_h = int(_im.height * W / _im.width)  # 폭 1080 기준 높이
+        except Exception:
+            art_h = 0
+    parts = []
+    for i, (img, d) in enumerate(segs):
+        is_art = str(img) == art_p
+        parts.append(_seg_filter(
+            i, d, zoom_in=(i % 2 == 0),
+            scroll=(is_art and art_h >= H),
+            fit=(is_art and art_h < H),
+        ))
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
     cur = "vc"

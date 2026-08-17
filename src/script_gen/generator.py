@@ -62,14 +62,20 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
    인과관계로 분명히 짚을 것. 예: 대출 규제→오히려 현금부자만 유리·실수요 배제,
    임대차법→전세 매물 급감·전세가 급등, 공급 억제→가격 상승, 세금 강화→매물 잠김.
    '정치인 비난'이 아니라 '정책 메커니즘 → 시장 왜곡·서민 피해'로 날카롭게 분석할 것.
+9. [기조 — 절대 준수] 이 채널의 일관된 관점은 '정부 부동산 정책이 시장을 왜곡하고
+   실수요자·서민에게 피해를 준다'이다. 기사가 '집값 안정/멈칫/보합'이라고 해도 그것을
+   '정책 성공'으로 그리지 말 것. 훅·헤드라인·제목은 반드시 정책의 '문제·부작용'을 겨냥한다.
+   (집값이 멈칫이면 → '표면적·일시적이며 거래절벽·전세폭등 같은 더 큰 대가가 따른다'로 재구성)
+10. [형식 — 엄수] script는 성우가 입으로 '읽는 문장'만 담는다. 지문·괄호 설명·타임스탬프
+   ((4초) 등)·[대괄호 지시]·자막표기·이모지·마크다운(*#>)은 절대 넣지 말 것.
 
 [출력: 아래 JSON만, 다른 텍스트 없이]
 {{
-  "headline": ["타이틀 1줄", "타이틀 2줄", "(선택)3줄"],   // 각 줄 12자 이내, 총 2~3줄
+  "headline": ["타이틀 1줄", "타이틀 2줄", "(선택)3줄"],   // 각 줄 12자 이내, 정책 문제 겨냥
   "hook_word": "헤드라인에서 노랗게 강조할 핵심 단어 1개",
   "highlight_sentence": "기사에서 형광펜 칠할 핵심 한 문장(20자 내외)",
-  "script": "본문 나레이션 전체(320~380자, 위 구조).",
-  "youtube_title": "클릭 유도형 제목(35자 이내, 해시태그 제외)",
+  "script": "말하는 문장만. 300~340자. 지문·괄호·타임스탬프 없이.",
+  "youtube_title": "정책 문제를 겨냥한 클릭유도형 제목(35자 이내, 해시태그·이모지 제외)",
   "hashtags": ["부동산","집값","..."]
 }}
 """
@@ -135,11 +141,12 @@ def _fallback_plan(art) -> ShortPlan:
             f"{hook} 정부 정책과 대출·전세 시장이 맞물리며 실수요자 부담이 커지는 흐름입니다. "
             "앞으로의 방향, 지금 꼭 확인해 두세요."
         )
+    script = _cap_length(_clean_script(normalize_caption(script)))
     return ShortPlan(
         headline=head,
         hook_word=hl,
         highlight_sentence=title[:24],
-        caption_script=normalize_caption(script),
+        caption_script=script,
         speech_script=to_speech(script),
         youtube_title=title[:35],
         hashtags=DEFAULT_HASHTAGS,
@@ -162,6 +169,34 @@ def _split_headline(text: str, per_line: int = 12, max_lines: int = 3) -> list[s
     return lines[:max_lines] or [text[:per_line]]
 
 
+# 지문/타임스탬프/자막표기 등 '말하지 않는 것' 제거용
+_STAGE_RE = re.compile(
+    r"\[[^\]]*\]"                                      # [뉴스기사 띄우며] 류 대괄호 전부
+    r"|\([^)]*(?:초|분|띄우|자막|화면|컷|인서트|자료|효과음|BGM|음악|나레이션|성우|장면|영상)[^)]*\)"
+)
+
+
+def _clean_script(text: str) -> str:
+    """대본에서 지문·타임스탬프·마크다운·이모지를 제거하고 말하는 문장만 남긴다."""
+    text = _STAGE_RE.sub(" ", text)
+    text = re.sub(r"[\*#>`\_]+", "", text)                 # 마크다운 잔여
+    text = re.sub(r"[\U0001F000-\U0001FAFF☀-➿]", "", text)  # 이모지
+    text = re.sub(r"\s+([,.!?])", r"\1", text)
+    text = re.sub(r"\s{2,}", " ", text).strip()
+    return text
+
+
+def _cap_length(text: str, max_chars: int = 430) -> str:
+    """너무 긴 대본은 문장 경계에서 안전하게 자른다(쇼츠 길이 폭주 방지)."""
+    if len(text) <= max_chars:
+        return text
+    cut = text[:max_chars]
+    m = list(re.finditer(r"[.!?다요]\s", cut))
+    if m:
+        return cut[: m[-1].end()].strip()
+    return cut.rstrip()
+
+
 def generate(art) -> ShortPlan:
     prompt = PROMPT.format(
         title=getattr(art, "title", ""),
@@ -174,17 +209,18 @@ def generate(art) -> ShortPlan:
         log.info("대본: 폴백 사용")
         return _fallback_plan(art)
 
-    script = normalize_caption(str(data["script"]).strip())
-    headline = [normalize_caption(h) for h in (data.get("headline") or [])][:3]
+    script = _cap_length(_clean_script(normalize_caption(str(data["script"]).strip())))
+    headline = [_clean_script(normalize_caption(h)) for h in (data.get("headline") or [])][:3]
+    headline = [h for h in headline if h]
     if not headline:
         headline = _split_headline(getattr(art, "title", "부동산 뉴스"))
     plan = ShortPlan(
         headline=headline,
-        hook_word=normalize_caption(str(data.get("hook_word", headline[0].split()[0] if headline else ""))),
-        highlight_sentence=normalize_caption(str(data.get("highlight_sentence", ""))[:30]),
+        hook_word=_clean_script(normalize_caption(str(data.get("hook_word", headline[0].split()[0] if headline else "")))),
+        highlight_sentence=_clean_script(normalize_caption(str(data.get("highlight_sentence", ""))[:30])),
         caption_script=script,
         speech_script=to_speech(script),
-        youtube_title=normalize_caption(str(data.get("youtube_title", getattr(art, "title", "")))[:40]),
+        youtube_title=_clean_script(normalize_caption(str(data.get("youtube_title", getattr(art, "title", "")))[:40])),
         hashtags=(data.get("hashtags") or DEFAULT_HASHTAGS)[:8],
     )
     log.info(f"대본 생성 완료: {plan.youtube_title}")

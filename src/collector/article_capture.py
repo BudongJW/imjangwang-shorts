@@ -30,6 +30,18 @@ MOBILE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 16_4 like Mac OS X) "
 CAPTURE_MAX_H = 3400         # 캡처 세로 최대(너무 길면 스크롤이 빨라짐)
 
 
+def _is_blank(im: Image.Image) -> bool:
+    """이미지가 사실상 백지(균일한 흰 화면)인지 판별."""
+    small = im.resize((48, max(1, int(48 * im.height / im.width)))).convert("L")
+    px = list(small.getdata())
+    if not px:
+        return True
+    white = sum(1 for p in px if p > 235) / len(px)
+    mean = sum(px) / len(px)
+    var = sum((p - mean) ** 2 for p in px) / len(px)
+    return white > 0.9 or var < 70
+
+
 def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None:
     """모바일 뷰포트로 기사 상단부(헤드라인+본문+사진)를 세로로 길게 캡처."""
     try:
@@ -91,6 +103,10 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                 im = im.resize((CARD_W, nh), Image.LANCZOS)
             if im.height > CAPTURE_MAX_H:
                 im = im.crop((0, 0, CARD_W, CAPTURE_MAX_H))
+            # 백지/차단 페이지 검증 — 균일한 흰 화면이면 실패로 간주(→ 카드 폴백)
+            if im.height < 2000 or _is_blank(im):
+                log.info("  기사 캡처가 백지/짧음 → 카드 폴백")
+                return None
             im.save(png)
             log.info(f"  기사 모바일 캡처 성공 ({im.width}x{im.height})")
             return png
@@ -123,8 +139,11 @@ def _render_news_card(title: str, source: str, published: str,
     f_body = ImageFont.truetype(font_regular(), 40)
 
     head_lines = _wrap(title, f_head, inner)
-    # 본문은 넉넉히(스크롤 가치) — 문장 단위로 이어붙여 최대 18줄
-    body_lines = _wrap(lead, f_body, inner)[:18] if lead else []
+    # 본문은 넉넉히(스크롤 가치) — 문장 단위로 이어붙여 최대 18줄.
+    # 본문이 없으면 헤드라인이 곧 콘텐츠(흰 여백 방지) → 카드는 헤드라인 위주로 짧게.
+    body_lines = _wrap(lead, f_body, inner)[:18] if lead and len(lead) >= 20 else []
+    if not body_lines and highlight:
+        body_lines = _wrap(highlight, f_body, inner)[:4]
 
     y = pad
     y += 44 + 24                    # 언론사 바
@@ -133,7 +152,8 @@ def _render_news_card(title: str, source: str, published: str,
     y += 2 + 30                     # 구분선
     body_top = y
     y += len(body_lines) * 58 + pad
-    height = max(y, 2400)           # 최소 세로(스크롤 확보)
+    # 내용 높이에 맞추되, 너무 짧으면 최소 높이(정적 카드가 작게 보이지 않게).
+    height = max(y, 900)
 
     card = Image.new("RGB", (CARD_W, height), PAPER)
     d = ImageDraw.Draw(card)
@@ -184,19 +204,11 @@ def build_article_visual(art, highlight: str = "") -> Path:
             highlight=highlight,
             out=out,
         )
-    # 스크롤 연출을 위해 폭 1080·최소 세로 2100 보장
+    # 폭 1080 보장(세로 패딩은 하지 않음 — 흰 여백 스크롤 방지). 높이는 composer가 판단.
     try:
         im = Image.open(shot).convert("RGB")
-        changed = False
         if im.width != CARD_W:
             im = im.resize((CARD_W, int(im.height * CARD_W / im.width)), Image.LANCZOS)
-            changed = True
-        if im.height < 2100:
-            canvas = Image.new("RGB", (CARD_W, 2100), PAPER)
-            canvas.paste(im, (0, 0))
-            im = canvas
-            changed = True
-        if changed:
             im.save(shot)
     except Exception:
         pass
