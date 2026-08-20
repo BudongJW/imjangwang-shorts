@@ -122,8 +122,30 @@ def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
         log.info(f"  enrich 실패({art.source}): {e}")
 
 
+# 실수요자 직결 핵심 주제(가점) vs 추상·니치 주제(감점) — 조회 부진 원인이 주제 관련성.
+_CORE_KW = [
+    "집값", "전세", "월세", "전월세", "매매", "아파트", "분양", "청약", "재건축", "재개발",
+    "대출", "금리", "세금", "세제", "보유세", "양도세", "종부세", "취득세", "규제", "임대차", "토허",
+    "전세사기", "실수요", "내집마련", "신고가", "급등", "폭등", "하락", "전세난", "역전세",
+    "공급", "입주", "갭투자", "깡통전세", "분양가", "미분양", "집주인", "세입자",
+]
+_NICHE_KW = [
+    "글로벌", "해외", "도쿄", "일본", "미국", "중국", "유럽", "성과급", "반도체", "삼성전자",
+    "하이닉스", "증시", "코스피", "코스닥", "채권", "리츠", "수익형", "환율", "비트코인",
+    "가상자산", "코인", "연예", "스타", "배우", "가수",
+]
+
+
+def relatability_score(title: str) -> int:
+    """제목의 실수요자 관련성 점수(핵심 주제 +2, 니치 주제 -3)."""
+    t = title or ""
+    core = sum(1 for k in _CORE_KW if k in t)
+    niche = sum(1 for k in _NICHE_KW if k in t)
+    return core * 2 - niche * 3
+
+
 def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
-    """부동산 뉴스 후보를 수집한다(중복·차단 제외, 미해소 상태)."""
+    """부동산 뉴스 후보를 수집한다(중복·차단 제외, 관련성순 정렬)."""
     seen_titles: set[str] = set()
     candidates: list[Article] = []
     for q in NEWS_QUERIES:
@@ -139,19 +161,22 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
             candidates.append(art)
         if len(candidates) >= max_candidates:
             break
-    log.info(f"수집된 후보 기사: {len(candidates)}건")
+    # 실수요자 직결 주제 우선(니치 주제로 조회 부진 방지)
+    candidates.sort(key=lambda a: relatability_score(a.title), reverse=True)
+    if candidates:
+        log.info(f"수집 {len(candidates)}건 · 최상위 주제점수 "
+                 f"{relatability_score(candidates[0].title)} ({candidates[0].title[:24]})")
     return candidates[:max_candidates]
 
 
-def pick_and_enrich(candidates: list[Article], top_n: int = 6) -> Article | None:
-    """상위 후보를 원문 해소하여 본문/이미지가 확보된 첫 기사를 반환한다."""
+def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None:
+    """관련성 높은 순으로 원문 해소하여 본문 확보된 첫 기사를 반환한다."""
     session = requests.Session()
     session.headers.update({"User-Agent": UA})
     for art in candidates[:top_n]:
         _resolve_and_enrich(art, session)
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
-            log.info(f"선정: {art.title} ({art.source})")
+            log.info(f"선정(주제점수 {relatability_score(art.title)}): {art.title} ({art.source})")
             return art
         time.sleep(0.5)
-    # 본문 확보 실패 시라도 제목만 있는 첫 후보 반환(대본은 제목 기반으로도 가능)
     return candidates[0] if candidates else None
