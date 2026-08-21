@@ -29,7 +29,8 @@ GEMINI_API_KEYS = [
 # 빈 문자열(워크플로우가 미정의 vars를 넘길 때)도 기본값으로 처리 — `or` 사용
 GEMINI_MODEL = os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
 # 주 모델 실패(쿼터/모델명) 시 시도할 백업 모델
-GEMINI_FALLBACK_MODELS = ["gemini-2.0-flash", "gemini-flash-latest"]
+# (gemini-2.0-flash는 2026 서비스 종료 → 제거. flash-latest는 현행 flash 별칭)
+GEMINI_FALLBACK_MODELS = ["gemini-flash-latest", "gemini-2.5-flash-lite"]
 
 # ── 이미지 (선택) ───────────────────────────────────────
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
