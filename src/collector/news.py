@@ -134,6 +134,12 @@ _NICHE_KW = [
     "하이닉스", "증시", "코스피", "코스닥", "채권", "리츠", "수익형", "환율", "비트코인",
     "가상자산", "코인", "연예", "스타", "배우", "가수",
 ]
+# 정책 비판·부작용 신호(가점) — 인기 영상은 '정책 역효과·서민 피해'를 다뤘다.
+_CRIT_KW = [
+    "부작용", "역효과", "역설", "실패", "오판", "논란", "반발", "우려", "비판", "실효성",
+    "무력화", "부메랑", "폭탄", "직격", "날벼락", "눈물", "피해", "잠김", "전가", "징벌",
+    "덫", "헛발", "붕괴", "성토",
+]
 
 
 def relatability_score(title: str) -> int:
@@ -142,6 +148,13 @@ def relatability_score(title: str) -> int:
     core = sum(1 for k in _CORE_KW if k in t)
     niche = sum(1 for k in _NICHE_KW if k in t)
     return core * 2 - niche * 3
+
+
+def topic_score(title: str) -> int:
+    """영상 소재 점수 = 관련성 + 정책 비판 신호(가점). 인기 패턴에 맞춰 선별."""
+    t = title or ""
+    crit = sum(1 for k in _CRIT_KW if k in t)
+    return relatability_score(t) + crit * 2
 
 
 def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
@@ -161,11 +174,11 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
             candidates.append(art)
         if len(candidates) >= max_candidates:
             break
-    # 실수요자 직결 주제 우선(니치 주제로 조회 부진 방지)
-    candidates.sort(key=lambda a: relatability_score(a.title), reverse=True)
+    # 관련성 + 정책 비판 신호로 정렬(좋은 소재 자동 선별)
+    candidates.sort(key=lambda a: topic_score(a.title), reverse=True)
     if candidates:
-        log.info(f"수집 {len(candidates)}건 · 최상위 주제점수 "
-                 f"{relatability_score(candidates[0].title)} ({candidates[0].title[:24]})")
+        log.info(f"수집 {len(candidates)}건 · 최상위 소재점수 "
+                 f"{topic_score(candidates[0].title)} ({candidates[0].title[:24]})")
     return candidates[:max_candidates]
 
 
@@ -176,7 +189,7 @@ def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None
     for art in candidates[:top_n]:
         _resolve_and_enrich(art, session)
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
-            log.info(f"선정(주제점수 {relatability_score(art.title)}): {art.title} ({art.source})")
+            log.info(f"선정(소재점수 {topic_score(art.title)}): {art.title} ({art.source})")
             return art
         time.sleep(0.5)
     return candidates[0] if candidates else None
