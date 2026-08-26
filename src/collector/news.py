@@ -140,6 +140,11 @@ _CRIT_KW = [
     "무력화", "부메랑", "폭탄", "직격", "날벼락", "눈물", "피해", "잠김", "전가", "징벌",
     "덫", "헛발", "붕괴", "성토",
 ]
+# '가격 폭등 고통' = 최고 대박 패턴(집값 14% 폭등/월세 폭탄 등). 세금 메커니즘보다 강가점.
+_PAIN_KW = [
+    "폭등", "급등", "치솟", "천정부지", "폭발", "전세난", "월세난", "전세대란", "월세대란",
+    "지옥", "못 산다", "못산다", "미쳤", "미친", "역대급", "트리플", "신고가", "폭탄전가",
+]
 
 
 def relatability_score(title: str) -> int:
@@ -151,10 +156,11 @@ def relatability_score(title: str) -> int:
 
 
 def topic_score(title: str) -> int:
-    """영상 소재 점수 = 관련성 + 정책 비판 신호(가점). 인기 패턴에 맞춰 선별."""
+    """영상 소재 점수 = 관련성 + 정책 비판 + '가격 폭등 고통' 강가점(대박 패턴 편향)."""
     t = title or ""
     crit = sum(1 for k in _CRIT_KW if k in t)
-    return relatability_score(t) + crit * 2
+    pain = sum(1 for k in _PAIN_KW if k in t)
+    return relatability_score(t) + crit * 2 + pain * 3
 
 
 def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:

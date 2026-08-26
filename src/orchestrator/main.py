@@ -11,7 +11,10 @@ import sys
 import traceback
 from datetime import datetime
 
-from config.settings import CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL
+from config.settings import (
+    CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
+    POLITICIAN_FACE, POLITICIAN_FACE_ENABLED,
+)
 from src.collector import news, images
 from src.collector.ai_image import generate_background
 from src.collector.article_capture import build_article_visual
@@ -70,7 +73,12 @@ def run(skip_upload: bool = False) -> int:
         bg_paths = [ai_bg] + bg_paths
     title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
     accent = pick_accent()   # 영상마다 액센트 색 변주(획일성 완화)
-    title_card = render_title_card(plan.headline, plan.hook_word, background=title_bg, accent=accent)
+    # 정책 비판 대상 정치인 얼굴 부각(타이틀카드 + 영상 중간 세그먼트)
+    face = POLITICIAN_FACE if (POLITICIAN_FACE_ENABLED and POLITICIAN_FACE.exists()) else None
+    title_card = render_title_card(plan.headline, plan.hook_word,
+                                   background=title_bg, accent=accent, face=face)
+    if face:
+        bg_paths = bg_paths + [face]   # 영상 중간에도 얼굴 등장
     # 상단 헤드라인 배너(타이틀카드 이후 전 구간) — 자동 프레임 썸네일 품질 개선
     banner = render_headline_banner(plan.headline, plan.hook_word, accent=accent)
     try:

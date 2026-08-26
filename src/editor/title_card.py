@@ -53,20 +53,46 @@ def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
     )
 
 
+def _paste_face(base: Image.Image, face: Path) -> None:
+    """정치인 얼굴을 우측 하단에 크게 부각(좌측 페이드로 배경에 블렌드)."""
+    try:
+        fim = Image.open(face).convert("RGB")
+    except Exception:
+        return
+    fh = int(SHORTS_HEIGHT * 0.64)
+    fw = int(fim.width * fh / fim.height)
+    fim = fim.resize((fw, fh), Image.LANCZOS)
+    fx = SHORTS_WIDTH - fw + int(fw * 0.04)     # 우측 정렬
+    fy = SHORTS_HEIGHT - fh                       # 바닥 고정
+    # 좌측 28% 페이드 마스크(직사각 경계 완화)
+    mask = Image.new("L", (fw, fh), 0)
+    md = ImageDraw.Draw(mask)
+    fade = max(1, int(fw * 0.28))
+    for x in range(fw):
+        md.line([(x, 0), (x, fh)], fill=255 if x >= fade else int(255 * x / fade))
+    base.paste(fim, (fx, fy), mask)
+
+
 def render_title_card(headline: list[str], hook_word: str,
                       background: Path | None = None,
                       out_name: str = "title_card",
-                      accent: tuple = RED) -> Path:
+                      accent: tuple = RED,
+                      face: Path | None = None) -> Path:
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     if background and Path(background).exists():
-        base = _darken(Image.open(background), 0.45)
+        base = _darken(Image.open(background), 0.42)
     else:
         base = Image.new("RGB", (SHORTS_WIDTH, SHORTS_HEIGHT), (22, 30, 54))
 
+    # 정치인 얼굴 부각(있으면 화살표 대신 얼굴을 초점으로)
+    if face and Path(face).exists():
+        _paste_face(base, face)
+
     draw = ImageDraw.Draw(base, "RGBA")
 
-    # 상승 화살표(헤드라인 아래 영역)
-    _rising_arrow(draw, y0=int(SHORTS_HEIGHT * 0.52))
+    # 얼굴이 없을 때만 상승 화살표
+    if not (face and Path(face).exists()):
+        _rising_arrow(draw, y0=int(SHORTS_HEIGHT * 0.52))
 
     # 헤드라인 박스
     font = ImageFont.truetype(font_bold(), 96)
