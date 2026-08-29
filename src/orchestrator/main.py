@@ -7,25 +7,41 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import traceback
 from datetime import datetime
 
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
-    POLITICIAN_FACE, POLITICIAN_FACE_ENABLED,
+    POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME,
 )
 from src.collector import news, images
 from src.collector.ai_image import generate_background
 from src.collector.article_capture import build_article_visual
 from src.collector.history import record_topic
 from src.script_gen.generator import generate
+from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
 from src.editor.title_card import render_title_card, render_headline_banner, pick_accent
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
 
 log = setup_logger("main")
+
+
+def _name_government(plan):
+    """대본·제목·헤드라인의 '정부'를 정책 비판 대상(이재명 정부)으로 명시한다."""
+    def ng(t: str) -> str:
+        t = t.replace("새 정부", GOV_NAME).replace("현 정부", GOV_NAME).replace("현정부", GOV_NAME)
+        if GOV_NAME.split()[0] not in t:      # '이재명'이 없으면 첫 '정부'를 치환
+            t = re.sub(r"정부", GOV_NAME, t, count=1)
+        return t
+    plan.caption_script = ng(plan.caption_script)
+    plan.speech_script = to_speech(plan.caption_script)
+    plan.youtube_title = ng(plan.youtube_title)[:40]
+    plan.headline = [ng(h) for h in plan.headline]
+    return plan
 
 
 def _build_description(plan, art) -> str:
@@ -61,6 +77,8 @@ def run(skip_upload: bool = False) -> int:
 
     # 2) 대본
     plan = generate(art)
+    if POLITICIAN_FACE_ENABLED:          # 정책 비판 대상(이재명 정부) 명시
+        plan = _name_government(plan)
 
     # 3) TTS
     audio = narrate(plan.speech_script)

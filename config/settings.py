@@ -22,6 +22,8 @@ FACES_DIR = ASSETS_DIR / "faces"
 # 정책 비판 대상(이재명 정부) 얼굴을 영상에 부각. 파일 없으면 자동 생략.
 POLITICIAN_FACE = FACES_DIR / "leejaemyung.jpg"
 POLITICIAN_FACE_ENABLED = os.getenv("POLITICIAN_FACE", "1") == "1"
+# 대본에서 '정부'를 명시할 대상(정책 비판 편집 방향). 얼굴과 함께 적용.
+GOV_NAME = os.getenv("GOV_NAME", "이재명 정부")
 
 # 배경음: 나레이션 아래 '들리되 방해 안 되는' 수준 (0=무음)
 BGM_VOLUME = float(os.getenv("BGM_VOLUME", "0.25"))
