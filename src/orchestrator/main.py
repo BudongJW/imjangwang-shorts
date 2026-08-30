@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -15,13 +16,13 @@ from datetime import datetime
 
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
-    POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME,
+    POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
 )
 from src.collector import news, images
 from src.collector.ai_image import generate_background
 from src.collector.article_capture import build_article_visual
 from src.collector.history import record_topic
-from src.script_gen.generator import generate
+from src.script_gen.generator import generate, ShortPlan
 from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
 from src.editor.title_card import render_title_card, render_headline_banner, pick_accent
@@ -54,6 +55,48 @@ def _name_government(plan):
     return plan
 
 
+def _load_pinned_plan():
+    """output/pinned_plan.json 이 있고 예약일(use_on, KST)이 오늘이면 (art, plan)을 반환한다.
+
+    민감·팩트검증 필요한 주제는 자동선택·Gemini 대신 사람이 직접 검수한 대본을 태우기 위한
+    1회용 지정 기능. 예약일이 오늘이 아니면 무시(자동 선택으로 진행), 오류 시에도 무시한다.
+    """
+    pin = OUTPUT_DIR / "pinned_plan.json"
+    if not pin.exists():
+        return None
+    try:
+        from datetime import timezone, timedelta
+        data = json.loads(pin.read_text(encoding="utf-8"))
+        today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+        if data.get("use_on") and data["use_on"] != today:
+            log.info(f"지정 대본 예약일({data.get('use_on')})이 오늘({today})이 아님 → 자동 선택")
+            return None
+        a, p = data["article"], data["plan"]
+        art = news.Article(
+            title=a.get("title", ""), source=a.get("source", ""),
+            url=a.get("url", ""), summary=a.get("summary", ""),
+            image_url=a.get("image_url", ""),
+        )
+        cap = str(p["caption_script"]).strip()
+        plan = ShortPlan(
+            headline=list(p.get("headline", [])),
+            hook_word=p.get("hook_word", ""),
+            highlight_sentence=p.get("highlight_sentence", ""),
+            caption_script=cap,
+            speech_script=to_speech(cap),
+            youtube_title=str(p.get("youtube_title", ""))[:40],
+            hashtags=list(p.get("hashtags", []) or DEFAULT_HASHTAGS),
+        )
+        try:
+            pin.unlink()   # 1회용(로컬 정리). 러너는 예약일 게이트로 재사용 방지.
+        except OSError:
+            pass
+        return art, plan
+    except Exception as e:
+        log.info(f"지정 대본 로드 실패(무시하고 자동 선택): {e}")
+        return None
+
+
 def _build_description(plan, art) -> str:
     tags = " ".join(f"#{t.lstrip('#')}" for t in (plan.hashtags or DEFAULT_HASHTAGS))
     src = f"\n\n출처: {art.source} {art.url}".rstrip() if getattr(art, "url", "") else ""
@@ -83,20 +126,26 @@ def run(skip_upload: bool = False) -> int:
             log.info("오늘 이미 업로드된 영상이 있어 자동 생성을 건너뜁니다(중복 방지).")
             return 0
 
-    # 1) 뉴스 수집
-    candidates = news.collect()
-    if not candidates:
-        log.error("수집된 뉴스 후보가 없습니다.")
-        return 1
-    art = news.pick_and_enrich(candidates)
-    if not art:
-        log.error("선정 가능한 기사가 없습니다.")
-        return 1
+    # 1~2) 지정 대본(pin)이 오늘용으로 있으면 그것을 사용(사람 검수본), 없으면 자동 수집·생성
+    pinned = _load_pinned_plan()
+    if pinned:
+        art, plan = pinned
+        log.info(f"지정 대본 사용(pin): {plan.youtube_title}")
+    else:
+        # 1) 뉴스 수집
+        candidates = news.collect()
+        if not candidates:
+            log.error("수집된 뉴스 후보가 없습니다.")
+            return 1
+        art = news.pick_and_enrich(candidates)
+        if not art:
+            log.error("선정 가능한 기사가 없습니다.")
+            return 1
 
-    # 2) 대본
-    plan = generate(art)
-    if POLITICIAN_FACE_ENABLED:          # 정책 비판 대상(이재명 정부) 명시
-        plan = _name_government(plan)
+        # 2) 대본
+        plan = generate(art)
+        if POLITICIAN_FACE_ENABLED:          # 정책 비판 대상(이재명 정부) 명시
+            plan = _name_government(plan)
 
     # 3) TTS
     audio = narrate(plan.speech_script)
