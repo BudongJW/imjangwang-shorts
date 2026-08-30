@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 import traceback
@@ -64,6 +65,14 @@ def _title_with_tags(plan) -> str:
 
 def run(skip_upload: bool = False) -> int:
     log.info(f"=== {CHANNEL_NAME} 쇼츠 생성 시작 {datetime.now():%Y-%m-%d %H:%M} ===")
+
+    # 0) 중복 방지: 오늘(KST) 이미 올린 영상이 있으면 자동 실행을 건너뜀.
+    #    (수동 업로드한 날 스케줄이 겹쳐 하루 2개가 되는 것을 막음. 확인 실패 시 그냥 진행.)
+    if not skip_upload and os.getenv("SKIP_IF_POSTED_TODAY", "1") == "1":
+        from src.uploader.youtube import already_posted_today
+        if already_posted_today():
+            log.info("오늘 이미 업로드된 영상이 있어 자동 생성을 건너뜁니다(중복 방지).")
+            return 0
 
     # 1) 뉴스 수집
     candidates = news.collect()

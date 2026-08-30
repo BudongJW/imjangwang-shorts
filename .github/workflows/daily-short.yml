@@ -2,8 +2,9 @@ name: Daily Real-Estate Short
 
 on:
   schedule:
-    # cron은 UTC. 부동산 시청자 아침 브리핑 타이밍(오전 9시 KST).
-    - cron: '0 0 * * *'    # 09:00 KST
+    # cron은 UTC. 부동산 시청자 아침 브리핑(오전 9시대 KST).
+    # 주의: 정각(HH:00)·자정(00:00 UTC)은 GitHub 혼잡→drop 1순위라 홀수 분으로 회피.
+    - cron: '23 0 * * *'    # 00:23 UTC = 09:23 KST
   workflow_dispatch:
     inputs:
       skip_upload:

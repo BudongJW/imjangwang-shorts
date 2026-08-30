@@ -88,6 +88,32 @@ def get_youtube_service():
     return build("youtube", "v3", credentials=creds)
 
 
+def already_posted_today(tz_offset_hours: int = 9) -> bool:
+    """오늘(KST) 이미 업로드한 영상이 있으면 True.
+
+    수동으로 먼저 올린 날 자동 스케줄이 겹쳐 '하루 2개'가 되는 것을 막는 가드.
+    어떤 오류든 False(=차단하지 않음)로 처리해 자동 파이프라인을 절대 멈추지 않는다.
+    """
+    from datetime import timezone, timedelta
+    try:
+        service = get_youtube_service()
+        ch = service.channels().list(part="contentDetails", mine=True).execute()
+        uploads = ch["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+        pl = service.playlistItems().list(
+            part="snippet", playlistId=uploads, maxResults=1
+        ).execute()
+        items = pl.get("items", [])
+        if not items:
+            return False
+        published = items[0]["snippet"]["publishedAt"]  # RFC3339 UTC (…Z)
+        dt = datetime.strptime(published[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        kst = timezone(timedelta(hours=tz_offset_hours))
+        return dt.astimezone(kst).date() == datetime.now(kst).date()
+    except Exception as e:
+        print(f"[youtube] already_posted_today 확인 실패(무시하고 진행): {e}")
+        return False
+
+
 def upload(
     video_path: Path,
     title: str,
