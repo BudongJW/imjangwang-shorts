@@ -31,11 +31,20 @@ from src.utils.logger import setup_logger
 log = setup_logger("main")
 
 
+# 과거 정부/과거 연도 맥락 — 이 경우 '정부'에 현 정부명을 박으면 오귀속(오정보)이 됨
+_PAST_CTX = re.compile(r"(?:19|20)\d{2}|문재인|박근혜|이명박|노무현|전 정부|과거 정부|당시\s*정부")
+
+
 def _name_government(plan):
-    """대본·제목·헤드라인의 '정부'를 정책 비판 대상(이재명 정부)으로 명시한다."""
+    """대본·제목·헤드라인의 '정부'를 정책 비판 대상(이재명 정부)으로 명시한다.
+
+    단, 과거 정부(문재인 등)나 과거 연도 정책을 현 정부가 한 것처럼 오귀속하지 않도록,
+    과거 맥락이 감지된 문장에는 '정부'→'이재명 정부' 강제 치환을 하지 않는다(오정보 방지).
+    """
     def ng(t: str) -> str:
         t = t.replace("새 정부", GOV_NAME).replace("현 정부", GOV_NAME).replace("현정부", GOV_NAME)
-        if GOV_NAME.split()[0] not in t:      # '이재명'이 없으면 첫 '정부'를 치환
+        # 과거 맥락이 없을 때만 첫 '정부'에 현 정부명을 박음
+        if GOV_NAME.split()[0] not in t and not _PAST_CTX.search(t):
             t = re.sub(r"정부", GOV_NAME, t, count=1)
         return t
     plan.caption_script = ng(plan.caption_script)
