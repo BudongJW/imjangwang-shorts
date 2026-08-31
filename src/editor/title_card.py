@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
@@ -25,9 +27,43 @@ DARK = (18, 18, 20)
 ACCENTS = [(206, 32, 32), (230, 150, 20), (30, 158, 148), (44, 96, 220), (168, 60, 190)]
 
 
-def pick_accent() -> tuple:
-    import random
-    return random.choice(ACCENTS)
+@dataclass(frozen=True)
+class _Layout:
+    """타이틀카드(=썸네일) 구도 1종. 밴드 위치·정렬·얼굴 방향/크기를 함께 바꾼다."""
+    name: str
+    band_y: float       # 헤드라인 밴드 상단 (높이 비율)
+    band_x0: float      # 밴드 좌/우 끝 (너비 비율)
+    band_x1: float
+    align: str          # center | left | right
+    face_side: str      # right | left (left면 좌우 반전해 페이드가 안쪽을 향함)
+    face_h: float       # 얼굴 높이 (높이 비율)
+    band_style: str     # dark(반투명 검정) | accent(액센트 색 밴드)
+
+
+# 매일 다른 그림이 나오도록 구도를 4종으로 나눠 회전시킨다.
+# 밴드 폭은 전폭 고정(좁히면 오토핏이 폰트를 줄여 그리드에서 안 읽힘).
+# 변주는 세로 위치 · 정렬 · 밴드 스타일 · 얼굴 좌우/크기로 준다.
+LAYOUTS = (
+    _Layout("top-center",  0.14, 0.03, 0.97, "center", "right", 0.64, "dark"),
+    _Layout("bottom-left", 0.58, 0.03, 0.97, "center", "left",  0.74, "accent"),
+    _Layout("mid-left",    0.38, 0.03, 0.97, "left",   "right", 0.58, "none"),
+    _Layout("top-right",   0.14, 0.03, 0.97, "right",  "left",  0.68, "accent"),
+)
+
+
+def _today_ord() -> int:
+    """KST 기준 날짜 일련번호(구도·색 회전의 기준)."""
+    return datetime.now(timezone(timedelta(hours=9))).date().toordinal()
+
+
+def pick_layout(day_ord: int | None = None) -> _Layout:
+    return LAYOUTS[(day_ord if day_ord is not None else _today_ord()) % len(LAYOUTS)]
+
+
+def pick_accent(day_ord: int | None = None) -> tuple:
+    """무작위 대신 날짜 기반 회전 — 구도(4)×색(5)이 20일간 같은 조합 없이 돈다."""
+    d = day_ord if day_ord is not None else _today_ord()
+    return ACCENTS[(d // len(LAYOUTS)) % len(ACCENTS)]
 
 
 def _darken(im: Image.Image, factor: float = 0.5) -> Image.Image:
@@ -53,71 +89,111 @@ def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
     )
 
 
-def _paste_face(base: Image.Image, face: Path) -> None:
-    """정치인 얼굴을 우측 하단에 크게 부각(좌측 페이드로 배경에 블렌드)."""
+def _paste_face(base: Image.Image, face: Path,
+                side: str = "right", height_ratio: float = 0.64) -> None:
+    """정치인 얼굴을 좌/우 바닥에 부각(안쪽 경계는 페이드로 배경에 블렌드).
+
+    side="left"면 이미지를 좌우 반전해 시선이 화면 안쪽을 향하게 하고,
+    페이드도 오른쪽(안쪽) 경계에 준다.
+    """
     try:
         fim = Image.open(face).convert("RGB")
     except Exception:
         return
-    fh = int(SHORTS_HEIGHT * 0.64)
+    fh = int(SHORTS_HEIGHT * height_ratio)
     fw = int(fim.width * fh / fim.height)
     fim = fim.resize((fw, fh), Image.LANCZOS)
-    fx = SHORTS_WIDTH - fw + int(fw * 0.04)     # 우측 정렬
+    if side == "left":
+        fim = fim.transpose(Image.FLIP_LEFT_RIGHT)
+        fx = -int(fw * 0.04)
+    else:
+        fx = SHORTS_WIDTH - fw + int(fw * 0.04)
     fy = SHORTS_HEIGHT - fh                       # 바닥 고정
-    # 좌측 28% 페이드 마스크(직사각 경계 완화)
+
+    # 안쪽 28% 페이드 마스크(직사각 경계 완화)
     mask = Image.new("L", (fw, fh), 0)
     md = ImageDraw.Draw(mask)
     fade = max(1, int(fw * 0.28))
     for x in range(fw):
-        md.line([(x, 0), (x, fh)], fill=255 if x >= fade else int(255 * x / fade))
+        # right 배치는 좌측이, left 배치는 우측이 '안쪽'
+        d = x if side == "right" else fw - 1 - x
+        md.line([(x, 0), (x, fh)], fill=255 if d >= fade else int(255 * d / fade))
     base.paste(fim, (fx, fy), mask)
+
+
+def _fit_font(draw: ImageDraw.ImageDraw, lines: list[str], max_w: int,
+              start: int = 96, floor: int = 72) -> ImageFont.FreeTypeFont:
+    """가장 긴 줄이 밴드 폭에 들어갈 때까지 폰트를 줄인다(좁은 구도에서 잘림 방지)."""
+    size = start
+    while size > floor:
+        f = ImageFont.truetype(font_bold(), size)
+        if max((draw.textlength(l, font=f) for l in lines), default=0) <= max_w:
+            return f
+        size -= 4
+    return ImageFont.truetype(font_bold(), floor)
 
 
 def render_title_card(headline: list[str], hook_word: str,
                       background: Path | None = None,
                       out_name: str = "title_card",
                       accent: tuple = RED,
-                      face: Path | None = None) -> Path:
+                      face: Path | None = None,
+                      layout: "_Layout | None" = None) -> Path:
+    """썸네일 겸 도입 훅 카드. layout 미지정 시 날짜 기반으로 구도가 회전한다."""
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    lay = layout or pick_layout()
+    has_face = bool(face and Path(face).exists())
+
     if background and Path(background).exists():
         base = _darken(Image.open(background), 0.42)
     else:
         base = Image.new("RGB", (SHORTS_WIDTH, SHORTS_HEIGHT), (22, 30, 54))
 
-    # 정치인 얼굴 부각(있으면 화살표 대신 얼굴을 초점으로)
-    if face and Path(face).exists():
-        _paste_face(base, face)
+    # 정치인 얼굴 부각(있으면 화살표 대신 얼굴을 초점으로) — 구도별 좌/우·크기 변주
+    if has_face:
+        _paste_face(base, face, side=lay.face_side, height_ratio=lay.face_h)
 
     draw = ImageDraw.Draw(base, "RGBA")
 
     # 얼굴이 없을 때만 상승 화살표
-    if not (face and Path(face).exists()):
+    if not has_face:
         _rising_arrow(draw, y0=int(SHORTS_HEIGHT * 0.52))
 
-    # 헤드라인 박스
-    font = ImageFont.truetype(font_bold(), 96)
-    line_h = 120
-    total_h = len(headline) * line_h
-    top = int(SHORTS_HEIGHT * 0.16)
-
-    # 반투명 검정 밴드
+    # 헤드라인 밴드 — 구도별 위치·폭·정렬
+    x0 = int(SHORTS_WIDTH * lay.band_x0)
+    x1 = int(SHORTS_WIDTH * lay.band_x1)
     pad = 40
-    band_top = top - pad
-    band_bottom = top + total_h + pad
-    draw.rectangle([40, band_top, SHORTS_WIDTH - 40, band_bottom], fill=(10, 10, 12, 205))
-    # 좌측 액센트 바(영상마다 색 변주)
-    draw.rectangle([40, band_top, 64, band_bottom], fill=accent)
+    font = _fit_font(draw, list(headline), max_w=(x1 - x0) - pad * 3)
+    line_h = int(font.size * 1.25)
+    total_h = len(headline) * line_h
+    top = int(SHORTS_HEIGHT * lay.band_y)
+    band_top, band_bottom = top - pad, top + total_h + pad
+
+    if lay.band_style == "accent":
+        draw.rectangle([x0, band_top, x1, band_bottom], fill=(*accent, 210))
+        draw.rectangle([x0, band_bottom - 12, x1, band_bottom], fill=(10, 10, 12, 230))
+    elif lay.band_style == "none":
+        pass                      # 밴드 없이 두꺼운 외곽선 글자만으로 대비 확보
+    else:
+        draw.rectangle([x0, band_top, x1, band_bottom], fill=(10, 10, 12, 205))
+        draw.rectangle([x0, band_top, x0 + 24, band_bottom], fill=accent)
 
     y = top
     for line in headline:
-        # 강조어는 노란색, 나머지는 흰색. 줄 단위 중앙정렬.
+        # 강조어는 노란색, 나머지는 흰색.
         parts = _split_hook(line, hook_word)
         widths = [draw.textlength(t, font=font) for t, _ in parts]
-        x = (SHORTS_WIDTH - sum(widths)) // 2
+        total_w = sum(widths)
+        if lay.align == "left":
+            x = x0 + pad * 2
+        elif lay.align == "right":
+            x = x1 - pad * 2 - total_w
+        else:
+            x = x0 + ((x1 - x0) - total_w) // 2
         for (txt, is_hook), wdt in zip(parts, widths):
             # 가독성 위한 외곽선
             draw.text((x, y), txt, font=font, fill=(YELLOW if is_hook else WHITE),
-                      stroke_width=6, stroke_fill=DARK)
+                      stroke_width=(14 if lay.band_style == "none" else 6), stroke_fill=DARK)
             x += wdt
         y += line_h
 

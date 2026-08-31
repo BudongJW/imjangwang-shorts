@@ -1,4 +1,8 @@
 name: Daily Real-Estate Short
+# 파일명 v2 이유: 워크플로를 수동 비활성화(2026-08-24)했다가 재활성화(08-28)한 뒤
+# schedule 등록이 살아나지 않아 cron이 3회 연속 미발화(08-28·08-30·08-31).
+# disabled 상태는 '워크플로 파일 경로'에 묶인 ID에 저장되므로, 경로를 바꿔
+# 새 워크플로로 재등록시켜 스케줄을 되살린다. cron 값·잡 내용은 그대로.
 
 on:
   schedule:
@@ -9,6 +13,10 @@ on:
     inputs:
       skip_upload:
         description: "업로드 없이 생성·합성만 (검증용)"
+        type: boolean
+        default: false
+      force:
+        description: "당일 중복 업로드 방지 가드 무시 (올린 영상을 지우고 다시 올릴 때)"
         type: boolean
         default: false
 
@@ -57,6 +65,9 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
+          # force=true면 already_posted_today() 가드를 끈다. 삭제 반영이 늦어
+          # 가드가 걸리면 런은 success인데 업로드는 안 되는 조용한 실패가 난다.
+          SKIP_IF_POSTED_TODAY: ${{ github.event.inputs.force == 'true' && '0' || '1' }}
         run: |
           set +e
           SKIP=""
