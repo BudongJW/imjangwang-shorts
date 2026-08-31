@@ -22,11 +22,17 @@ def save_history(history: list[dict]) -> None:
     )
 
 
-def is_duplicate(title: str, threshold: float = 0.6) -> bool:
+def is_duplicate(
+    title: str, threshold: float = 0.6, history: list[dict] | None = None
+) -> bool:
     """제목이 이전에 사용된 토픽과 유사한지 확인한다.
     단순 키워드 겹침 비율로 판단 (외부 라이브러리 불필요).
+
+    history를 넘기면 파일을 다시 읽지 않는다 — 후보 수백 건을 훑는
+    collect()에서 호출마다 JSON을 재파싱하지 않게 하기 위한 것.
     """
-    history = load_history()
+    if history is None:
+        history = load_history()
     title_words = set(title.lower().split())
 
     for entry in history:
