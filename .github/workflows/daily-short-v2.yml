@@ -15,6 +15,10 @@ on:
         description: "업로드 없이 생성·합성만 (검증용)"
         type: boolean
         default: false
+      force:
+        description: "당일 중복 업로드 방지 가드 무시 (올린 영상을 지우고 다시 올릴 때)"
+        type: boolean
+        default: false
 
 concurrency:
   group: daily-short
@@ -61,6 +65,9 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
+          # force=true면 already_posted_today() 가드를 끈다. 삭제 반영이 늦어
+          # 가드가 걸리면 런은 success인데 업로드는 안 되는 조용한 실패가 난다.
+          SKIP_IF_POSTED_TODAY: ${{ github.event.inputs.force == 'true' && '0' || '1' }}
         run: |
           set +e
           SKIP=""
