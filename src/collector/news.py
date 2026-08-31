@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from urllib.parse import quote, urlparse
 
 import feedparser
@@ -21,7 +23,7 @@ from config.settings import (
     NEWS_MAX_CANDIDATES,
     NEWS_BLOCK_DOMAINS,
 )
-from src.collector.history import is_duplicate
+from src.collector.history import is_duplicate, load_history
 from src.utils.logger import setup_logger
 
 log = setup_logger("news")
@@ -59,8 +61,20 @@ def _blocked(url: str) -> bool:
 
 
 def _fetch_rss(query: str) -> list[Article]:
+    """질의 하나의 구글뉴스 RSS를 읽는다. 실패해도 빈 리스트로 넘어간다.
+
+    feedparser.parse(url)은 내부 urllib에 타임아웃이 없어 한 피드가 멈추면
+    잡 전체가 묶인다. 질의를 전부 도는 지금은 노출이 10배라 requests로
+    받아서 넘긴다.
+    """
     url = RSS_TMPL.format(q=quote(query))
-    feed = feedparser.parse(url)
+    try:
+        resp = requests.get(url, timeout=12, headers={"User-Agent": UA})
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        log.warning(f"RSS 수집 실패({query}): {e}")
+        return []
+    feed = feedparser.parse(resp.content)
     out: list[Article] = []
     for e in feed.entries:
         raw = e.get("title", "")
@@ -163,10 +177,55 @@ def topic_score(title: str) -> int:
     return relatability_score(t) + crit * 2 + pain * 3
 
 
+def _age_days(published: str) -> float | None:
+    """RSS pubDate(RFC822) → 현재 기준 경과일. 값이 없거나 파싱 실패면 None."""
+    if not published:
+        return None
+    try:
+        dt = parsedate_to_datetime(published)
+    except (TypeError, ValueError):
+        return None
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - dt).total_seconds() / 86400
+
+
+# 구글뉴스 RSS는 질의어만 맞으면 몇 년 전 기사도 상위로 올려준다. 키워드 점수만으로
+# 정렬하면 옛날 기사가 오늘 통계 기사를 이긴다 — 실측(2026-09-01, 후보 761건)에서
+# 상위 5건이 4개월~6년 전 기사였다. 매일 아침 브리핑 채널이므로 신선도를 점수에
+# 직접 반영한다. 다만 하드 필터가 아니라 감점이다: 전부 오래된 날에도 후보가
+# 비지 않아야 하고, 공시가·보유세처럼 몇 달 지나도 유효한 소재가 실제로 성과를
+# 낸 적이 있다(3월 기사 기반 08-27 영상 2,239회).
+def recency_score(published: str) -> int:
+    age = _age_days(published)
+    if age is None:
+        return -2      # 날짜 불명 — 정상 기사일 수 있으므로 약하게만
+    if age <= 2:
+        return 4       # 오늘·어제 뉴스
+    if age <= 7:
+        return 1
+    if age <= 30:
+        return -3
+    if age <= 90:
+        return -7
+    return -12         # 3개월 초과 — 사실관계가 바뀌었을 가능성이 크다
+
+
+def candidate_score(art: Article) -> int:
+    """정렬용 최종 점수 = 소재 점수 + 신선도."""
+    return topic_score(art.title) + recency_score(art.published)
+
+
 def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
     """부동산 뉴스 후보를 수집한다(중복·차단 제외, 관련성순 정렬)."""
     seen_titles: set[str] = set()
     candidates: list[Article] = []
+    history = load_history()   # 후보마다 재파싱하지 않도록 1회만 읽는다
+    # 질의를 전부 돈다. 예전에는 후보가 max_candidates를 넘으면 break 했는데,
+    # 첫 질의 하나만으로 70건이 넘어 나머지 9개 질의가 한 번도 쓰이지 않았다.
+    # 그 결과 후보 풀이 한 질의에 갇혀, 신선한 기사가 아예 없는 날이 생겼다.
     for q in NEWS_QUERIES:
         for art in _fetch_rss(q):
             key = art.title[:30]
@@ -174,17 +233,19 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
                 continue
             if _blocked(art.google_url):
                 continue
-            if is_duplicate(art.title):
+            if is_duplicate(art.title, history=history):
                 continue
             seen_titles.add(key)
             candidates.append(art)
-        if len(candidates) >= max_candidates:
-            break
-    # 관련성 + 정책 비판 신호로 정렬(좋은 소재 자동 선별)
-    candidates.sort(key=lambda a: topic_score(a.title), reverse=True)
+    # 관련성 + 정책 비판 신호 + 신선도로 정렬(좋은 소재 자동 선별)
+    candidates.sort(key=candidate_score, reverse=True)
     if candidates:
-        log.info(f"수집 {len(candidates)}건 · 최상위 소재점수 "
-                 f"{topic_score(candidates[0].title)} ({candidates[0].title[:24]})")
+        top = candidates[0]
+        age = _age_days(top.published)
+        log.info(f"수집 {len(candidates)}건 · 최상위 {candidate_score(top)}점"
+                 f"(소재 {topic_score(top.title)} + 신선도 {recency_score(top.published)}"
+                 f", {'날짜불명' if age is None else f'{age:.1f}일 전'}) "
+                 f"({top.title[:24]})")
     return candidates[:max_candidates]
 
 
@@ -195,7 +256,11 @@ def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None
     for art in candidates[:top_n]:
         _resolve_and_enrich(art, session)
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
-            log.info(f"선정(소재점수 {topic_score(art.title)}): {art.title} ({art.source})")
+            age = _age_days(art.published)
+            log.info(f"선정({candidate_score(art)}점 = 소재 {topic_score(art.title)} + "
+                     f"신선도 {recency_score(art.published)}, "
+                     f"{'날짜불명' if age is None else f'{age:.1f}일 전'}): "
+                     f"{art.title} ({art.source})")
             return art
         time.sleep(0.5)
     return candidates[0] if candidates else None
