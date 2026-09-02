@@ -27,14 +27,47 @@ def _keys() -> list[str]:
     return [k.strip() for k in os.getenv("GEMINI_IMAGE_KEY", "").split(",") if k.strip()]
 
 
-def _prompt(headline: str) -> str:
+# 장면을 고정하면 매일 같은 그림이 나온다. 실제로 "골든아워 고층 아파트"만
+# 반복돼 며칠째 썸네일이 똑같아 보였다. 구도(4종)·액센트(5종)와 같은 방식으로
+# 날짜 기반 회전시킨다. 서로 시간대·날씨·피사체가 겹치지 않게 골랐다.
+SCENES = (
+    "golden-hour skyline of dense high-rise apartment complexes, warm amber light, "
+    "long shadows, shot from a rooftop",
+    "rainy night street below apartment towers, wet asphalt reflecting window lights, "
+    "cold blue and neon tones, shallow depth of field",
+    "foggy grey dawn over an older low-rise apartment estate, muted desaturated palette, "
+    "bare trees, quiet empty playground",
+    "construction site at dusk — tower cranes and concrete frames of unfinished "
+    "apartments, silhouettes against a deep orange sky",
+    "winter snowfall over a Seoul apartment district, overcast white sky, "
+    "snow on rooftops and parked cars, cold desaturated tones",
+    "aerial drone view of the Han river at blue hour with apartment blocks lining "
+    "both banks, city lights just switching on",
+    "narrow old alley of low-rise villas and semi-basement windows, harsh midday sun, "
+    "cramped and worn textures",
+    "empty ground-floor commercial strip under an apartment building, shutters down, "
+    "flat overcast afternoon light, deserted",
+)
+
+
+def _today_ord() -> int:
+    """KST 기준 날짜 일련번호 — 장면 회전의 기준."""
+    from datetime import datetime, timezone, timedelta
+    return datetime.now(timezone(timedelta(hours=9))).date().toordinal()
+
+
+def pick_scene(day_ord: int | None = None) -> str:
+    d = day_ord if day_ord is not None else _today_ord()
+    return SCENES[d % len(SCENES)]
+
+
+def _prompt(headline: str, day_ord: int | None = None) -> str:
     topic = (headline or "한국 부동산").replace("\n", " ")
     return (
         "Create a photorealistic, cinematic vertical (9:16) background image for a "
         f"Korean real-estate news short about: '{topic}'. "
-        "Show fitting Korean urban real-estate scenery — modern high-rise apartment "
-        "complexes, Seoul city skyline, dramatic golden-hour or moody sky. "
-        "Ultra-detailed, professional news thumbnail look. "
+        f"Scene: {pick_scene(day_ord)}. "
+        "Korean urban setting. Ultra-detailed, professional news thumbnail look. "
         "ABSOLUTELY NO text, letters, numbers, logos or watermarks."
     )
 
