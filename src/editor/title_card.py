@@ -60,6 +60,23 @@ def pick_layout(day_ord: int | None = None) -> _Layout:
     return LAYOUTS[(day_ord if day_ord is not None else _today_ord()) % len(LAYOUTS)]
 
 
+def pick_face(day_ord: int | None = None):
+    """assets/faces/ 안의 사진을 날짜별로 돌려 쓴다.
+
+    사진이 한 장뿐이면 매일 같은 얼굴이 나온다 — 며칠째 썸네일이 똑같아
+    보인 원인 중 하나다. 폴더에 파일을 더 넣으면 자동으로 회전한다.
+    """
+    from config.settings import FACES_DIR, FACE_EXTS, POLITICIAN_FACE
+    if not FACES_DIR.exists():
+        return POLITICIAN_FACE if POLITICIAN_FACE.exists() else None
+    faces = sorted(p for p in FACES_DIR.iterdir()
+                   if p.suffix.lower() in FACE_EXTS and p.is_file())
+    if not faces:
+        return POLITICIAN_FACE if POLITICIAN_FACE.exists() else None
+    d = day_ord if day_ord is not None else _today_ord()
+    return faces[d % len(faces)]
+
+
 def pick_accent(day_ord: int | None = None) -> tuple:
     """무작위 대신 날짜 기반 회전 — 구도(4)×색(5)이 20일간 같은 조합 없이 돈다."""
     d = day_ord if day_ord is not None else _today_ord()

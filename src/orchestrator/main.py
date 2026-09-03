@@ -25,7 +25,7 @@ from src.collector.history import record_topic
 from src.script_gen.generator import generate, ShortPlan
 from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
-from src.editor.title_card import render_title_card, render_headline_banner, pick_accent
+from src.editor.title_card import render_title_card, pick_face, render_headline_banner, pick_accent
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
 
@@ -159,7 +159,7 @@ def run(skip_upload: bool = False) -> int:
     title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
     accent = pick_accent()   # 영상마다 액센트 색 변주(획일성 완화)
     # 정책 비판 대상 정치인 얼굴 부각(타이틀카드 + 영상 중간 세그먼트)
-    face = POLITICIAN_FACE if (POLITICIAN_FACE_ENABLED and POLITICIAN_FACE.exists()) else None
+    face = pick_face() if POLITICIAN_FACE_ENABLED else None
     title_card = render_title_card(plan.headline, plan.hook_word,
                                    background=title_bg, accent=accent, face=face)
     if face:
