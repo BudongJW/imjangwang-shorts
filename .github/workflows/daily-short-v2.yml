@@ -62,6 +62,11 @@ jobs:
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           GEMINI_IMAGE_KEY: ${{ secrets.GEMINI_IMAGE_KEY }}
+          # AI 배경 생성 ON. 기본값이 0이라 지금껏 generate_background()가
+          # 아예 호출되지 않았고, 그래서 장면 회전(253b652)도 무효였다.
+          # 키 한도 소진·결제 미설정이면 None을 반환해 기존 배경으로 폴백하므로
+          # 켜도 파이프라인이 멈추지는 않는다.
+          AI_THUMBNAIL: '1'
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
