@@ -38,16 +38,21 @@ class _Layout:
     face_side: str      # right | left (left면 좌우 반전해 페이드가 안쪽을 향함)
     face_h: float       # 얼굴 높이 (높이 비율)
     band_style: str     # dark(반투명 검정) | accent(액센트 색 밴드)
+    face_w: float       # 얼굴 폭 상한 (너비 비율) — 배경이 보이도록 제한
+    face_crop: str      # full(원본 그대로) | head(상단 위주로 잘라 클로즈업)
 
 
 # 매일 다른 그림이 나오도록 구도를 4종으로 나눠 회전시킨다.
 # 밴드 폭은 전폭 고정(좁히면 오토핏이 폰트를 줄여 그리드에서 안 읽힘).
 # 변주는 세로 위치 · 정렬 · 밴드 스타일 · 얼굴 좌우/크기로 준다.
+# 얼굴 폭 상한(face_w)이 없던 때는 원본 비율(689x920)이 그대로 커져 프레임 폭의
+# 77~98%를 얼굴이 덮었다. 배경이 보이지 않으니 배경을 바꿔도 썸네일이 똑같아
+# 보였다. 폭을 42~58%로 묶고 크롭 방식(전신/클로즈업)까지 갈라 놓는다.
 LAYOUTS = (
-    _Layout("top-center",  0.14, 0.03, 0.97, "center", "right", 0.64, "dark"),
-    _Layout("bottom-left", 0.58, 0.03, 0.97, "center", "left",  0.74, "accent"),
-    _Layout("mid-left",    0.38, 0.03, 0.97, "left",   "right", 0.58, "none"),
-    _Layout("top-right",   0.14, 0.03, 0.97, "right",  "left",  0.68, "accent"),
+    _Layout("top-center",  0.14, 0.03, 0.97, "center", "right", 0.70, "dark",   0.62, "full"),
+    _Layout("bottom-left", 0.58, 0.03, 0.97, "center", "left",  0.60, "accent", 0.54, "head"),
+    _Layout("mid-left",    0.38, 0.03, 0.97, "left",   "right", 0.76, "none",   0.68, "full"),
+    _Layout("top-right",   0.14, 0.03, 0.97, "right",  "left",  0.56, "accent", 0.50, "head"),
 )
 
 
@@ -106,8 +111,9 @@ def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
     )
 
 
-def _paste_face(base: Image.Image, face: Path,
-                side: str = "right", height_ratio: float = 0.64) -> None:
+def _paste_face(base: Image.Image, face: Path, side: str = "right",
+                height_ratio: float = 0.62, width_ratio: float = 0.52,
+                crop: str = "full") -> None:
     """정치인 얼굴을 좌/우 바닥에 부각(안쪽 경계는 페이드로 배경에 블렌드).
 
     side="left"면 이미지를 좌우 반전해 시선이 화면 안쪽을 향하게 하고,
@@ -117,8 +123,16 @@ def _paste_face(base: Image.Image, face: Path,
         fim = Image.open(face).convert("RGB")
     except Exception:
         return
+    if crop == "head":
+        # 상단 62%만 남겨 머리·얼굴 위주 클로즈업 — 같은 사진도 다른 그림이 된다
+        fim = fim.crop((0, 0, fim.width, int(fim.height * 0.62)))
     fh = int(SHORTS_HEIGHT * height_ratio)
     fw = int(fim.width * fh / fim.height)
+    # 폭 상한: 얼굴이 프레임을 덮어 배경을 가리지 않게 한다
+    cap = int(SHORTS_WIDTH * width_ratio)
+    if fw > cap:
+        fh = int(fh * cap / fw)
+        fw = cap
     fim = fim.resize((fw, fh), Image.LANCZOS)
     if side == "left":
         fim = fim.transpose(Image.FLIP_LEFT_RIGHT)
@@ -168,7 +182,8 @@ def render_title_card(headline: list[str], hook_word: str,
 
     # 정치인 얼굴 부각(있으면 화살표 대신 얼굴을 초점으로) — 구도별 좌/우·크기 변주
     if has_face:
-        _paste_face(base, face, side=lay.face_side, height_ratio=lay.face_h)
+        _paste_face(base, face, side=lay.face_side, height_ratio=lay.face_h,
+                    width_ratio=lay.face_w, crop=lay.face_crop)
 
     draw = ImageDraw.Draw(base, "RGBA")
 
