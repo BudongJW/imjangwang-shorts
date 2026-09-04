@@ -40,8 +40,11 @@ def _check_stored_token_age(token_path: Path):
         )
 
 
-def get_youtube_service():
-    """YouTube API 서비스 객체를 생성한다.
+def get_credentials() -> Credentials:
+    """OAuth 자격증명을 로드/갱신해 반환한다.
+
+    Data API(업로드)와 Analytics API(성적 분석)가 같은 토큰을 공유하도록
+    서비스 객체 생성과 분리돼 있다.
 
     토큰 소스 우선순위:
     1. YOUTUBE_TOKEN_JSON 환경변수 (GitHub Actions용, JSON 문자열)
@@ -85,7 +88,12 @@ def get_youtube_service():
             TOKEN_PATH.write_text(creds.to_json())
 
     _check_stored_token_age(TOKEN_PATH)
-    return build("youtube", "v3", credentials=creds)
+    return creds
+
+
+def get_youtube_service():
+    """YouTube Data API v3 서비스 객체를 생성한다."""
+    return build("youtube", "v3", credentials=get_credentials())
 
 
 def already_posted_today(tz_offset_hours: int = 9) -> bool:

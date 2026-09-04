@@ -19,7 +19,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/youtube"]
+# yt-analytics.readonly는 성적 리포트(시청지속률·유입경로)용.
+# 기존 토큰에 이 스코프가 없으면 Analytics API가 403이 나므로, 재인증할 때
+# 함께 받아둔다. 업로드 경로(src/uploader/youtube.py)의 SCOPES는 그대로 둔다 —
+# 요청 스코프가 부여 스코프의 부분집합이면 refresh는 정상 동작한다.
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
+]
 CLIENT_SECRET = Path(__file__).parent.parent / "config" / "client_secret.json"
 TOKEN_PATH = Path(__file__).parent.parent / "config" / "youtube_token.json"
 
