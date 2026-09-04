@@ -118,9 +118,30 @@ def _pexels(query: str, n: int) -> list[Image.Image]:
         return []
 
 
+# 검색어를 고정하면 Pexels가 매번 같은 사진군을 준다. 날짜별로 돌려
+# 배경이 겹치지 않게 한다(썸네일 구도·얼굴 크롭 회전과 같은 방식).
+PEXELS_QUERIES = (
+    "seoul apartment building",
+    "korean city skyline night",
+    "apartment construction site",
+    "seoul street rain",
+    "high rise apartment window",
+    "moving boxes empty room",
+    "real estate agency window",
+    "han river apartment aerial",
+)
+
+
+def _today_query() -> str:
+    from datetime import datetime, timezone, timedelta
+    d = datetime.now(timezone(timedelta(hours=9))).date().toordinal()
+    return PEXELS_QUERIES[d % len(PEXELS_QUERIES)]
+
+
 def collect_backgrounds(article_image_url: str = "", need: int = 3,
-                        query: str = "seoul apartment real estate") -> list[Path]:
+                        query: str = "") -> list[Path]:
     """b-roll 배경 이미지 need개를 확보해 파일로 저장하고 경로 리스트 반환."""
+    query = query or _today_query()
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     pool: list[Image.Image] = []
 
@@ -135,7 +156,10 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
     if len(pool) < need:
         pool += _pexels(query, need - len(pool))
 
-    idx = 0
+    # 폴백 그라디언트도 날짜를 시작점으로 — 소스가 전부 실패한 날에도
+    # 최소한 어제와 같은 색은 피한다.
+    from datetime import datetime, timezone, timedelta
+    idx = datetime.now(timezone(timedelta(hours=9))).date().toordinal()
     while len(pool) < need:
         pool.append(_gradient(idx))
         idx += 1

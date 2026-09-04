@@ -38,21 +38,31 @@ class _Layout:
     face_side: str      # right | left (left면 좌우 반전해 페이드가 안쪽을 향함)
     face_h: float       # 얼굴 높이 (높이 비율)
     band_style: str     # dark(반투명 검정) | accent(액센트 색 밴드)
-    face_w: float       # 얼굴 폭 상한 (너비 비율) — 배경이 보이도록 제한
-    face_crop: str      # full(원본 그대로) | head(상단 위주로 잘라 클로즈업)
+    face_w: float       # 얼굴 폭 상한 (너비 비율)
+    face_crop: tuple    # 원본에서 잘라낼 창 (l, t, r, b) 비율 — 같은 사진을 다른 그림으로
 
 
 # 매일 다른 그림이 나오도록 구도를 4종으로 나눠 회전시킨다.
 # 밴드 폭은 전폭 고정(좁히면 오토핏이 폰트를 줄여 그리드에서 안 읽힘).
 # 변주는 세로 위치 · 정렬 · 밴드 스타일 · 얼굴 좌우/크기로 준다.
-# 얼굴 폭 상한(face_w)이 없던 때는 원본 비율(689x920)이 그대로 커져 프레임 폭의
-# 77~98%를 얼굴이 덮었다. 배경이 보이지 않으니 배경을 바꿔도 썸네일이 똑같아
-# 보였다. 폭을 42~58%로 묶고 크롭 방식(전신/클로즈업)까지 갈라 놓는다.
+# 사진이 한 장뿐이라 '크기'로만 변주하면 두 가지가 다 나빠진다. 크게 두면
+# 매일 같은 그림이고, 작게 줄이면 배경(현재 조잡한 그라디언트 폴백)이 드러나
+# 화면이 텅 빈다. 실제로 09-04 썸네일이 하단에 잘린 얼굴 + 빈 검정이 됐다.
+# 그래서 크기는 화면을 채우는 선에서 두고, 원본에서 '어디를 잘라내는지'를
+# 바꾼다. 같은 사진이 눈 클로즈업·얼굴·상반신으로 전혀 다르게 보인다.
 LAYOUTS = (
-    _Layout("top-center",  0.14, 0.03, 0.97, "center", "right", 0.70, "dark",   0.62, "full"),
-    _Layout("bottom-left", 0.58, 0.03, 0.97, "center", "left",  0.60, "accent", 0.54, "head"),
-    _Layout("mid-left",    0.38, 0.03, 0.97, "left",   "right", 0.76, "none",   0.68, "full"),
-    _Layout("top-right",   0.14, 0.03, 0.97, "right",  "left",  0.56, "accent", 0.50, "head"),
+    # 얼굴 전체 (기존 구도에 가까움)
+    _Layout("full-right",  0.14, 0.03, 0.97, "center", "right", 0.74, "dark",   0.98,
+            (0.00, 0.00, 1.00, 1.00)),
+    # 눈·이마 클로즈업 — 가장 강한 인상
+    _Layout("eyes-left",   0.62, 0.03, 0.97, "center", "left",  0.62, "accent", 1.00,
+            (0.10, 0.02, 0.98, 0.46)),
+    # 얼굴 위주(턱 위로 잘라 정면성 강조)
+    _Layout("head-right",  0.40, 0.03, 0.97, "left",   "right", 0.70, "none",   0.95,
+            (0.02, 0.00, 1.00, 0.64)),
+    # 상반신 — 인물이 작고 배경이 살짝 보이는 구도
+    _Layout("bust-left",   0.14, 0.03, 0.97, "right",  "left",  0.86, "accent", 0.90,
+            (0.00, 0.18, 1.00, 1.00)),
 )
 
 
@@ -112,8 +122,8 @@ def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
 
 
 def _paste_face(base: Image.Image, face: Path, side: str = "right",
-                height_ratio: float = 0.62, width_ratio: float = 0.52,
-                crop: str = "full") -> None:
+                height_ratio: float = 0.62, width_ratio: float = 0.95,
+                crop: tuple = (0.0, 0.0, 1.0, 1.0)) -> None:
     """정치인 얼굴을 좌/우 바닥에 부각(안쪽 경계는 페이드로 배경에 블렌드).
 
     side="left"면 이미지를 좌우 반전해 시선이 화면 안쪽을 향하게 하고,
@@ -123,9 +133,10 @@ def _paste_face(base: Image.Image, face: Path, side: str = "right",
         fim = Image.open(face).convert("RGB")
     except Exception:
         return
-    if crop == "head":
-        # 상단 62%만 남겨 머리·얼굴 위주 클로즈업 — 같은 사진도 다른 그림이 된다
-        fim = fim.crop((0, 0, fim.width, int(fim.height * 0.62)))
+    if crop and crop != (0.0, 0.0, 1.0, 1.0):
+        l, t, r, b = crop
+        fim = fim.crop((int(fim.width * l), int(fim.height * t),
+                        int(fim.width * r), int(fim.height * b)))
     fh = int(SHORTS_HEIGHT * height_ratio)
     fw = int(fim.width * fh / fim.height)
     # 폭 상한: 얼굴이 프레임을 덮어 배경을 가리지 않게 한다
