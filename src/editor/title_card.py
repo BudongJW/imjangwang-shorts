@@ -92,6 +92,37 @@ def pick_face(day_ord: int | None = None):
     return faces[d % len(faces)]
 
 
+def face_credit(face) -> str:
+    """오늘 쓴 얼굴 사진의 출처 표기 문구. 없으면 빈 문자열.
+
+    KOGL 1유형·CC BY 계열은 출처 표시가 의무라 영상 설명란에 넣어야 한다.
+    credits.json에 없는 파일이면(사용자가 직접 넣은 사진 등) 표기를 만들지
+    않는다 — 잘못된 출처를 붙이는 것보다 비우는 편이 낫다.
+    """
+    if not face:
+        return ""
+    import json
+    from config.settings import FACES_DIR
+    meta_path = FACES_DIR / "credits.json"
+    if not meta_path.exists():
+        return ""
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    m = meta.get(Path(face).name)
+    if not m:
+        return ""
+    parts = [m.get("title", "")]
+    if m.get("author"):
+        parts.append(m["author"])
+    if m.get("source"):
+        parts.append(m["source"])
+    if m.get("license"):
+        parts.append(m["license"])
+    return " / ".join(x for x in parts if x)
+
+
 def pick_accent(day_ord: int | None = None) -> tuple:
     """무작위 대신 날짜 기반 회전 — 구도(4)×색(5)이 20일간 같은 조합 없이 돈다."""
     d = day_ord if day_ord is not None else _today_ord()

@@ -94,6 +94,55 @@ def _fetch_rss(query: str) -> list[Article]:
     return out
 
 
+# og:image 하나만 보면 기사 대표사진이 자주 비고, 그러면 배경이 폴백
+# 그라디언트로 떨어져 썸네일이 텅 빈다. 후보를 넓히고 명백한 로고·아이콘만
+# 걸러낸다.
+_IMG_META = (
+    ("meta", {"property": "og:image"}),
+    ("meta", {"property": "og:image:url"}),
+    ("meta", {"name": "twitter:image"}),
+    ("meta", {"name": "twitter:image:src"}),
+    ("link", {"rel": "image_src"}),
+)
+_IMG_BAD = ("logo", "favicon", "icon", "sprite", "blank", "default_",
+            "profile", "avatar", "banner", "btn_", "ico_")
+
+
+def _pick_article_image(soup, page_url: str) -> str:
+    """기사 대표 이미지 URL을 고른다. 메타 태그 우선, 없으면 본문 <img>."""
+    from urllib.parse import urljoin
+
+    def ok(u: str) -> bool:
+        if not u or u.startswith("data:"):
+            return False
+        low = u.lower()
+        return not any(b in low for b in _IMG_BAD)
+
+    for tag, attrs in _IMG_META:
+        el = soup.find(tag, attrs=attrs)
+        if not el:
+            continue
+        u = el.get("content") or el.get("href") or ""
+        if ok(u):
+            return urljoin(page_url, u)
+
+    # 메타가 없으면 본문에서 가장 큰 이미지를 고른다(width/height 속성 기준).
+    best, best_area = "", 0
+    for img in soup.find_all("img")[:60]:
+        u = img.get("src") or img.get("data-src") or img.get("data-original") or ""
+        if not ok(u):
+            continue
+        try:
+            area = int(img.get("width", 0) or 0) * int(img.get("height", 0) or 0)
+        except (TypeError, ValueError):
+            area = 0
+        if area > best_area:
+            best, best_area = urljoin(page_url, u), area
+        elif not best:
+            best = urljoin(page_url, u)     # 크기 정보가 없으면 첫 후보라도
+    return best
+
+
 def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
     """구글뉴스 리다이렉트를 따라가 원문 URL·본문·이미지를 채운다. 실패해도 무해."""
     try:
@@ -111,9 +160,7 @@ def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
         if _blocked(final):
             return
         soup = BeautifulSoup(r.text, "lxml")
-        og = soup.find("meta", property="og:image")
-        if og and og.get("content"):
-            art.image_url = og["content"]
+        art.image_url = _pick_article_image(soup, final)
         # 요약 소스1: 메타 설명(og:description / description) — 대개 기사 1~2문장 요약
         desc = ""
         for attrs in ({"property": "og:description"}, {"name": "description"}):

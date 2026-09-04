@@ -25,7 +25,8 @@ from src.collector.history import record_topic
 from src.script_gen.generator import generate, ShortPlan
 from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
-from src.editor.title_card import render_title_card, pick_face, render_headline_banner, pick_accent
+from src.editor.title_card import (render_title_card, pick_face, face_credit,
+                                   render_headline_banner, pick_accent)
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
 
@@ -97,13 +98,16 @@ def _load_pinned_plan():
         return None
 
 
-def _build_description(plan, art) -> str:
+def _build_description(plan, art, face=None) -> str:
     tags = " ".join(f"#{t.lstrip('#')}" for t in (plan.hashtags or DEFAULT_HASHTAGS))
     src = f"\n\n출처: {art.source} {art.url}".rstrip() if getattr(art, "url", "") else ""
+    # 인물 사진 출처 — KOGL 1유형·CC BY 계열은 표시가 의무다
+    credit = face_credit(face)
+    photo = f"\n사진: {credit}" if credit else ""
     return (
         f"{plan.youtube_title}\n\n"
         f"{plan.caption_script}\n\n"
-        f"{FIXED_CTA}{src}\n\n{tags}\n\n"
+        f"{FIXED_CTA}{src}{photo}\n\n{tags}\n\n"
         "※ 본 영상은 공개된 뉴스를 바탕으로 한 정보 제공용이며 투자 권유가 아닙니다."
     )
 
@@ -184,7 +188,7 @@ def run(skip_upload: bool = False) -> int:
         video_id = youtube.upload(
             final,
             title=_title_with_tags(plan),
-            description=_build_description(plan, art),
+            description=_build_description(plan, art, face=face),
             tags=[t.lstrip("#") for t in (plan.hashtags or DEFAULT_HASHTAGS)],
         )
         # 타이틀카드(AI배경+헤드라인)를 커스텀 썸네일로 설정
