@@ -73,13 +73,25 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
    쓰지 말 것. 현 정부의 책임은 '이어받아 유지·강화·악화시켰다'로 정확히 구분해 서술한다.
    확인 안 된 주체·연도는 아예 특정하지 말 것(허위 귀속은 채널 신뢰를 무너뜨림).
 
+12. [제목 형식 — 중요] youtube_title은 기사 요약이 아니라 '누가 무슨 말을
+   했는지'가 드러나야 한다. 다음 중 하나를 쓴다.
+   (a) "발언 인용" + 주체:  "전세 감소는 정상화 과정" 이 대통령 발언의 속뜻
+   (b) 주체 + "발언 인용":  국토부가 확인해 줬다 "월세 비중 68% 역대 최고"
+   기사에 사람의 발언이 없으면 발표 주체(국토교통부·한국부동산원·국세청 등)를
+   주체로 쓰고, 그 기관이 낸 수치를 따옴표 안에 넣는다.
+   따옴표 안 문장은 기사에 실제로 있는 표현이어야 한다. 지어내지 말 것.
+   주체를 특정할 수 없으면 따옴표 없이 쓰되, 이 경우에도 숫자를 앞에 둔다.
+
+13. [발언 주체 명시] script 안에서도 수치를 처음 말할 때 출처 기관을 붙인다.
+   "국토교통부 7월 주택통계입니다" 처럼. 출처 없는 숫자는 신뢰를 못 얻는다.
+
 [출력: 아래 JSON만, 다른 텍스트 없이]
 {{
   "headline": ["타이틀 1줄", "타이틀 2줄", "(선택)3줄"],   // 각 줄 12자 이내, 정책 문제 겨냥
   "hook_word": "헤드라인에서 노랗게 강조할 핵심 단어 1개",
   "highlight_sentence": "기사에서 형광펜 칠할 핵심 한 문장(20자 내외)",
-  "script": "말하는 문장만. 300~340자. 지문·괄호·타임스탬프 없이.",
-  "youtube_title": "정책 문제를 겨냥한 클릭유도형 제목(35자 이내, 해시태그·이모지 제외)",
+  "script": "말하는 문장만. 240~280자. 지문·괄호·타임스탬프 없이.",
+  "youtube_title": "따옴표 인용 + 발언 주체 형식의 제목(38자 이내, 해시태그·이모지 제외)",
   "hashtags": ["부동산","집값","..."]
 }}
 """
@@ -152,7 +164,7 @@ def _fallback_plan(art) -> ShortPlan:
         highlight_sentence=title[:24],
         caption_script=script,
         speech_script=to_speech(script),
-        youtube_title=title[:35],
+        youtube_title=title[:38],
         hashtags=DEFAULT_HASHTAGS,
     )
 
@@ -190,8 +202,13 @@ def _clean_script(text: str) -> str:
     return text
 
 
-def _cap_length(text: str, max_chars: int = 430) -> str:
-    """너무 긴 대본은 문장 경계에서 안전하게 자른다(쇼츠 길이 폭주 방지)."""
+def _cap_length(text: str, max_chars: int = 320) -> str:
+    """너무 긴 대본은 문장 경계에서 안전하게 자른다(쇼츠 길이 폭주 방지).
+
+    실측 환산은 약 6.4자/초다. 320자면 50초 언저리이고, 목표 구간
+    240~280자는 38~44초가 된다. 경쟁 채널(정치대학·쇼킹부동산) 쇼츠가
+    대부분 40초대이고, 우리 09-04분은 63초까지 늘어졌다.
+    """
     if len(text) <= max_chars:
         return text
     cut = text[:max_chars]
@@ -224,7 +241,7 @@ def generate(art) -> ShortPlan:
         highlight_sentence=_clean_script(normalize_caption(str(data.get("highlight_sentence", ""))[:30])),
         caption_script=script,
         speech_script=to_speech(script),
-        youtube_title=_clean_script(normalize_caption(str(data.get("youtube_title", getattr(art, "title", "")))[:40])),
+        youtube_title=_clean_script(normalize_caption(str(data.get("youtube_title", getattr(art, "title", "")))[:38])),
         hashtags=(data.get("hashtags") or DEFAULT_HASHTAGS)[:8],
     )
     log.info(f"대본 생성 완료: {plan.youtube_title}")
