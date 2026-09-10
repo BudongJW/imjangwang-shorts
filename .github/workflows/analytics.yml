@@ -7,6 +7,10 @@ name: Channel Performance Report
 on:
   schedule:
     - cron: '53 0 * * *'    # 00:53 UTC = 09:53 KST (업로드 30분 뒤)
+  # 온디맨드 실행용. workflow_dispatch는 API 토큰 권한이 없으면 못 부르므로
+  # 브랜치 push로도 돌게 둔다(업로드 워크플로와 같은 방식).
+  push:
+    branches: ['run/analytics-*']
   workflow_dispatch:
     inputs:
       days:
