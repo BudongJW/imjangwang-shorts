@@ -54,6 +54,12 @@ def _summary(text: str) -> None:
     print(text)
 
 
+def _notice(title: str, message: str) -> None:
+    """실행 페이지 맨 위에 뜨는 알림. 요약을 못 찾는 경우가 있어 함께 띄운다."""
+    msg = message.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+    print(f"::notice title={title}::{msg}")
+
+
 def request() -> int:
     cid = os.environ["CID"]
     status, res = _post(DEVICE_URL, {"client_id": cid, "scope": SCOPES})
@@ -71,14 +77,31 @@ def request() -> int:
     with open(STATE, "w", encoding="utf-8") as f:
         json.dump(res, f)
 
+    url, code = res["verification_url"], res["user_code"]
+
+    # 실행 페이지 최상단 알림 — 요약 탭을 못 찾는 경우가 있어 여기에도 띄운다
+    _notice("지금 여기서 인증하세요",
+            f"주소: {url}\n코드: {code}\n"
+            "브라우저에서 위 주소를 열고 코드를 입력한 뒤 '허용'을 누르세요.")
+
+    # 로그에도 크게
+    bar = "=" * 46
+    for line in (bar, "", "   YouTube 인증 — 아래대로 해주세요", "",
+                 f"   1) 주소 열기 :  {url}",
+                 f"   2) 코드 입력 :  {code}",
+                 "   3) 채널 계정 로그인 후 '허용' 클릭", "", bar):
+        print(line)
+
     _summary("## YouTube 인증")
     _summary("")
-    _summary(f"1. 이 주소를 여세요 → **{res['verification_url']}**")
-    _summary(f"2. 코드를 입력하세요 → **`{res['user_code']}`**")
-    _summary("3. 채널 계정으로 로그인하고 접근을 허용하세요")
+    _summary(f"### 1. 이 주소를 여세요")
+    _summary(f"# {url}")
+    _summary(f"### 2. 이 코드를 넣으세요")
+    _summary(f"# `{code}`")
+    _summary("### 3. 채널 계정으로 로그인하고 '허용'을 누르세요")
     _summary("")
-    _summary(f"유효시간 {int(res.get('expires_in', 1800)) // 60}분. "
-             "허용하면 이 실행이 자동으로 시크릿을 갱신합니다.")
+    _summary(f"코드 유효시간 {int(res.get('expires_in', 1800)) // 60}분. "
+             "허용하는 순간 이 실행이 자동으로 시크릿을 갱신하고 끝납니다.")
     _summary("")
     _summary("_토큰 값은 로그에 출력되지 않습니다._")
     return 0
@@ -108,6 +131,9 @@ def poll() -> int:
             return _write_secret(json.dumps(token))
         err = res.get("error", "")
         if err == "authorization_pending":
+            left = int(deadline - time.time())
+            print(f"대기 중… 승인되면 자동으로 끝납니다 (남은 시간 {left // 60}분 {left % 60}초)",
+                  flush=True)
             time.sleep(interval)
             continue
         if err == "slow_down":
