@@ -36,6 +36,11 @@ TOPIC_HISTORY_PATH = ROOT / "output" / "topic_history.json"
 
 _ISO_DUR = re.compile(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?")
 
+# 하루당 조회수로 '평균 이상/이하'를 판정하기 위한 최소 경과 시간.
+MIN_AGE_H_FOR_VERDICT = 24.0
+# 이 시간 이상 증가가 0이면 배포가 멈춘 것으로 보고 경고한다.
+STALL_H = 1.0
+
 
 def _duration_seconds(iso: str) -> int:
     m = _ISO_DUR.fullmatch(iso or "")
@@ -227,13 +232,25 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     if peer:
         rank = ranked.index(latest) + 1
         peer_med_vpd = sorted(v["views_per_day"] for v in peer)[len(peer) // 2]
-        verdict = "평균 이상" if latest["views_per_day"] >= peer_med_vpd else "평균 이하"
-        lines.append(f"- 하루당 {latest['views_per_day']:.1f}회 vs 나머지 중앙값 "
-                     f"{peer_med_vpd:.1f}회 → **{verdict}**")
+        # 하루당 환산은 24시간이 지나야 의미가 있다. 갓 올린 영상은 초기
+        # 몇 분의 조회수를 24배로 부풀려 무조건 '평균 이상'으로 나온다.
+        # (2026-08-31 실측: 3시간짜리 영상이 1위로 표시됐다가 하루 뒤 하위권)
+        if latest["age_hours"] >= MIN_AGE_H_FOR_VERDICT:
+            verdict = "평균 이상" if latest["views_per_day"] >= peer_med_vpd else "평균 이하"
+            lines.append(f"- 하루당 {latest['views_per_day']:.1f}회 vs 나머지 중앙값 "
+                         f"{peer_med_vpd:.1f}회 → **{verdict}**")
+        else:
+            lines.append(f"- 경과 {latest['age_hours']:.1f}시간 → **판정 보류** "
+                         f"(하루당 환산은 {MIN_AGE_H_FOR_VERDICT:.0f}시간 이후부터)")
         lines.append(f"- 전체 {len(public)}개 중 조회수 {rank}위")
     if latest["delta"]:
         gained, hours = latest["delta"]
         lines.append(f"- 지난 스냅샷 이후 {hours:.1f}시간 동안 +{gained:,}회")
+        # 조회수가 멈춘 것이 실제로는 가장 중요한 신호다. 누적 숫자만 보면
+        # 놓치므로 따로 경고한다.
+        if gained == 0 and hours >= STALL_H:
+            lines.append(f"- ⚠️ **{hours:.1f}시간째 증가 0** — 쇼츠 피드에 노출되지 "
+                         f"않고 있다는 뜻이다. 누적 숫자와 무관하게 나쁜 신호.")
     lines.append("")
 
     # 최근 증가 속도 (스냅샷이 쌓여야 의미 있음)
