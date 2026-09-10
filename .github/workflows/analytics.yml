@@ -68,13 +68,22 @@ jobs:
         if: always()
         run: rm -f refreshed_token.json
 
+      # 스냅샷은 반드시 기본 브랜치에 쌓아야 한다. run/analytics-* 브랜치에
+      # 커밋하면 그 브랜치와 함께 사라지고, 다음 실행은 master의 옛 스냅샷과
+      # 비교하게 돼 '지난 실행 대비 증가'가 어긋난다(2026-09-10 실측).
       - name: Persist snapshot
         if: steps.analyze.outcome == 'success'
         run: |
+          set -e
+          [ -f output/performance_history.json ] || exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f output/performance_history.json ]; then
-            git add -f output/performance_history.json
-            git diff --cached --quiet || git commit -m "chore: performance snapshot [skip ci]"
-            git push || echo "push 실패(무시)"
-          fi
+          DEFAULT="${{ github.event.repository.default_branch }}"
+          cp output/performance_history.json /tmp/ph.json
+          git fetch origin "$DEFAULT"
+          git checkout -B "$DEFAULT" "origin/$DEFAULT"
+          mkdir -p output && cp /tmp/ph.json output/performance_history.json
+          git add -f output/performance_history.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: performance snapshot [skip ci]"
+          git push origin "HEAD:$DEFAULT" || echo "push 실패(무시)"
