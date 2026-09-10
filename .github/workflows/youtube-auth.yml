@@ -22,9 +22,13 @@ on:
         type: string
         default: "20"
 
+# cancel-in-progress를 켜두면, 사용자가 코드를 찾다가 다시 Run을 누르는
+# 순간 앞 실행이 죽는다. 그 실행이 device_code를 들고 폴링 중이므로
+# 브라우저에서 승인해도 받아줄 쪽이 없어진다(2026-09-10 실측).
+# 여러 번 눌러도 각 실행이 자기 코드를 끝까지 기다리게 둔다.
 concurrency:
   group: youtube-auth
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   auth:
