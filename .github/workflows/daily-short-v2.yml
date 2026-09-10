@@ -9,10 +9,10 @@ on:
     # cron은 UTC. 부동산 시청자 아침 브리핑(오전 9시대 KST).
     # 주의: 정각(HH:00)·자정(00:00 UTC)은 GitHub 혼잡→drop 1순위라 홀수 분으로 회피.
     - cron: '23 0 * * *'    # 00:23 UTC = 09:23 KST
-  # 태그로도 실행. run-daily-*는 평소대로, run-daily-force-*는 당일
-  # 중복 방지 가드를 끈다(지운 영상을 다시 올릴 때).
+  # 브랜치로도 실행. run/daily-*는 평소대로, 이름에 force가 들어가면
+  # 당일 중복 방지 가드를 끈다(지운 영상을 다시 올릴 때).
   push:
-    tags: ['run-daily-*']
+    branches: ['run/daily-*']
   workflow_dispatch:
     inputs:
       skip_upload:

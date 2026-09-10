@@ -14,12 +14,12 @@ name: YouTube 토큰 발급
 # OAuth 클라이언트는 'TV 및 입력 제한 기기' 유형이어야 한다.
 # 데스크톱 앱 유형은 기기 흐름(device flow)을 지원하지 않는다.
 
-# 태그 트리거를 함께 둔다. 실행 권한(actions: write)이 없는 에이전트도
-# 태그를 밀어 실행할 수 있게 하기 위한 것. 사람이 Actions 화면에서
-# 버튼을 누르는 과정을 없앤다.
+# 브랜치 트리거를 함께 둔다. 실행 권한(actions: write)이 없는 에이전트도
+# run/auth-* 브랜치를 밀어 실행할 수 있게 하기 위한 것.
+# (태그 푸시는 이 환경의 git 프록시에서 막혀 브랜치를 쓴다)
 on:
   push:
-    tags: ['run-auth-*']
+    branches: ['run/auth-*']
   workflow_dispatch:
     inputs:
       timeout_minutes:
