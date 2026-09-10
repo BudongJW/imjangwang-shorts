@@ -15,8 +15,11 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
+from src.utils.logger import setup_logger
 from config.settings import SHORTS_WIDTH, SHORTS_HEIGHT, VIDEO_DIR
 from src.editor.fonts import font_bold
+
+log = setup_logger("title_card")
 
 RED = (206, 32, 32)
 YELLOW = (255, 214, 10)
@@ -90,6 +93,25 @@ def pick_face(day_ord: int | None = None):
         return POLITICIAN_FACE if POLITICIAN_FACE.exists() else None
     d = day_ord if day_ord is not None else _today_ord()
     return faces[d % len(faces)]
+
+
+def resolve_face(pin: str = ""):
+    """얼굴 사진을 정한다.
+
+    pin이 "none"이면 None(얼굴 없음), 파일명이면 그 파일, 비어 있으면
+    기존 날짜 회전. 주제 인물이 다른 날 엉뚱한 얼굴이 붙는 것을 막는다.
+    지정한 파일이 없으면 회전으로 되돌아간다.
+    """
+    from config.settings import FACES_DIR
+    pin = (pin or "").strip()
+    if pin.lower() in ("none", "no", "off"):
+        return None
+    if pin:
+        cand = FACES_DIR / pin
+        if cand.exists():
+            return cand
+        log.warning(f"지정 얼굴 파일 없음({pin}) → 날짜 회전으로 대체")
+    return pick_face()
 
 
 def face_credit(face) -> str:

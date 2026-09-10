@@ -25,7 +25,7 @@ from src.collector.history import record_topic
 from src.script_gen.generator import generate, ShortPlan
 from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
-from src.editor.title_card import (render_title_card, pick_face, face_credit,
+from src.editor.title_card import (render_title_card, resolve_face, face_credit,
                                    render_headline_banner, pick_accent)
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
@@ -88,11 +88,15 @@ def _load_pinned_plan():
             youtube_title=str(p.get("youtube_title", ""))[:40],
             hashtags=list(p.get("hashtags", []) or DEFAULT_HASHTAGS),
         )
+        # 얼굴 지정: "none"이면 인물 사진을 아예 안 넣고, 파일명이면 그 사진을 쓴다.
+        # 주제 인물이 이재명이 아닌 날(예: 다른 인사 의혹)에 엉뚱한 얼굴이
+        # 붙는 것을 막는다. 미지정이면 기존 날짜 회전을 그대로 쓴다.
+        face_pin = str(p.get("face", "")).strip()
         try:
             pin.unlink()   # 1회용(로컬 정리). 러너는 예약일 게이트로 재사용 방지.
         except OSError:
             pass
-        return art, plan
+        return art, plan, face_pin
     except Exception as e:
         log.info(f"지정 대본 로드 실패(무시하고 자동 선택): {e}")
         return None
@@ -131,9 +135,10 @@ def run(skip_upload: bool = False) -> int:
             return 0
 
     # 1~2) 지정 대본(pin)이 오늘용으로 있으면 그것을 사용(사람 검수본), 없으면 자동 수집·생성
+    face_pin = ""
     pinned = _load_pinned_plan()
     if pinned:
-        art, plan = pinned
+        art, plan, face_pin = pinned
         log.info(f"지정 대본 사용(pin): {plan.youtube_title}")
     else:
         # 1) 뉴스 수집
@@ -163,7 +168,9 @@ def run(skip_upload: bool = False) -> int:
     title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
     accent = pick_accent()   # 영상마다 액센트 색 변주(획일성 완화)
     # 정책 비판 대상 정치인 얼굴 부각(타이틀카드 + 영상 중간 세그먼트)
-    face = pick_face() if POLITICIAN_FACE_ENABLED else None
+    face = resolve_face(face_pin) if POLITICIAN_FACE_ENABLED else None
+    log.info(f"  얼굴: {face.name if face else '없음'}"
+             + (f" (지정: {face_pin})" if face_pin else ""))
     title_card = render_title_card(plan.headline, plan.hook_word,
                                    background=title_bg, accent=accent, face=face)
     if face:
