@@ -9,6 +9,10 @@ on:
     # cron은 UTC. 부동산 시청자 아침 브리핑(오전 9시대 KST).
     # 주의: 정각(HH:00)·자정(00:00 UTC)은 GitHub 혼잡→drop 1순위라 홀수 분으로 회피.
     - cron: '23 0 * * *'    # 00:23 UTC = 09:23 KST
+  # 태그로도 실행. run-daily-*는 평소대로, run-daily-force-*는 당일
+  # 중복 방지 가드를 끈다(지운 영상을 다시 올릴 때).
+  push:
+    tags: ['run-daily-*']
   workflow_dispatch:
     inputs:
       skip_upload:
@@ -72,7 +76,7 @@ jobs:
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
           # force=true면 already_posted_today() 가드를 끈다. 삭제 반영이 늦어
           # 가드가 걸리면 런은 success인데 업로드는 안 되는 조용한 실패가 난다.
-          SKIP_IF_POSTED_TODAY: ${{ github.event.inputs.force == 'true' && '0' || '1' }}
+          SKIP_IF_POSTED_TODAY: ${{ (github.event.inputs.force == 'true' || contains(github.ref_name, 'force')) && '0' || '1' }}
         run: |
           set +e
           SKIP=""
