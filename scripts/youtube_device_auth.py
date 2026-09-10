@@ -22,9 +22,12 @@ import urllib.request
 DEVICE_URL = "https://oauth2.googleapis.com/device/code"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 GRANT = "urn:ietf:params:oauth:grant-type:device_code"
-# 업로드(youtube)와 성적 리포트(yt-analytics.readonly)를 함께 받는다.
-SCOPES = ("https://www.googleapis.com/auth/youtube "
-          "https://www.googleapis.com/auth/yt-analytics.readonly")
+# 기기 흐름(device flow)이 허용하는 스코프만 쓴다. yt-analytics.readonly는
+# 거부된다(invalid_scope: Invalid device flow scope, 2026-09-10 실측).
+# 업로드에 필요한 것은 youtube 하나이므로 이것만 받는다.
+# 성적 리포트용 Analytics 스코프는 기기 흐름으로 받을 수 없다 — 필요해지면
+# 로컬 브라우저 흐름(scripts/setup_youtube_token.py)으로 따로 발급해야 한다.
+SCOPES = "https://www.googleapis.com/auth/youtube"
 STATE = "device_state.json"
 
 
