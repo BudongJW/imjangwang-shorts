@@ -154,8 +154,10 @@ def poll() -> int:
 def _write_secret(value: str) -> int:
     """gh secret set으로 기록한다. 값은 stdin으로만 넘겨 프로세스 목록에도 안 남긴다."""
     repo = os.environ["REPO"]
+    # gh secret set에는 --body-file이 없다. --body를 주지 않으면 stdin에서
+    # 읽는다. 값을 인자로 넘기면 프로세스 목록에 남으므로 stdin을 쓴다.
     r = subprocess.run(
-        ["gh", "secret", "set", "YOUTUBE_TOKEN_JSON", "--repo", repo, "--body-file", "-"],
+        ["gh", "secret", "set", "YOUTUBE_TOKEN_JSON", "--repo", repo],
         input=value, text=True, capture_output=True,
     )
     if r.returncode != 0:
