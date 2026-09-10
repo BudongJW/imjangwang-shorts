@@ -71,7 +71,8 @@ jobs:
           # 키 한도 소진·결제 미설정이면 None을 반환해 기존 배경으로 폴백하므로
           # 켜도 파이프라인이 멈추지는 않는다.
           AI_THUMBNAIL: '1'
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          # 시크릿 이름이 PEXELS_KEY로 등록돼 있어 둘 다 받는다.
+          PEXELS_API_KEY: ${{ secrets.PEXELS_KEY || secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
           # force=true면 already_posted_today() 가드를 끈다. 삭제 반영이 늦어
