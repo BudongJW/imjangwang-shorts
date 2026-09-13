@@ -6,6 +6,7 @@ Studio에 들어가는 것은 낭비다. Actions에서 처리할 수 있게 한�
 사용(환경변수):
     ACTION=delete VIDEO_ID=xxxx
     ACTION=retitle VIDEO_ID=xxxx TITLE="새 제목"
+    ACTION=show VIDEO_ID=xxxx          # 올라간 제목·설명 원문 확인
 """
 
 import os
@@ -67,11 +68,35 @@ def retitle(video_id: str, title: str) -> int:
     return 0
 
 
+def show(video_id: str) -> int:
+    """올라간 영상의 제목·설명을 그대로 출력한다.
+
+    시청자가 내용을 문제 삼을 때, 영상에 실제로 어떤 문장이 실렸는지
+    원문으로 확인해야 한다. 유튜브 페이지는 봇 차단이 걸려 밖에서
+    긁을 수 없으므로 API로 읽는다.
+    """
+    yt = get_youtube_service()
+    res = yt.videos().list(part="snippet", id=video_id).execute()
+    items = res.get("items", [])
+    if not items:
+        _summary(f"## 영상을 찾을 수 없습니다: `{video_id}`")
+        return 1
+    sn = items[0]["snippet"]
+    _summary(f"## {video_id}")
+    _summary(f"- 게시: {sn.get('publishedAt', '')}")
+    _summary(f"- 제목: {sn.get('title', '')}")
+    _summary(f"- 태그: {', '.join(sn.get('tags', []) or [])}")
+    _summary("\n### 설명 원문\n```\n" + (sn.get("description", "") or "") + "\n```")
+    return 0
+
+
 if __name__ == "__main__":
     action = os.getenv("ACTION", "").strip()
     vid = os.getenv("VIDEO_ID", "").strip()
     if not vid:
         _summary("VIDEO_ID가 비어 있습니다."); raise SystemExit(1)
+    if action == "show":
+        raise SystemExit(show(vid))
     if action == "delete":
         raise SystemExit(delete(vid))
     if action == "retitle":
@@ -79,5 +104,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (delete | retitle)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | delete | retitle)")
     raise SystemExit(1)
