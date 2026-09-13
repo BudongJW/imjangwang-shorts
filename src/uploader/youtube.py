@@ -96,11 +96,15 @@ def get_youtube_service():
     return build("youtube", "v3", credentials=get_credentials())
 
 
-def already_posted_today(tz_offset_hours: int = 9) -> bool:
-    """오늘(KST) 이미 업로드한 영상이 있으면 True.
+def already_posted_today(tz_offset_hours: int = 9) -> bool | None:
+    """오늘(KST) 이미 업로드했으면 True, 아니면 False, 확인 못 하면 None.
 
     수동으로 먼저 올린 날 자동 스케줄이 겹쳐 '하루 2개'가 되는 것을 막는 가드.
-    어떤 오류든 False(=차단하지 않음)로 처리해 자동 파이프라인을 절대 멈추지 않는다.
+
+    예전에는 오류를 False(=차단하지 않음)로 처리했다. 슬롯이 하나일 때는
+    무해했지만, 지연 보정으로 슬롯을 늘리면 API가 한 번 흔들릴 때마다
+    슬롯 수만큼 중복 업로드가 나갈 수 있다. 그래서 '모른다'를 False로
+    뭉개지 않고 None으로 돌려준다. 판단은 호출부가 한다.
     """
     from datetime import timezone, timedelta
     try:
@@ -118,8 +122,8 @@ def already_posted_today(tz_offset_hours: int = 9) -> bool:
         kst = timezone(timedelta(hours=tz_offset_hours))
         return dt.astimezone(kst).date() == datetime.now(kst).date()
     except Exception as e:
-        print(f"[youtube] already_posted_today 확인 실패(무시하고 진행): {e}")
-        return False
+        print(f"[youtube] already_posted_today 확인 실패: {e}")
+        return None
 
 
 def upload(

@@ -123,15 +123,47 @@ def _title_with_tags(plan) -> str:
     return title[:100]  # 유튜브 제목 100자 제한
 
 
+def _posted_today_in_history() -> bool:
+    """output/topic_history.json에 오늘(KST) 업로드 기록이 있으면 True.
+
+    YouTube API 확인이 실패했을 때 쓰는 2차 방어선. 러너가 업로드 직후
+    커밋하는 파일이라 같은 날 앞선 슬롯의 결과가 남아 있다.
+    """
+    from datetime import timezone, timedelta
+    path = OUTPUT_DIR / "topic_history.json"
+    if not path.exists():
+        return False
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    today = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+    return any(r.get("video_id") and str(r.get("date", "")).startswith(today)
+               for r in rows if isinstance(r, dict))
+
+
 def run(skip_upload: bool = False) -> int:
     log.info(f"=== {CHANNEL_NAME} 쇼츠 생성 시작 {datetime.now():%Y-%m-%d %H:%M} ===")
 
     # 0) 중복 방지: 오늘(KST) 이미 올린 영상이 있으면 자동 실행을 건너뜀.
-    #    (수동 업로드한 날 스케줄이 겹쳐 하루 2개가 되는 것을 막음. 확인 실패 시 그냥 진행.)
+    #    스케줄 지연이 4시간 넘게 일정해 슬롯을 늘려 보정하는데, 슬롯이 여럿이면
+    #    가드가 한 번 헛돌 때마다 그만큼 중복 업로드가 나간다. 그래서 확인에
+    #    실패하면 '올린 적 없다'로 넘기지 않고 건너뛴다. 하루 빠지는 것은
+    #    force 브랜치로 되돌릴 수 있지만, 중복 업로드는 계정이 걸린다.
     if not skip_upload and os.getenv("SKIP_IF_POSTED_TODAY", "1") == "1":
         from src.uploader.youtube import already_posted_today
-        if already_posted_today():
+        posted = already_posted_today()
+        if posted:
             log.info("오늘 이미 업로드된 영상이 있어 자동 생성을 건너뜁니다(중복 방지).")
+            return 0
+        if posted is None:
+            # API로 확인이 안 됐다. 로컬 이력으로 한 번 더 본다 — 러너가 업로드
+            # 직후 커밋해 두는 파일이라, 같은 날 앞 슬롯이 올렸으면 여기 남는다.
+            if _posted_today_in_history():
+                log.info("오늘자 업로드 이력이 있어 건너뜁니다(API 확인 실패 → 로컬 이력).")
+                return 0
+            log.error("업로드 여부를 확인할 수 없어 중복 방지를 위해 건너뜁니다. "
+                      "다시 올리려면 run/daily-force-* 브랜치로 실행하세요.")
             return 0
 
     # 1~2) 지정 대본(pin)이 오늘용으로 있으면 그것을 사용(사람 검수본), 없으면 자동 수집·생성
