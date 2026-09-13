@@ -343,11 +343,15 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     # 아니라 시기를 비교하고 있었다. 그래서 "50초 초과가 2.3배 낫다"는
     # 반대 방향의 결론이 나왔다. 지속률이 잡히는 영상(최근 구간)으로만,
     # 그리고 지속률 기준으로 본다.
-    scored = [v for v in public
-              if v["video_id"] in analytics and v.get("duration_s")]
+    # analytics dict에는 지속률이 안 잡힌 영상도 들어 있다. 그 영상의
+    # averageViewPercentage는 0이라, 그냥 넣으면 중앙값이 0%로 깔리고
+    # 상관계수도 0 더미에 끌려간다(첫 판에서 실제로 그렇게 나왔다).
+    # 값이 실제로 있는 것만 쓴다.
+    def _ret(v):
+        return (analytics.get(v["video_id"]) or {}).get("averageViewPercentage", 0) or 0
+
+    scored = [v for v in public if v.get("duration_s") and _ret(v) > 0]
     if len(scored) >= 6:
-        def _ret(v):
-            return analytics[v["video_id"]].get("averageViewPercentage", 0)
 
         lines.append(f"길이별 시청지속률 중앙값 (지속률이 잡힌 {len(scored)}개):")
         for lo, hi, label in ((0, 50, "50초 미만"), (50, 60, "50~60초"),
@@ -363,8 +367,9 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
         lines.append(f"상관계수: 길이↔지속률 {_corr([v['duration_s'] for v in scored], [_ret(v) for v in scored]):+.2f} · "
                      f"지속률↔조회수 {_corr([_ret(v) for v in scored], [v['views'] for v in scored]):+.2f} · "
                      f"길이↔조회수 {_corr([v['duration_s'] for v in scored], [v['views'] for v in scored]):+.2f}")
-        lines.append("(표본이 20개 안팎이라 방향만 본다. 관측된 길이는 45~92초뿐이므로 "
-                     "45초 미만이 어떤지는 이 데이터로 말할 수 없다.)")
+        durs = sorted(v["duration_s"] for v in scored)
+        lines.append(f"(표본 {len(scored)}개라 방향만 본다. 관측된 길이는 "
+                     f"{durs[0]}~{durs[-1]}초뿐이므로 그 밖은 말할 수 없다.)")
         lines.append("")
 
     return "\n".join(lines)
