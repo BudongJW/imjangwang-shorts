@@ -7,6 +7,8 @@ Studio에 들어가는 것은 낭비다. Actions에서 처리할 수 있게 한�
     ACTION=delete VIDEO_ID=xxxx
     ACTION=retitle VIDEO_ID=xxxx TITLE="새 제목"
     ACTION=show VIDEO_ID=xxxx          # 올라간 제목·설명 원문 확인
+    ACTION=edit VIDEO_ID=xxxx TITLE="새 제목" DESCRIPTION="새 설명"
+        (TITLE/DESCRIPTION은 준 것만 바뀐다)
 """
 
 import os
@@ -68,6 +70,46 @@ def retitle(video_id: str, title: str) -> int:
     return 0
 
 
+def edit(video_id: str, title: str = "", description: str = "") -> int:
+    """제목·설명을 고친다. 준 항목만 바뀌고 나머지는 그대로 둔다.
+
+    snippet은 부분 수정이 안 되므로 기존 값을 읽어 유지한다. 올라간 뒤
+    문구가 잘못된 것을 발견했을 때, 조회수를 버리는 재업로드 대신 쓴다.
+    """
+    if not title and not description:
+        _summary("TITLE과 DESCRIPTION이 모두 비어 있습니다.")
+        return 1
+    yt = get_youtube_service()
+    res = yt.videos().list(part="snippet", id=video_id).execute()
+    items = res.get("items", [])
+    if not items:
+        _summary(f"## 영상을 찾을 수 없습니다: `{video_id}`")
+        return 1
+    sn = items[0]["snippet"]
+    changed = []
+    if title:
+        changed.append(("제목", sn.get("title", ""), title[:100]))
+        sn["title"] = title[:100]
+    if description:
+        changed.append(("설명", "(생략)", "(아래 참조)"))
+        sn["description"] = description[:5000]
+    try:
+        yt.videos().update(part="snippet", body={"id": video_id, "snippet": sn}).execute()
+    except HttpError as e:
+        status = getattr(e.resp, "status", "?")
+        _summary(f"## 수정 실패 (status={status})\n```\n"
+                 f"{(e.content or b'').decode('utf-8', 'replace')[:300]}\n```")
+        return 1
+    _summary("## 수정 완료")
+    for what, before, after in changed:
+        _summary(f"- {what} 전: {before}")
+        _summary(f"- {what} 후: {after}")
+    if description:
+        _summary("\n### 새 설명\n```\n" + sn["description"] + "\n```")
+    _summary(f"- https://youtube.com/shorts/{video_id}")
+    return 0
+
+
 def show(video_id: str) -> int:
     """올라간 영상의 제목·설명을 그대로 출력한다.
 
@@ -97,6 +139,9 @@ if __name__ == "__main__":
         _summary("VIDEO_ID가 비어 있습니다."); raise SystemExit(1)
     if action == "show":
         raise SystemExit(show(vid))
+    if action == "edit":
+        raise SystemExit(edit(vid, os.getenv("TITLE", "").strip(),
+                             os.getenv("DESCRIPTION", "")))
     if action == "delete":
         raise SystemExit(delete(vid))
     if action == "retitle":
@@ -104,5 +149,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | delete | retitle)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle)")
     raise SystemExit(1)

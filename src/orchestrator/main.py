@@ -168,7 +168,10 @@ def run(skip_upload: bool = False) -> int:
     title_bg = ai_bg or (bg_paths[0] if bg_paths else None)
     accent = pick_accent()   # 영상마다 액센트 색 변주(획일성 완화)
     # 정책 비판 대상 정치인 얼굴 부각(타이틀카드 + 영상 중간 세그먼트)
-    face = resolve_face(face_pin) if POLITICIAN_FACE_ENABLED else None
+    # 기사에 실제로 나오는 인물의 사진만 쓴다. 발언자와 화면 속 인물이
+    # 다르면 시청자에게는 그 자체가 허위로 읽힌다(2026-09-11분 사례).
+    article_text = f"{art.title} {art.summary}"
+    face = resolve_face(face_pin, article_text) if POLITICIAN_FACE_ENABLED else None
     log.info(f"  얼굴: {face.name if face else '없음'}"
              + (f" (지정: {face_pin})" if face_pin else ""))
     title_card = render_title_card(plan.headline, plan.hook_word,

@@ -54,6 +54,7 @@ jobs:
             echo "action=$IN_ACTION" >> $GITHUB_OUTPUT
             echo "video_id=$IN_VIDEO" >> $GITHUB_OUTPUT
             printf 'title<<EOF\n%s\nEOF\n' "$IN_TITLE" >> $GITHUB_OUTPUT
+            printf 'description<<EOF\n%s\nEOF\n' "" >> $GITHUB_OUTPUT
           else
             f=output/admin_request.json
             [ -f "$f" ] || { echo "$f 가 없습니다"; exit 1; }
@@ -63,6 +64,7 @@ jobs:
           print(f"action={d.get('action','')}")
           print(f"video_id={d.get('video_id','')}")
           print("title<<EOF"); print(d.get("title", "")); print("EOF")
+          print("description<<EOF"); print(d.get("description", "")); print("EOF")
           PY
           fi
 
@@ -75,6 +77,7 @@ jobs:
           ACTION: ${{ steps.req.outputs.action }}
           VIDEO_ID: ${{ steps.req.outputs.video_id }}
           TITLE: ${{ steps.req.outputs.title }}
+          DESCRIPTION: ${{ steps.req.outputs.description }}
         run: python scripts/youtube_admin.py
 
       - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)

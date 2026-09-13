@@ -78,29 +78,68 @@ def pick_layout(day_ord: int | None = None) -> _Layout:
     return LAYOUTS[(day_ord if day_ord is not None else _today_ord()) % len(LAYOUTS)]
 
 
-def pick_face(day_ord: int | None = None):
+def _face_meta() -> dict:
+    """credits.json (파일명 -> 출처·인물 메타). 없거나 깨졌으면 빈 dict."""
+    import json
+    from config.settings import FACES_DIR
+    path = FACES_DIR / "credits.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def face_subject(face) -> str:
+    """그 사진에 찍힌 인물 이름. credits.json에 없으면 빈 문자열."""
+    if not face:
+        return ""
+    return (_face_meta().get(Path(face).name, {}) or {}).get("subject", "")
+
+
+def pick_face(day_ord: int | None = None, article_text: str = ""):
     """assets/faces/ 안의 사진을 날짜별로 돌려 쓴다.
 
-    사진이 한 장뿐이면 매일 같은 얼굴이 나온다 — 며칠째 썸네일이 똑같아
-    보인 원인 중 하나다. 폴더에 파일을 더 넣으면 자동으로 회전한다.
+    단, article_text를 주면 그 기사에 실제로 등장하는 인물의 사진만 쓴다.
+    2026-09-11분에서 나경원 의원 발언을 다루면서 썸네일에는 이재명 사진이
+    붙었다. 발언한 사람과 화면 속 사람이 다르면 시청자에게는 그 자체가
+    허위로 읽힌다. 등장하지 않으면 얼굴 없이 간다(None).
+
+    사진이 한 장뿐이면 매일 같은 얼굴이 나온다 — 폴더에 파일을 더 넣으면
+    자동으로 회전한다.
     """
     from config.settings import FACES_DIR, FACE_EXTS, POLITICIAN_FACE
-    if not FACES_DIR.exists():
-        return POLITICIAN_FACE if POLITICIAN_FACE.exists() else None
-    faces = sorted(p for p in FACES_DIR.iterdir()
-                   if p.suffix.lower() in FACE_EXTS and p.is_file())
+    if FACES_DIR.exists():
+        faces = sorted(p for p in FACES_DIR.iterdir()
+                       if p.suffix.lower() in FACE_EXTS and p.is_file())
+    else:
+        faces = []
     if not faces:
-        return POLITICIAN_FACE if POLITICIAN_FACE.exists() else None
+        faces = [POLITICIAN_FACE] if POLITICIAN_FACE.exists() else []
+    if not faces:
+        return None
+
+    if article_text:
+        named = [f for f in faces
+                 if (s := face_subject(f)) and s in article_text]
+        if not named:
+            subjects = sorted({s for f in faces if (s := face_subject(f))})
+            log.info(f"  얼굴 없음: 기사에 {'/'.join(subjects) or '해당 인물'}이 "
+                     f"없어 사진을 넣지 않는다")
+            return None
+        faces = named
+
     d = day_ord if day_ord is not None else _today_ord()
     return faces[d % len(faces)]
 
 
-def resolve_face(pin: str = ""):
+def resolve_face(pin: str = "", article_text: str = ""):
     """얼굴 사진을 정한다.
 
     pin이 "none"이면 None(얼굴 없음), 파일명이면 그 파일, 비어 있으면
-    기존 날짜 회전. 주제 인물이 다른 날 엉뚱한 얼굴이 붙는 것을 막는다.
-    지정한 파일이 없으면 회전으로 되돌아간다.
+    기사에 등장하는 인물에 한해 날짜 회전. 지정한 파일이 없으면 회전으로
+    되돌아간다.
     """
     from config.settings import FACES_DIR
     pin = (pin or "").strip()
@@ -111,7 +150,7 @@ def resolve_face(pin: str = ""):
         if cand.exists():
             return cand
         log.warning(f"지정 얼굴 파일 없음({pin}) → 날짜 회전으로 대체")
-    return pick_face()
+    return pick_face(article_text=article_text)
 
 
 def face_credit(face) -> str:
@@ -123,16 +162,7 @@ def face_credit(face) -> str:
     """
     if not face:
         return ""
-    import json
-    from config.settings import FACES_DIR
-    meta_path = FACES_DIR / "credits.json"
-    if not meta_path.exists():
-        return ""
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return ""
-    m = meta.get(Path(face).name)
+    m = _face_meta().get(Path(face).name)
     if not m:
         return ""
     parts = [m.get("title", "")]
