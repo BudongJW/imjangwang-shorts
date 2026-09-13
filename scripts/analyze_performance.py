@@ -42,6 +42,20 @@ MIN_AGE_H_FOR_VERDICT = 24.0
 STALL_H = 1.0
 
 
+def _corr(xs: list[float], ys: list[float]) -> float:
+    """피어슨 상관계수. 표본이 부족하거나 분산이 0이면 0.0."""
+    n = len(xs)
+    if n < 3 or n != len(ys):
+        return 0.0
+    mx, my = sum(xs) / n, sum(ys) / n
+    num = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
+    dx = sum((a - mx) ** 2 for a in xs)
+    dy = sum((b - my) ** 2 for b in ys)
+    if dx <= 0 or dy <= 0:
+        return 0.0
+    return num / (dx * dy) ** 0.5
+
+
 def _duration_seconds(iso: str) -> int:
     m = _ISO_DUR.fullmatch(iso or "")
     if not m:
@@ -324,13 +338,33 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
             vals = sorted(by_hour[hour])
             lines.append(f"- {hour:02d}시대 ({len(vals)}개): {vals[len(vals) // 2]:.1f}")
         lines.append("")
-    longer = [v for v in public if v["duration_s"] > 50]
-    shorter = [v for v in public if v["duration_s"] <= 50]
-    if longer and shorter:
-        lm = sorted(v["views_per_day"] for v in longer)[len(longer) // 2]
-        sm = sorted(v["views_per_day"] for v in shorter)[len(shorter) // 2]
-        lines.append(f"길이별 하루당 조회수 중앙값: 50초 초과 {lm:.1f} ({len(longer)}개) "
-                     f"vs 50초 이하 {sm:.1f} ({len(shorter)}개)")
+    # 길이 ↔ 성적. 예전에는 150개 전체를 '50초 초과/이하'로 갈라 하루당
+    # 조회수를 비교했는데, 2025년 영상과 2026년 영상이 섞여 있어 길이가
+    # 아니라 시기를 비교하고 있었다. 그래서 "50초 초과가 2.3배 낫다"는
+    # 반대 방향의 결론이 나왔다. 지속률이 잡히는 영상(최근 구간)으로만,
+    # 그리고 지속률 기준으로 본다.
+    scored = [v for v in public
+              if v["video_id"] in analytics and v.get("duration_s")]
+    if len(scored) >= 6:
+        def _ret(v):
+            return analytics[v["video_id"]].get("averageViewPercentage", 0)
+
+        lines.append(f"길이별 시청지속률 중앙값 (지속률이 잡힌 {len(scored)}개):")
+        for lo, hi, label in ((0, 50, "50초 미만"), (50, 60, "50~60초"),
+                              (60, 10 ** 6, "60초 초과")):
+            g = [v for v in scored if lo <= v["duration_s"] < hi]
+            if not g:
+                continue
+            rets = sorted(_ret(v) for v in g)
+            vws = sorted(v["views"] for v in g)
+            lines.append(f"- {label} ({len(g)}개): 지속률 {rets[len(rets) // 2]:.1f}% · "
+                         f"조회수 중앙 {vws[len(vws) // 2]:,}")
+        lines.append("")
+        lines.append(f"상관계수: 길이↔지속률 {_corr([v['duration_s'] for v in scored], [_ret(v) for v in scored]):+.2f} · "
+                     f"지속률↔조회수 {_corr([_ret(v) for v in scored], [v['views'] for v in scored]):+.2f} · "
+                     f"길이↔조회수 {_corr([v['duration_s'] for v in scored], [v['views'] for v in scored]):+.2f}")
+        lines.append("(표본이 20개 안팎이라 방향만 본다. 관측된 길이는 45~92초뿐이므로 "
+                     "45초 미만이 어떤지는 이 데이터로 말할 수 없다.)")
         lines.append("")
 
     return "\n".join(lines)
