@@ -173,11 +173,15 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
 
 
 def _seg_filter(idx: int, dur: float, zoom_in: bool,
-                scroll: bool = False, fit: bool = False) -> str:
+                scroll: bool = False, fit: bool = False,
+                punch: bool = False) -> str:
     """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
     scroll=True(긴 기사): 폭 맞추고 위→아래로 천천히 세로 스크롤.
     fit=True(짧은 기사 카드): 폭 맞추고 어두운 배경 중앙에 정적 배치(잘림·백지 없음).
+    punch=True(타이틀카드): 같은 12% 줌을 세그먼트 길이 안에 다 쓴다. 기본 줌
+        속도는 프레임당 고정이라 1.5초짜리에서는 5%밖에 안 움직여 사실상 정지
+        화면으로 보인다. 첫 화면이 움직이는지 아닌지가 이 변경의 핵심이다.
     그 외: zoompan 켄번즈(d=1, 출력프레임 on 으로 줌 구동).
     """
     if scroll:
@@ -195,10 +199,14 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if KENBURNS:
         # 과도한 업스케일은 CI에서 느리다 → 1.2배(1296x2304)면 충분.
+        rate = 0.0012
+        if punch:
+            # 12%를 이 세그먼트 안에서 다 쓴다(프레임 수로 나눈다).
+            rate = 0.12 / max(1.0, dur * FPS)
         if zoom_in:
-            z = "min(1.0+0.0012*on,1.12)"
+            z = f"min(1.0+{rate:.6f}*on,1.12)"
         else:
-            z = "max(1.12-0.0012*on,1.0)"
+            z = f"max(1.12-{rate:.6f}*on,1.0)"
         chain = (
             f"scale=1296:2304:force_original_aspect_ratio=increase,crop=1296:2304,"
             f"zoompan=z='{z}':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
@@ -315,6 +323,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             i, d, zoom_in=(i % 2 == 0),
             scroll=(is_art and art_h >= H),
             fit=(is_art and art_h < H),
+            punch=(i == 0),        # 타이틀카드만
         ))
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
