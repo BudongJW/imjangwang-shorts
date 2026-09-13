@@ -81,6 +81,13 @@ def _try_key(key: str, prompt: str, out: Path, model: str) -> Path | None:
         )
         if r.status_code == 429:
             return None  # 한도 소진 → 다음 키로 로테이션
+        if r.status_code in (401, 403):
+            # 한도가 아니라 권한 문제다. 다른 키로 돌려도 같은 결과고,
+            # '한도 소진'으로 뭉뚱그리면 결제만 켜면 되는 상황을 못 알아챈다.
+            log.warning(f"  AI 이미지 HTTP {r.status_code} — 키 권한/결제 문제로 보인다 "
+                        f"(…{key[-4:]}). 결제를 켜지 않을 거라면 AI_THUMBNAIL=0으로 "
+                        f"끄는 편이 낫다. 배경은 Pexels로 폴백한다.")
+            return None
         if r.status_code != 200:
             log.info(f"  AI 이미지 HTTP {r.status_code} (…{key[-4:]})")
             return None
@@ -114,7 +121,7 @@ def generate_background(headline: str, out_name: str = "ai_bg",
         if got:
             log.info(f"  AI 썸네일 이미지 생성 성공 (…{key[-4:]})")
             return got
-    log.info("  AI 이미지: 모든 키 한도 소진 → 폴백")
+    log.info("  AI 이미지: 사용 가능한 키 없음 → 폴백")
     return None
 
 
