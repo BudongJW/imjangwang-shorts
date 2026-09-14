@@ -37,6 +37,34 @@ _UP = ["오르", "상승", "폭등", "급등", "최고", "신고가", "뛰", "�
 _DOWN = ["하락", "급락", "폭락", "내리", "줄", "감소", "떨어", "최저", "급감"]
 
 
+# "2만 3천 가구"처럼 수가 여러 토막으로 이어지는 경우. 첫 조각만 집으면
+# "2만"이 화면에 뜨는데, 실제 값은 2만 3천이라 숫자를 틀리게 보여주는 셈이다
+# (2026-09-14 검증 프레임 16초 지점).
+_CONT_RE = re.compile(
+    r"\s?(\d[\d,\.]*\s?(?:%|억원|억|만원|만|천|원|가구|세대|호|명|건|채|평|㎡))")
+
+
+_TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개)")
+
+
+def _extend(phrase: str, m: re.Match) -> str:
+    """이어지는 수 조각을 흡수해 온전한 수치로 만든다."""
+    out, pos = m.group(0), m.end()
+    while True:
+        nxt = _CONT_RE.match(phrase, pos)
+        if not nxt:
+            break
+        out += nxt.group(0)
+        pos = nxt.end()
+    # "2만 3천"처럼 자릿수 단위로 끝났으면 뒤따르는 조수사를 마저 붙인다.
+    # 자릿수로 끝날 때만 본다 — 그러지 않으면 "5년 평균"의 '평'까지 붙는다.
+    if out.rstrip().endswith(("만", "천", "억", "조")):
+        tail = _TAIL_UNIT_RE.match(phrase, pos)
+        if tail:
+            out += tail.group(0)
+    return out.strip()
+
+
 def is_weak(big: str) -> bool:
     """기간처럼 임팩트가 약한 수치인지."""
     return big.endswith(_WEAK_UNITS)
@@ -47,17 +75,18 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
 
     연도는 제외하고, 강한 단위(%·억·가구·명 …)를 기간 단위보다 우선한다.
     """
-    strong, weak = None, None
+    best, weak = None, None
     for m in _STAT_RE.finditer(phrase):
-        cand = m.group(1) + m.group(2)
+        cand = _extend(phrase, m)
         if _YEAR_RE.match(cand.replace(",", "")):
             continue
         if cand.endswith(_WEAK_UNITS):
             weak = weak or cand
-        else:
-            strong = cand
-            break
-    cand = strong or weak
+            continue
+        # %가 가장 날카롭다. 같은 구절에 %와 다른 단위가 같이 있으면 %를 쓴다.
+        if best is None or (cand.endswith("%") and not best.endswith("%")):
+            best = cand
+    cand = best or weak
     if not cand:
         return None
     big = cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡")
