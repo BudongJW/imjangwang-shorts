@@ -140,10 +140,16 @@ def _render_news_card(title: str, source: str, published: str,
 
     head_lines = _wrap(title, f_head, inner)
     # 본문은 넉넉히(스크롤 가치) — 문장 단위로 이어붙여 최대 18줄.
-    # 본문이 없으면 헤드라인이 곧 콘텐츠(흰 여백 방지) → 카드는 헤드라인 위주로 짧게.
     body_lines = _wrap(lead, f_body, inner)[:18] if lead and len(lead) >= 20 else []
+    # 본문이 없으면 강조 문구를 큰 활자로 앉힌다. 예전에는 본문용 40px로
+    # 한 줄만 찍어서, 프레임을 채운 카드의 70%가 빈 흰 바탕이 됐다
+    # (2026-09-14 검증 프레임 12초 지점). 이 구간은 8초나 머문다.
+    pull_lines: list[str] = []
+    f_pull = ImageFont.truetype(font_bold(), 64)
     if not body_lines and highlight:
-        body_lines = _wrap(highlight, f_body, inner)[:4]
+        pull_lines = _wrap(highlight, f_pull, inner)[:4]
+    log.info(f"  기사 카드 본문: lead {len(lead or '')}자 → 본문 {len(body_lines)}줄"
+             + (f", 강조 {len(pull_lines)}줄" if pull_lines else ""))
 
     y = pad
     y += 44 + 24                    # 언론사 바
@@ -151,7 +157,7 @@ def _render_news_card(title: str, source: str, published: str,
     y += len(head_lines) * 72 + 30  # 헤드라인
     y += 2 + 30                     # 구분선
     body_top = y
-    y += len(body_lines) * 58 + pad
+    y += len(body_lines) * 58 + len(pull_lines) * 86 + pad
     # 최소 높이를 프레임 높이(1920)로 잡는다. 900으로 두면 1080x900 카드가
     # 1080x1920 프레임에 패딩돼 위아래로 검은 띠가 절반 가까이 남는다
     # (2026-09-14 검증 프레임 12초 지점에서 실측). 프레임을 꽉 채우고,
@@ -189,6 +195,12 @@ def _render_news_card(title: str, source: str, published: str,
             d.rectangle([pad - 4, yy + 6, pad + w + 6, yy + 52], fill=HL)
         d.text((pad, yy), ln, font=f_body, fill=(48, 50, 56))
         yy += 58
+    for ln in pull_lines:
+        w = d.textlength(ln, font=f_pull)
+        if ARTICLE_HIGHLIGHT:
+            d.rectangle([pad - 8, yy + 8, pad + w + 12, yy + 78], fill=HL)
+        d.text((pad, yy), ln, font=f_pull, fill=INK)
+        yy += 86
 
     png = out.with_suffix(".png")
     card.save(png)
