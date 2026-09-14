@@ -122,8 +122,11 @@ def _glue_tokens(tokens: list[str]) -> list[list[str]]:
     groups: list[list[str]] = []
     for tok in tokens:
         prev = groups[-1][-1] if groups else ""
+        # 앞이 숫자거나 이미 수 단위로 끝났으면, 뒤따르는 단위·조수사는
+        # 같은 수의 일부다. "3천 건", "2억 2천", "3,481 가구" 모두 해당한다.
+        num_like = bool(_ENDS_NUM.search(prev) or _ENDS_UNIT.search(prev))
         if groups and (
-            (_ENDS_NUM.search(prev) and _UNIT_TOK.match(tok))
+            (num_like and _UNIT_TOK.match(tok))
             or (_ENDS_UNIT.search(prev) and _STARTS_NUM.match(tok))
             or prev in ("한", "두", "세", "네", "이", "그", "저")
         ):
