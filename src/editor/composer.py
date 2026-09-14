@@ -247,6 +247,22 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         picked.append((st, s, e))
         used.add(s)
 
+    # 구간마다 하나씩만 고르면, 수치가 한쪽에 몰린 대본에서 전체가 한두 개로
+    # 끝난다(실측 58초 영상에서 1개). 자리가 남으면 남은 후보로 채운다.
+    # 다만 서로 최소 4초는 떨어뜨려 연달아 튀어나오지 않게 한다.
+    if len(picked) < max_n:
+        for st, s, e in cands:
+            if len(picked) >= max_n:
+                break
+            if s in used:
+                continue
+            if any(abs(s - ps) < 4.0 for _, ps, _ in picked):
+                continue
+            if any(st[0] == pst[0] for pst, _, _ in picked):
+                continue      # 같은 수치 반복은 안 쓴다
+            picked.append((st, s, e))
+            used.add(s)
+
     # 겹침·과다 노출 정리. 구절이 길면 그 구절 길이만큼(10초까지) 큰 숫자가
     # 화면에 박혀 있게 되고, 앞뒤 구간에서 하나씩 고르다 보면 두 개가 동시에
     # 떠 있는 구간도 생긴다. 다음 콜아웃 직전까지로 자르고 상한을 둔다.
