@@ -65,6 +65,15 @@ SHORTS_MAX_DURATION = 60  # 초
 # 지속률이 조회수를 만드는 구조(길이↔지속률 -0.52, 지속률↔조회수 +0.68)라
 # 도입부 이탈을 줄이는 쪽에 건다. 7편 쌓이면 지속률 중앙값으로 검증한다.
 TITLE_CARD_MAX_SEC = 1.5
+
+# 목표 게시 시각(KST, HH:MM). 워크플로가 몇 시에 돌든 이 시각에 공개되도록
+# YouTube 예약 공개(status.publishAt)로 올린다.
+# 08~09시대를 노리는 이유는 리포트 수치다 — 게시 시각대별 하루당 조회수
+# 중앙값이 08시대 25.4, 09시대 26.3인데 10시 이후는 4 안팎이다.
+PUBLISH_TARGET_KST = os.getenv("PUBLISH_TARGET_KST", "08:40")
+# 예약을 걸려면 목표까지 최소 이만큼 남아 있어야 한다(API 반영 여유).
+PUBLISH_MIN_LEAD_MIN = int(os.getenv("PUBLISH_MIN_LEAD_MIN", "15"))
+
 IMAGE_MAX_SEC = 3.0           # 이미지 1컷 최대 노출(초) — 정지 이미지 12초 금지
 KENBURNS = True               # 이미지 줌/팬 모션
 ARTICLE_HIGHLIGHT = True      # 기사 캡처에 형광펜 하이라이트

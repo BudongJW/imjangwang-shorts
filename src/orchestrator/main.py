@@ -17,6 +17,7 @@ from datetime import datetime
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
     POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
+    PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN,
 )
 from src.collector import news, images
 from src.collector.ai_image import generate_background
@@ -121,6 +122,38 @@ def _title_with_tags(plan) -> str:
     tags = " ".join(f"#{t.lstrip('#')}" for t in (plan.hashtags or [])[:3])
     title = f"{base} {tags}".strip()
     return title[:100]  # 유튜브 제목 100자 제한
+
+
+def _publish_at() -> str | None:
+    """오늘(KST) 목표 시각의 RFC3339 UTC 문자열. 이미 지났으면 None(즉시 공개).
+
+    스케줄 지연을 크론 분으로 보정하려 했는데 오프셋이 일정하지 않았다.
+      예정 00:23 UTC → 지연 261~272분 (3일)
+      예정 19:18 UTC → 지연 128분
+    시간대마다 다르니 크론으로는 30분짜리 창을 못 맞춘다. 그래서 게시
+    시각 자체를 YouTube 예약 공개로 고정한다. 워크플로가 몇 시에 돌든
+    영상은 목표 시각에 공개된다.
+
+    날짜를 넘기지 않는다. 목표가 이미 지났으면 내일로 미루지 않고 그냥
+    즉시 공개한다. 업로드 날짜와 공개 날짜가 갈리면 '오늘 이미 올렸나'
+    가드가 어긋나 하루 2개가 나갈 수 있다.
+    """
+    from datetime import timezone, timedelta
+    kst = timezone(timedelta(hours=9))
+    try:
+        hh, mm = (int(x) for x in PUBLISH_TARGET_KST.split(":"))
+    except ValueError:
+        log.warning(f"PUBLISH_TARGET_KST 형식 오류({PUBLISH_TARGET_KST!r}) → 즉시 공개")
+        return None
+    now = datetime.now(kst)
+    target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    if target - now < timedelta(minutes=PUBLISH_MIN_LEAD_MIN):
+        log.info(f"  게시: 즉시 공개 (목표 {PUBLISH_TARGET_KST} KST가 이미 지났거나 "
+                 f"{PUBLISH_MIN_LEAD_MIN}분 미만 남음)")
+        return None
+    log.info(f"  게시: {target:%H:%M} KST 예약 공개 "
+             f"(지금 {now:%H:%M}, {(target - now).total_seconds() / 60:.0f}분 뒤)")
+    return target.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _posted_today_in_history() -> bool:
@@ -232,6 +265,7 @@ def run(skip_upload: bool = False) -> int:
             title=_title_with_tags(plan),
             description=_build_description(plan, art, face=face),
             tags=[t.lstrip("#") for t in (plan.hashtags or DEFAULT_HASHTAGS)],
+            publish_at=_publish_at(),
         )
         # 타이틀카드(AI배경+헤드라인)를 커스텀 썸네일로 설정
         youtube.set_thumbnail(video_id, title_card)
