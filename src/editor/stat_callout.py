@@ -29,17 +29,36 @@ _STAT_RE = re.compile(
 # 연도는 수치가 아니라 날짜다. "2024년"을 화면 한복판에 210px로 띄우면
 # 숫자 임팩트가 아니라 잡음이 된다(2026-09-14 실측에서 2회 잡혔다).
 _YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
+# 같은 구절에 여러 수치가 있으면 '센' 쪽을 띄운다. 기간(5년·2주·3개월)은
+# 대개 기준일 뿐 임팩트가 아니다 — "지난 5년 평균 대비"의 5년을 화면
+# 한복판에 띄워 봐야 시청자에게 남는 게 없다(2026-09-14 실측).
+_WEAK_UNITS = ("년", "주", "개월", "일", "개")
 _UP = ["오르", "상승", "폭등", "급등", "최고", "신고가", "뛰", "올라", "증가", "늘"]
 _DOWN = ["하락", "급락", "폭락", "내리", "줄", "감소", "떨어", "최저", "급감"]
 
 
+def is_weak(big: str) -> bool:
+    """기간처럼 임팩트가 약한 수치인지."""
+    return big.endswith(_WEAK_UNITS)
+
+
 def pick_stat(phrase: str) -> tuple[str, str] | None:
-    """구절에서 대표 수치 1개와 방향(up/down/flat)을 뽑는다. 없으면 None."""
+    """구절에서 대표 수치 1개와 방향(up/down/flat)을 뽑는다. 없으면 None.
+
+    연도는 제외하고, 강한 단위(%·억·가구·명 …)를 기간 단위보다 우선한다.
+    """
+    strong, weak = None, None
     for m in _STAT_RE.finditer(phrase):
         cand = m.group(1) + m.group(2)
-        if not _YEAR_RE.match(cand.replace(",", "")):
+        if _YEAR_RE.match(cand.replace(",", "")):
+            continue
+        if cand.endswith(_WEAK_UNITS):
+            weak = weak or cand
+        else:
+            strong = cand
             break
-    else:
+    cand = strong or weak
+    if not cand:
         return None
     big = cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡")
     direction = "flat"

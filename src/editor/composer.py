@@ -21,7 +21,7 @@ from pathlib import Path
 
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
-    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, KENBURNS, BGM_VOLUME,
+    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME,
 )
 from src.editor.fonts import font_bold
 from src.utils.logger import setup_logger
@@ -208,7 +208,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     그래서 영상 전체를 max_n 구간으로 나눠 구간마다 하나씩 고른다. 같은
     수치가 연달아 나오면 건너뛴다.
     """
-    from src.editor.stat_callout import pick_stat, render_stat_card
+    from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
     cands = []
     for ph, s, e in _phrase_timings(caption_script, total_sec):
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
@@ -226,18 +226,29 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     for i in range(max_n):
         lo = span_start + span * i / max_n
         hi = span_start + span * (i + 1) / max_n
-        for st, s, e in cands:
-            if s in used or not (lo <= s < hi):
-                continue
-            if picked and picked[-1][0][0] == st[0]:
-                continue          # 같은 수치 연속 반복은 건너뛴다
-            picked.append((st, s, e))
-            used.add(s)
-            break
+        bucket = [c for c in cands
+                  if c[1] not in used and lo <= c[1] < hi
+                  and not (picked and picked[-1][0][0] == c[0][0])]
+        if not bucket:
+            continue
+        # 한 구간에 여러 후보가 있으면 강한 수치(%·억·가구 …)를 먼저 쓴다.
+        bucket.sort(key=lambda c: (is_weak(c[0][0]), c[1]))
+        st, s, e = bucket[0]
+        picked.append((st, s, e))
+        used.add(s)
 
+    # 겹침·과다 노출 정리. 구절이 길면 그 구절 길이만큼(10초까지) 큰 숫자가
+    # 화면에 박혀 있게 되고, 앞뒤 구간에서 하나씩 고르다 보면 두 개가 동시에
+    # 떠 있는 구간도 생긴다. 다음 콜아웃 직전까지로 자르고 상한을 둔다.
+    picked.sort(key=lambda c: c[1])
     overlays = []
     for i, (st, s, e) in enumerate(picked):
-        path = VIDEO_DIR / f"stat_{i}.png"
+        e = min(e, s + STAT_MAX_SEC)
+        if i + 1 < len(picked):
+            e = min(e, picked[i + 1][1] - 0.2)
+        if e - s < 0.8:           # 너무 짧으면 깜빡이는 것처럼 보인다
+            continue
+        path = VIDEO_DIR / f"stat_{len(overlays)}.png"
         render_stat_card(st[0], st[1], path)
         overlays.append((path, s, e))
     return overlays

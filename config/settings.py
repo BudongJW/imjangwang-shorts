@@ -75,6 +75,8 @@ PUBLISH_TARGET_KST = os.getenv("PUBLISH_TARGET_KST", "08:40")
 PUBLISH_MIN_LEAD_MIN = int(os.getenv("PUBLISH_MIN_LEAD_MIN", "15"))
 
 IMAGE_MAX_SEC = 3.0           # 이미지 1컷 최대 노출(초) — 정지 이미지 12초 금지
+# 숫자 콜아웃 1개 최대 노출(초). 구절이 길면 큰 숫자가 10초씩 박혀 있게 된다.
+STAT_MAX_SEC = 3.5
 KENBURNS = True               # 이미지 줌/팬 모션
 ARTICLE_HIGHLIGHT = True      # 기사 캡처에 형광펜 하이라이트
 
