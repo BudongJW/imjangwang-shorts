@@ -254,6 +254,7 @@ def run(skip_upload: bool = False) -> int:
         article_img = None
 
     # 5) 합성
+    buildnotes.note(f"대본 {len(plan.caption_script)}자: {plan.caption_script}")
     final = compose(plan.caption_script, audio, title_card, article_img, bg_paths, banner=banner)
 
     # 6) 업로드

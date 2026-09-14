@@ -217,16 +217,22 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     """
     from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
     cands = []
+    n_phrase = n_stat = n_blocked = 0
     for ph, s, e in _phrase_timings(caption_script, total_sec):
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
             continue
+        n_phrase += 1
         st = pick_stat(ph)
         if not st:
             continue
+        n_stat += 1
         cs, ce = max(s, title_dur), min(total_sec, e + 0.4)
         if blocked and cs < blocked[1] and blocked[0] < ce:
+            n_blocked += 1
             continue          # 기사 캡처 구간과 겹치면 버린다
         cands.append((st, cs, ce))
+    note(f"콜아웃 후보: 구절 {n_phrase}개 중 수치 {n_stat}개 "
+         f"(기사구간 제외 {n_blocked}개) → 후보 {len(cands)}개")
     if not cands:
         return []
 
