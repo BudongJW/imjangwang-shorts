@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from config.settings import VIDEO_DIR, ARTICLE_HIGHLIGHT, SHORTS_WIDTH, SHORTS_HEIGHT
 from src.editor.fonts import font_bold, font_regular
+from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
 log = setup_logger("article_capture")
@@ -109,9 +110,11 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                 return None
             im.save(png)
             log.info(f"  기사 모바일 캡처 성공 ({im.width}x{im.height})")
+            note(f"기사: Playwright 캡처 성공 {im.width}x{im.height}")
             return png
     except Exception as e:
         log.info(f"  Playwright 캡처 실패 → 카드 폴백: {e}")
+        note(f"기사: Playwright 캡처 실패 → 카드 폴백 ({type(e).__name__}: {str(e)[:120]})")
         return None
 
 
@@ -150,6 +153,8 @@ def _render_news_card(title: str, source: str, published: str,
         pull_lines = _wrap(highlight, f_pull, inner)[:4]
     log.info(f"  기사 카드 본문: lead {len(lead or '')}자 → 본문 {len(body_lines)}줄"
              + (f", 강조 {len(pull_lines)}줄" if pull_lines else ""))
+    note(f"기사 카드: lead {len(lead or '')}자 · 헤드라인 {len(head_lines)}줄 · "
+         f"본문 {len(body_lines)}줄 · 강조 {len(pull_lines)}줄")
 
     y = pad
     y += 44 + 24                    # 언론사 바

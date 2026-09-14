@@ -24,6 +24,7 @@ from config.settings import (
     TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME,
 )
 from src.editor.fonts import font_bold
+from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
 log = setup_logger("composer")
@@ -402,11 +403,12 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
     # 눈으로 맞히기 어렵다(2~3.5초씩만 뜬다). 검증 아티팩트에 같이 실어
     # 몇 시에 무엇이 뜨는지 바로 보게 한다.
-    plan_txt = VIDEO_DIR / "stat_plan.txt"
-    lines = [f"영상 {dur:.1f}s · 타이틀 {title_dur:.1f}s"
-             + (f" · 기사 {blocked[0]:.1f}~{blocked[1]:.1f}s(콜아웃 금지)" if blocked else "")]
-    lines += [f"{a:6.1f}~{b:5.1f}s  {pth.name}" for pth, a, b in stats] or ["(콜아웃 없음)"]
-    plan_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    note(f"영상 {dur:.1f}s · 컷 {len(segs)}개 · 타이틀카드 {title_dur:.1f}s"
+         + (f" · 기사 {blocked[0]:.1f}~{blocked[1]:.1f}s(콜아웃 금지)" if blocked else ""))
+    for pth, a, b in stats:
+        note(f"콜아웃 {a:6.1f}~{b:5.1f}s  {pth.name}")
+    if not stats:
+        note("콜아웃 없음")
     log.info(f"  숫자 콜아웃 {len(stats)}개"
              + (f" (기사 구간 {blocked[0]:.1f}~{blocked[1]:.1f}s 제외)" if blocked else ""))
 

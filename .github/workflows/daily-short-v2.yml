@@ -145,7 +145,7 @@ jobs:
           path: |
             output/frames/*.png
             output/video/title_card.png
-            output/video/stat_plan.txt
+            output/video/build_notes.txt
           retention-days: 3
 
       - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)

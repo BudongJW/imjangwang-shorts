@@ -20,6 +20,7 @@ from config.settings import (
     PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN,
 )
 from src.collector import news, images
+from src.utils import buildnotes
 from src.collector.ai_image import generate_background
 from src.collector.article_capture import build_article_visual
 from src.collector.history import record_topic
@@ -177,6 +178,7 @@ def _posted_today_in_history() -> bool:
 
 def run(skip_upload: bool = False) -> int:
     log.info(f"=== {CHANNEL_NAME} 쇼츠 생성 시작 {datetime.now():%Y-%m-%d %H:%M} ===")
+    buildnotes.reset()
 
     # 0) 중복 방지: 오늘(KST) 이미 올린 영상이 있으면 자동 실행을 건너뜀.
     #    스케줄 지연이 4시간 넘게 일정해 슬롯을 늘려 보정하는데, 슬롯이 여럿이면
