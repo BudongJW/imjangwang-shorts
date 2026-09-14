@@ -12,7 +12,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from config.settings import VIDEO_DIR, ARTICLE_HIGHLIGHT, SHORTS_WIDTH
+from config.settings import VIDEO_DIR, ARTICLE_HIGHLIGHT, SHORTS_WIDTH, SHORTS_HEIGHT
 from src.editor.fonts import font_bold, font_regular
 from src.utils.logger import setup_logger
 
@@ -152,14 +152,22 @@ def _render_news_card(title: str, source: str, published: str,
     y += 2 + 30                     # 구분선
     body_top = y
     y += len(body_lines) * 58 + pad
-    # 내용 높이에 맞추되, 너무 짧으면 최소 높이(정적 카드가 작게 보이지 않게).
-    height = max(y, 900)
+    # 최소 높이를 프레임 높이(1920)로 잡는다. 900으로 두면 1080x900 카드가
+    # 1080x1920 프레임에 패딩돼 위아래로 검은 띠가 절반 가까이 남는다
+    # (2026-09-14 검증 프레임 12초 지점에서 실측). 프레임을 꽉 채우고,
+    # 내용이 짧으면 위아래 여백을 나눠 가운데로 내린다 — 흰 여백이
+    # 아래쪽에만 몰려 카드가 미완성처럼 보이던 것도 같이 해결된다.
+    content_h = y
+    height = max(content_h, SHORTS_HEIGHT)
+    offset = max(0, (height - content_h) // 2)
+    head_top += offset
+    body_top += offset
 
     card = Image.new("RGB", (CARD_W, height), PAPER)
     d = ImageDraw.Draw(card)
     d.rectangle([0, 0, CARD_W, 10], fill=RED)
 
-    yy = pad
+    yy = pad + offset
     d.text((pad, yy), (source or "부동산 뉴스"), font=f_src, fill=RED)
     if published:
         pub = published[:16]
@@ -184,7 +192,7 @@ def _render_news_card(title: str, source: str, published: str,
 
     png = out.with_suffix(".png")
     card.save(png)
-    log.info(f"  기사 카드 렌더 ({CARD_W}x{height})")
+    log.info(f"  기사 카드 렌더 ({CARD_W}x{height}, 내용 {content_h}px, 상하여백 {offset}px)")
     return png
 
 

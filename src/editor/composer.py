@@ -103,6 +103,54 @@ def _highlight(text: str) -> str:
     return text
 
 
+# 자막 줄을 끊으면 안 되는 자리. 숫자와 단위가 갈리면(2억 / 2천, 전국 / 1위)
+# 읽는 쪽에서 한 덩어리로 안 보이고, 숫자에 거는 노랑 강조도 두 줄로 쪼개진다.
+# 2026-09-14 검증 프레임에서 "…이광수 애널리스트가 정부" 처럼 조사 뒤에서
+# 끊기는 것도 같이 나왔다.
+_UNIT_TOK = re.compile(
+    r"^(?:%|퍼센트|억|만원|만|천|원|년|배|채|가구|평|㎡|제곱미터|조|위|건|개월|명|주|일|개)")
+# 앞 토큰이 숫자로 끝나면 다음 단위 토큰은 붙여 둔다.
+_ENDS_NUM = re.compile(r"[\d]$")
+# "2억 2천"처럼 금액이 두 토큰으로 이어지는 경우. 앞이 단위로 끝나고
+# 뒤가 숫자로 시작하면 같은 수 하나다.
+_ENDS_UNIT = re.compile(r"(?:%|억|만원|만|천|원|년|배|채|가구|평|㎡|조|위|건|개월|명|주|일|개)$")
+_STARTS_NUM = re.compile(r"^\d")
+
+
+def _glue_tokens(tokens: list[str]) -> list[list[str]]:
+    """끊으면 안 되는 토큰끼리 미리 묶는다(숫자+단위, 관형사+의존명사)."""
+    groups: list[list[str]] = []
+    for tok in tokens:
+        prev = groups[-1][-1] if groups else ""
+        if groups and (
+            (_ENDS_NUM.search(prev) and _UNIT_TOK.match(tok))
+            or (_ENDS_UNIT.search(prev) and _STARTS_NUM.match(tok))
+            or prev in ("한", "두", "세", "네", "이", "그", "저")
+        ):
+            groups[-1].append(tok)
+        else:
+            groups.append([tok])
+    return groups
+
+
+def _wrap_tokens(tokens: list[str], limit: int = 20) -> list[str]:
+    """토큰을 limit자 이내 줄로 묶되, 붙여야 할 덩어리는 쪼개지 않는다."""
+    lines: list[str] = []
+    cur = ""
+    for grp in _glue_tokens(tokens):
+        piece = " ".join(grp)
+        if not cur:
+            cur = piece
+        elif len(cur) + len(piece) + 1 <= limit:
+            cur = f"{cur} {piece}"
+        else:
+            lines.append(cur)
+            cur = piece
+    if cur:
+        lines.append(cur)
+    return lines
+
+
 def _split_phrases(text: str) -> list[str]:
     """문장을 짧은 구절(자막 한 줄)로 분할."""
     text = re.sub(r"\s+", " ", text).strip()
@@ -116,15 +164,7 @@ def _split_phrases(text: str) -> list[str]:
         if len(r) <= 22:
             phrases.append(r)
         else:
-            cur = ""
-            for tok in r.split():
-                if len(cur) + len(tok) + 1 <= 20:
-                    cur = (cur + " " + tok).strip()
-                else:
-                    phrases.append(cur)
-                    cur = tok
-            if cur:
-                phrases.append(cur)
+            phrases.extend(_wrap_tokens(r.split(), limit=20))
     return [p for p in phrases if p]
 
 
