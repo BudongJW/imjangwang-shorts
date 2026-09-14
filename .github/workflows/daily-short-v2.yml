@@ -123,12 +123,19 @@ jobs:
           mkdir -p output/frames
           DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$V")
           echo "길이 ${DUR}s"
-          for T in 0.2 0.8 1.4 2.0 4.0 12.0 25.0 40.0; do
-            awk -v t="$T" -v d="$DUR" 'BEGIN{exit !(t<d)}' || continue
-            ffmpeg -v error -ss "$T" -i "$V" -frames:v 1 \
-              -vf scale=540:-2 "output/frames/t${T}.png"
+          # 도입부는 촘촘히(타이틀카드 노출·전환 확인), 이후는 4초 간격.
+          # 8장만 뽑던 때는 숫자 콜아웃이 떴는지 아닌지 판정이 안 됐다.
+          TIMES="0.2 0.8 1.4 2.0 3.0"
+          T=4.0
+          while awk -v t="$T" -v d="$DUR" 'BEGIN{exit !(t<d)}'; do
+            TIMES="$TIMES $T"
+            T=$(awk -v t="$T" 'BEGIN{printf "%.1f", t+4}')
           done
-          ls -la output/frames
+          for T in $TIMES; do
+            ffmpeg -v error -ss "$T" -i "$V" -frames:v 1 \
+              -vf scale=432:-2 "output/frames/t$(printf '%05.1f' "$T").png"
+          done
+          ls output/frames | wc -l
 
       - name: 검증 아티팩트 업로드
         if: contains(github.ref_name, 'verify')
