@@ -197,7 +197,9 @@ def build_caption_ass(caption_script: str, total_sec: float, out: Path) -> Path:
 
 
 def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
-                        max_n: int = 6) -> list[tuple[Path, float, float]]:
+                        max_n: int = 6,
+                        blocked: tuple[float, float] | None = None
+                        ) -> list[tuple[Path, float, float]]:
     """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성.
 
     앞에서부터 max_n개를 집고 끊으면 콜아웃이 도입부에만 몰린다. 55초짜리
@@ -207,6 +209,10 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
 
     그래서 영상 전체를 max_n 구간으로 나눠 구간마다 하나씩 고른다. 같은
     수치가 연달아 나오면 건너뛴다.
+
+    blocked 구간(기사 캡처)에는 띄우지 않는다. 기사 카드 자체가 글자로 꽉 찬
+    화면이라, 그 위에 210px 숫자 패널을 얹으면 둘 다 못 읽는다
+    (2026-09-14 검증 프레임 12초 지점에서 실제로 그렇게 나왔다).
     """
     from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
     cands = []
@@ -214,8 +220,12 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
             continue
         st = pick_stat(ph)
-        if st:
-            cands.append((st, max(s, title_dur), min(total_sec, e + 0.4)))
+        if not st:
+            continue
+        cs, ce = max(s, title_dur), min(total_sec, e + 0.4)
+        if blocked and cs < blocked[1] and blocked[0] < ce:
+            continue          # 기사 캡처 구간과 겹치면 버린다
+        cands.append((st, cs, ce))
     if not cands:
         return []
 
@@ -363,7 +373,16 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     segs = _plan_segments(title_card, article_img, bg_paths, dur)
     title_dur = segs[0][1]
     log.info(f"  세그먼트 {len(segs)}개 (타이틀 {title_dur:.1f}s 등)")
-    stats = _plan_stat_overlays(caption_script, dur, title_dur)
+    # 기사 캡처 세그먼트의 시간대를 구해 콜아웃 금지 구간으로 넘긴다.
+    blocked = None
+    if article_img:
+        t = 0.0
+        for img, d in segs:
+            if str(img) == str(article_img):
+                blocked = (t, t + d)
+                break
+            t += d
+    stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked)
     if stats:
         log.info(f"  숫자 콜아웃 {len(stats)}개")
 
