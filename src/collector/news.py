@@ -24,6 +24,7 @@ from config.settings import (
     NEWS_BLOCK_DOMAINS,
 )
 from src.collector.history import is_duplicate, load_history
+from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
 log = setup_logger("news")
@@ -297,9 +298,20 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
 
 
 def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None:
-    """관련성 높은 순으로 원문 해소하여 본문 확보된 첫 기사를 반환한다."""
+    """관련성 높은 순으로 원문 해소하여 본문 확보된 첫 기사를 반환한다.
+
+    아무도 기준(본문 80자)을 넘기지 못하면, 예전에는 candidates[0]을 그대로
+    돌려줬다. 그 후보는 해소를 시도조차 안 했을 수 있어 summary가 빈
+    문자열이고 url이 구글뉴스 리다이렉트 주소다. 그러면 뒤에서 전부 무너진다.
+      - 기사 캡처가 리다이렉트 페이지에서 실패하고
+      - 폴백 카드는 본문 0자로 거의 빈 화면이 되고(8초 구간)
+      - 영상 설명의 '출처' 링크가 구글뉴스 주소로 나간다
+    (2026-09-14 검증에서 lead 0자로 실측)
+    그래서 돌아본 후보 중 본문이 가장 긴 것을 대신 돌려준다.
+    """
     session = requests.Session()
     session.headers.update({"User-Agent": UA})
+    best: Article | None = None
     for art in candidates[:top_n]:
         _resolve_and_enrich(art, session)
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
@@ -308,6 +320,15 @@ def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None
                      f"신선도 {recency_score(art.published)}, "
                      f"{'날짜불명' if age is None else f'{age:.1f}일 전'}): "
                      f"{art.title} ({art.source})")
+            note(f"기사 선정: 본문 {len(art.summary)}자 · {art.source} · {art.title[:40]}")
             return art
+        if best is None or len(art.summary) > len(best.summary):
+            best = art
         time.sleep(0.5)
-    return candidates[0] if candidates else None
+    if best is None:
+        best = candidates[0] if candidates else None
+    if best is not None:
+        log.warning(f"본문 80자 이상인 기사를 찾지 못했다 → 본문 {len(best.summary)}자짜리로 진행")
+        note(f"기사 선정 실패: {top_n}개 모두 본문 80자 미만 → "
+             f"본문 {len(best.summary)}자짜리 사용 ({best.source} · {best.title[:40]})")
+    return best
