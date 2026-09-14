@@ -103,7 +103,14 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
    않는다. 논쟁 중인 해석이다. "~라는 지적이 나온다", "~를 원인으로 보는
    시각이 있다"로 쓴다.
 
-17. [투자 조언 금지 — 필수] 사거나 팔 시점을 권하지 않는다. "급매물을
+17. [구체 수치 최소 3개 — 필수] script 안에 기사에 실제로 있는 수치를 단위와
+   함께 최소 3개 넣는다. "몇 주째", "크게 줄어든", "급감", "역대급" 같은
+   두루뭉술한 표현으로 숫자를 대신하지 말 것. 기사에 숫자가 있으면 그대로
+   쓴다(17.16%, 4,278가구, 160만원, 86주). 이 채널은 숫자로 보는 채널이고,
+   화면 중앙에 뜨는 숫자 카드도 이 수치에서 뽑는다. 숫자가 없으면 그 자리가
+   빈 화면이 된다.
+
+18. [투자 조언 금지 — 필수] 사거나 팔 시점을 권하지 않는다. "급매물을
    노리세요", "지금 사라/팔아라", "영끌하지 마세요" 모두 금지. 영상 설명에
    투자 권유가 아니라고 적어 두고 본문에서 매수 타이밍을 조언하면 그 자체로
    모순이다. 제도와 숫자를 설명하는 데서 끝낸다.
@@ -253,6 +260,18 @@ def _cap_length(text: str, max_chars: int = 380) -> str:
     return cut.rstrip()
 
 
+# 대본에 들어 있어야 하는 최소 수치 개수.
+MIN_STATS = 3
+_STAT_COUNT_RE = re.compile(
+    r"\d[\d,\.]*\s?(?:%|퍼센트|억|만원|만|천|원|배|채|가구|세대|호|명|건|위|조|평|㎡|개월|주|년)")
+
+
+def _count_stats(script: str) -> int:
+    """단위가 붙은 수치의 개수. 연도는 세지 않는다."""
+    hits = [m.group(0) for m in _STAT_COUNT_RE.finditer(script or "")]
+    return sum(1 for h in hits if not re.fullmatch(r"(1[89]\d{2}|20\d{2})\s?년", h))
+
+
 def generate(art) -> ShortPlan:
     prompt = PROMPT.format(
         title=getattr(art, "title", ""),
@@ -264,6 +283,20 @@ def generate(art) -> ShortPlan:
     if not data or not data.get("script"):
         log.info("대본: 폴백 사용")
         return _fallback_plan(art)
+
+    # 수치가 없는 대본은 이 채널에서 쓸모가 없다. 상위 영상은 전부 제목에
+    # 숫자가 있고, 화면 중앙 숫자 카드도 대본 수치에서 뽑는다. 실측(2026-09-14)
+    # 에서 21개 구절에 수치가 0개인 대본이 나와 콜아웃이 한 개도 안 떴다.
+    # 한 번만 더 요청하고, 그래도 없으면 그대로 간다(파이프라인은 멈추지 않는다).
+    if _count_stats(str(data.get("script", ""))) < MIN_STATS:
+        log.info(f"대본에 수치가 {_count_stats(str(data.get('script','')))}개뿐 → 재요청")
+        raw2 = _gemini(prompt + "\n\n[재작성] 앞선 초안에 구체적인 수치가 없었다. "
+                                "기사에 있는 숫자를 단위와 함께 최소 3개 넣어 다시 써라.")
+        data2 = _parse_json(raw2) if raw2 else None
+        if data2 and data2.get("script"):
+            if _count_stats(str(data2["script"])) > _count_stats(str(data["script"])):
+                data = data2
+        log.info(f"  재요청 결과 수치 {_count_stats(str(data.get('script','')))}개")
 
     script = _cap_length(_clean_script(normalize_caption(str(data["script"]).strip())))
     headline = [_clean_script(normalize_caption(h)) for h in (data.get("headline") or [])][:3]
