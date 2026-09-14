@@ -19,18 +19,29 @@ BLUE = (46, 130, 235)    # 하락
 YELLOW = (255, 214, 10)  # 중립
 DARK = (16, 16, 20)
 
-# 강한 수치(단위 포함)만 콜아웃 대상
-_STAT_RE = re.compile(r"(\d[\d,\.]*)\s?(%|퍼센트|억|만원|만|배|채|년|가구|위|조|평)")
+# 강한 수치(단위 포함)만 콜아웃 대상. 단위를 넓힌다 — 예전 목록에는 천·명·
+# 건·원·주·개월·제곱미터가 없어서 "200명", "3천 건", "84제곱미터"가 통째로
+# 빠졌다.
+_STAT_RE = re.compile(
+    r"(\d[\d,\.]*)\s?"
+    r"(%|퍼센트|억원|억|만원|만|천|원|배|채|가구|세대|호|명|건|위|조|평|"
+    r"제곱미터|㎡|개월|주|년|일|개)")
+# 연도는 수치가 아니라 날짜다. "2024년"을 화면 한복판에 210px로 띄우면
+# 숫자 임팩트가 아니라 잡음이 된다(2026-09-14 실측에서 2회 잡혔다).
+_YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
 _UP = ["오르", "상승", "폭등", "급등", "최고", "신고가", "뛰", "올라", "증가", "늘"]
 _DOWN = ["하락", "급락", "폭락", "내리", "줄", "감소", "떨어", "최저", "급감"]
 
 
 def pick_stat(phrase: str) -> tuple[str, str] | None:
     """구절에서 대표 수치 1개와 방향(up/down/flat)을 뽑는다. 없으면 None."""
-    m = _STAT_RE.search(phrase)
-    if not m:
+    for m in _STAT_RE.finditer(phrase):
+        cand = m.group(1) + m.group(2)
+        if not _YEAR_RE.match(cand.replace(",", "")):
+            break
+    else:
         return None
-    big = (m.group(1) + m.group(2)).replace("퍼센트", "%").replace("만원", "만")
+    big = cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡")
     direction = "flat"
     if any(k in phrase for k in _UP):
         direction = "up"

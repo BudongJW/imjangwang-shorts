@@ -197,21 +197,49 @@ def build_caption_ass(caption_script: str, total_sec: float, out: Path) -> Path:
 
 
 def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
-                        max_n: int = 3) -> list[tuple[Path, float, float]]:
-    """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성."""
+                        max_n: int = 6) -> list[tuple[Path, float, float]]:
+    """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성.
+
+    앞에서부터 max_n개를 집고 끊으면 콜아웃이 도입부에만 몰린다. 55초짜리
+    실측에서 후보가 11개였는데 앞 3개가 전부 0~9초에 있었고, 나머지 46초에는
+    하나도 뜨지 않았다(검증 프레임 8장 중 0장). 화면 중앙을 채우라고 만든
+    기능인데 사실상 없는 기능이었다.
+
+    그래서 영상 전체를 max_n 구간으로 나눠 구간마다 하나씩 고른다. 같은
+    수치가 연달아 나오면 건너뛴다.
+    """
     from src.editor.stat_callout import pick_stat, render_stat_card
-    overlays: list[tuple[Path, float, float]] = []
+    cands = []
     for ph, s, e in _phrase_timings(caption_script, total_sec):
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
             continue
         st = pick_stat(ph)
-        if not st:
-            continue
-        path = VIDEO_DIR / f"stat_{len(overlays)}.png"
-        render_stat_card(st[0], st[1], path)
-        overlays.append((path, max(s, title_dur), min(total_sec, e + 0.4)))
-        if len(overlays) >= max_n:
+        if st:
+            cands.append((st, max(s, title_dur), min(total_sec, e + 0.4)))
+    if not cands:
+        return []
+
+    span_start = title_dur
+    span = max(0.1, total_sec - span_start)
+    picked: list[tuple] = []
+    used = set()
+    for i in range(max_n):
+        lo = span_start + span * i / max_n
+        hi = span_start + span * (i + 1) / max_n
+        for st, s, e in cands:
+            if s in used or not (lo <= s < hi):
+                continue
+            if picked and picked[-1][0][0] == st[0]:
+                continue          # 같은 수치 연속 반복은 건너뛴다
+            picked.append((st, s, e))
+            used.add(s)
             break
+
+    overlays = []
+    for i, (st, s, e) in enumerate(picked):
+        path = VIDEO_DIR / f"stat_{i}.png"
+        render_stat_card(st[0], st[1], path)
+        overlays.append((path, s, e))
     return overlays
 
 
