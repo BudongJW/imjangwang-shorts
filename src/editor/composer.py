@@ -383,8 +383,16 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 break
             t += d
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked)
-    if stats:
-        log.info(f"  숫자 콜아웃 {len(stats)}개")
+    # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
+    # 눈으로 맞히기 어렵다(2~3.5초씩만 뜬다). 검증 아티팩트에 같이 실어
+    # 몇 시에 무엇이 뜨는지 바로 보게 한다.
+    plan_txt = VIDEO_DIR / "stat_plan.txt"
+    lines = [f"영상 {dur:.1f}s · 타이틀 {title_dur:.1f}s"
+             + (f" · 기사 {blocked[0]:.1f}~{blocked[1]:.1f}s(콜아웃 금지)" if blocked else "")]
+    lines += [f"{a:6.1f}~{b:5.1f}s  {pth.name}" for pth, a, b in stats] or ["(콜아웃 없음)"]
+    plan_txt.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    log.info(f"  숫자 콜아웃 {len(stats)}개"
+             + (f" (기사 구간 {blocked[0]:.1f}~{blocked[1]:.1f}s 제외)" if blocked else ""))
 
     # 입력 구성: 각 세그먼트 이미지 (+상단 배너 +스탯카드) + 오디오
     inputs: list[str] = []
