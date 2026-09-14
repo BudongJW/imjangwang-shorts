@@ -111,6 +111,35 @@ jobs:
           fi
           exit $code
 
+      # 검증 모드에서만: 렌더 결과를 눈으로 확인할 수 있게 프레임을 뽑아
+      # 아티팩트로 올린다. 로컬에는 ffmpeg가 없어 영상 품질을 볼 방법이
+      # 이것뿐이다. 업로드는 하지 않으므로 채널에 영향이 없다.
+      - name: 검증 프레임 추출
+        if: contains(github.ref_name, 'verify')
+        run: |
+          set -e
+          V=output/final/final.mp4
+          [ -f "$V" ] || { echo "final.mp4 없음"; exit 1; }
+          mkdir -p output/frames
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$V")
+          echo "길이 ${DUR}s"
+          for T in 0.2 0.8 1.4 2.0 4.0 12.0 25.0 40.0; do
+            awk -v t="$T" -v d="$DUR" 'BEGIN{exit !(t<d)}' || continue
+            ffmpeg -v error -ss "$T" -i "$V" -frames:v 1 \
+              -vf scale=540:-2 "output/frames/t${T}.png"
+          done
+          ls -la output/frames
+
+      - name: 검증 아티팩트 업로드
+        if: contains(github.ref_name, 'verify')
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-frames
+          path: |
+            output/frames/*.png
+            output/video/title_card.png
+          retention-days: 3
+
       - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)
         if: always() && hashFiles('refreshed_token.json') != ''
         env:
