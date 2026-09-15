@@ -19,6 +19,7 @@ from config.settings import (
     GEMINI_API_KEYS, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, DEFAULT_HASHTAGS, FIXED_CTA,
 )
 from src.script_gen.correct_terms import normalize_caption, to_speech
+from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
 log = setup_logger("script_gen")
@@ -106,7 +107,9 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
 17. [구체 수치 최소 3개 — 필수] script 안에 기사에 실제로 있는 수치를 단위와
    함께 최소 3개 넣는다. "몇 주째", "크게 줄어든", "급감", "역대급" 같은
    두루뭉술한 표현으로 숫자를 대신하지 말 것. 기사에 숫자가 있으면 그대로
-   쓴다(17.16%, 4,278가구, 160만원, 86주). 이 채널은 숫자로 보는 채널이고,
+   쓴다(17.16%, 4,278가구, 160만원, 86주). 기사에 없는 숫자는 절대 만들어
+   내지 말 것 — 기사에 숫자가 부족하면 있는 것만 쓰고 개수를 못 채워도 된다.
+   이 채널은 숫자로 보는 채널이고,
    화면 중앙에 뜨는 숫자 카드도 이 수치에서 뽑는다. 숫자가 없으면 그 자리가
    빈 화면이 된다.
    수치를 앞쪽 '근거' 문단에만 몰아 넣지 말 것. 최소 1개는 뒤쪽 해석·결론
@@ -314,12 +317,29 @@ def _count_stats(script: str) -> int:
     return sum(1 for h in hits if not re.fullmatch(r"(1[89]\d{2}|20\d{2})\s?년", h))
 
 
+# 본문이 이만큼은 돼야 '수치를 뽑아 쓸 근거가 있다'고 본다(기사 선정 기준과 동일).
+MIN_BODY_FOR_STATS = 80
+
+
 def generate(art) -> ShortPlan:
+    body = (getattr(art, "summary", "") or "").strip()
+    has_body = len(body) >= MIN_BODY_FOR_STATS
     prompt = PROMPT.format(
         title=getattr(art, "title", ""),
         source=getattr(art, "source", ""),
-        summary=(getattr(art, "summary", "") or getattr(art, "title", ""))[:1200],
+        summary=(body or getattr(art, "title", ""))[:1200],
     )
+    # 본문 확보에 실패하는 날이 있다(구글뉴스 리다이렉트 해소 실패). 그때
+    # 수치 3개를 요구하면 모델이 기사에 없는 숫자를 지어낸다 — 2026-09-15
+    # 실측에서 본문 0자인데 "25만 가구대", "10주 연속", "150만원"이 나왔다.
+    # 뉴스 채널에서 이건 조회수보다 훨씬 비싼 실수다. 근거가 없으면 요구하지
+    # 않는다.
+    if not has_body:
+        prompt += ("\n\n[본문 없음 — 최우선] 이 기사는 본문을 확보하지 못했다. "
+                   "제목에 있는 사실만 쓰고, 기사에 없는 수치·기관명·날짜·인용을 "
+                   "절대 지어내지 말 것. 규칙 17의 '수치 최소 3개'는 이 경우 "
+                   "적용하지 않는다. 숫자가 없으면 없는 대로, 사실만으로 써라.")
+        note(f"대본: 기사 본문 {len(body)}자 → 수치 강제 해제(날조 방지)")
     raw = _gemini(prompt)
     data = _parse_json(raw) if raw else None
     if not data or not data.get("script"):
@@ -330,7 +350,7 @@ def generate(art) -> ShortPlan:
     # 숫자가 있고, 화면 중앙 숫자 카드도 대본 수치에서 뽑는다. 실측(2026-09-14)
     # 에서 21개 구절에 수치가 0개인 대본이 나와 콜아웃이 한 개도 안 떴다.
     # 한 번만 더 요청하고, 그래도 없으면 그대로 간다(파이프라인은 멈추지 않는다).
-    if _count_stats(str(data.get("script", ""))) < MIN_STATS:
+    if has_body and _count_stats(str(data.get("script", ""))) < MIN_STATS:
         log.info(f"대본에 수치가 {_count_stats(str(data.get('script','')))}개뿐 → 재요청")
         raw2 = _gemini(prompt + "\n\n[재작성] 앞선 초안에 구체적인 수치가 없었다. "
                                 "기사에 있는 숫자를 단위와 함께 최소 3개 넣어 다시 써라.")
