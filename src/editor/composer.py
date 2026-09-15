@@ -72,16 +72,25 @@ def _ass_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+# 자막 한 줄 글자 수 상한. 폭 1080에 좌우 여백 60씩이면 960px가 남고,
+# NanumGothic 72px는 한글 14자에서 딱 찬다(실측). 예전 상한 20자는 58px
+# 기준이었고 그때도 순한글 구절은 폭 경계였다.
+#   58px 17자 / 64px 15자 / 72px 14자 / 80px 12자
+# 쇼츠는 대부분 무음으로 보므로 자막이 사실상 주력 전달 수단인데, 58px는
+# 화면에서 가장 작은 요소였다(프레임 높이의 4%).
+CAPTION_MAX_CHARS = 14
+
+
 ASS_HEADER = """[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
-WrapStyle: 2
+WrapStyle: 0
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,NanumGothic,58,&H00FFFFFF,&H000000FF,&H80101010,&H00000000,-1,0,0,0,100,100,0,0,3,10,0,2,60,60,300,1
+Style: Cap,NanumGothic,72,&H00FFFFFF,&H000000FF,&H80101010,&H00000000,-1,0,0,0,100,100,0,0,3,12,0,2,60,60,330,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -137,7 +146,7 @@ def _glue_tokens(tokens: list[str]) -> list[list[str]]:
     return groups
 
 
-def _wrap_tokens(tokens: list[str], limit: int = 20) -> list[str]:
+def _wrap_tokens(tokens: list[str], limit: int = CAPTION_MAX_CHARS) -> list[str]:
     """토큰을 limit자 이내 줄로 묶되, 붙여야 할 덩어리는 쪼개지 않는다."""
     lines: list[str] = []
     cur = ""
@@ -165,10 +174,10 @@ def _split_phrases(text: str) -> list[str]:
         r = r.strip()
         if not r:
             continue
-        if len(r) <= 22:
+        if len(r) <= CAPTION_MAX_CHARS + 1:
             phrases.append(r)
         else:
-            phrases.extend(_wrap_tokens(r.split(), limit=20))
+            phrases.extend(_wrap_tokens(r.split(), limit=CAPTION_MAX_CHARS))
     return [p for p in phrases if p]
 
 
