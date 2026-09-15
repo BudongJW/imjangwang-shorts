@@ -180,12 +180,35 @@ jobs:
         run: rm -f refreshed_token.json
 
       - name: Persist topic history
-        if: steps.generate.outcome == 'success'
+        # 검증 렌더(--skip-upload)는 업로드를 안 하니 토픽을 소비하지 않는다.
+        # 그걸 기록하면 그날 크론이 멀쩡한 기사를 '중복'으로 보고 버린다.
+        if: steps.generate.outcome == 'success' && !contains(github.ref_name, 'verify')
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          set -e
+          [ -f output/topic_history.json ] || exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f output/topic_history.json ]; then
+          cp output/topic_history.json /tmp/run_history.json
+          # 항상 기본 브랜치에 남긴다. 업로드는 run/daily-force-* 같은 일회용
+          # 브랜치에서도 일어나는데, 거기 커밋하면 아무도 다시 읽지 않는다.
+          # 2026-09-15 재업로드(8gCW0FU_yys)가 실제로 그렇게 유실돼, 바로
+          # 다음 실행이 같은 기사를 후보로 다시 골랐다. 기사 중복 방지와
+          # '오늘 이미 올렸나' 2차 방어선이 둘 다 이 파일을 읽는다.
+          git fetch origin "$DEFAULT_BRANCH"
+          git checkout -f -B persist-history "origin/$DEFAULT_BRANCH"
+          for i in 1 2 3; do
+            python scripts/merge_history.py output/topic_history.json \
+                   /tmp/run_history.json output/topic_history.json
             git add -f output/topic_history.json
-            git diff --cached --quiet || git commit -m "chore: update topic history [skip ci]"
-            git push || echo "push 실패(무시)"
-          fi
+            git diff --cached --quiet && exit 0
+            git commit -m "chore: update topic history [skip ci]"
+            git push origin "HEAD:$DEFAULT_BRANCH" && exit 0
+            # 그 사이 기본 브랜치가 갱신됐다. 다시 받아 합친다(덮어쓰지 않는다).
+            git reset --hard HEAD~1
+            git fetch origin "$DEFAULT_BRANCH"
+            git reset --hard "origin/$DEFAULT_BRANCH"
+          done
+          echo "토픽 기록 push 실패 — 다음 실행이 같은 기사를 다시 고를 수 있다"
+          exit 1
