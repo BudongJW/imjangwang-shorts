@@ -74,6 +74,26 @@ PUBLISH_TARGET_KST = os.getenv("PUBLISH_TARGET_KST", "08:40")
 # 예약을 걸려면 목표까지 최소 이만큼 남아 있어야 한다(API 반영 여유).
 PUBLISH_MIN_LEAD_MIN = int(os.getenv("PUBLISH_MIN_LEAD_MIN", "15"))
 
+# ── 대본 길이 ───────────────────────────────────────────
+# 실측 환산 약 6.4자/초.
+#   normal : 310~350자(48~55초), 상한 380자(≈59초) — 현재 기본값.
+#   short  : 200~240자(31~37초), 상한 270자(≈42초) — 2026-09-20 시작 A/B 실험.
+# normal을 고른 근거는 지속률이 잡힌 영상 20개다(2026-09-13).
+#   50~60초 9개 → 지속률 중앙 72.2% / 조회수 중앙 1,741
+#   60초 초과 11개 → 지속률 중앙 61.6% / 조회수 중앙 1,201
+#   상관: 길이↔지속률 -0.52, 지속률↔조회수 +0.68, 길이↔조회수 -0.45
+# 다만 관측된 길이가 45~92초뿐이라 45초 미만 구간은 데이터가 없다. short는
+# 그 빈 구간을 직접 재보려는 실험이며, 길이 외에는 아무것도 바꾸지 않는다.
+# 전환은 리포지터리 변수 SCRIPT_LEN_MODE=short 하나로 끝난다(워크플로가 넘긴다).
+CHARS_PER_SEC = 6.4
+SCRIPT_LEN_MODE = os.getenv("SCRIPT_LEN_MODE", "normal").strip().lower()
+_LEN_PRESETS = {"normal": (310, 350, 380), "short": (200, 240, 270)}
+_len = _LEN_PRESETS.get(SCRIPT_LEN_MODE, _LEN_PRESETS["normal"])
+# 프리셋 밖 미세조정이 필요할 때만 개별 환경변수로 덮어쓴다.
+SCRIPT_CHARS_MIN = int(os.getenv("SCRIPT_CHARS_MIN", str(_len[0])))
+SCRIPT_CHARS_MAX = int(os.getenv("SCRIPT_CHARS_MAX", str(_len[1])))
+SCRIPT_CHARS_CAP = int(os.getenv("SCRIPT_CHARS_CAP", str(_len[2])))
+
 IMAGE_MAX_SEC = 3.0           # 이미지 1컷 최대 노출(초) — 정지 이미지 12초 금지
 # 숫자 콜아웃 1개 최대 노출(초). 구절이 길면 큰 숫자가 10초씩 박혀 있게 된다.
 STAT_MAX_SEC = 3.5

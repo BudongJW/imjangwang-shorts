@@ -45,13 +45,19 @@ def is_duplicate(
     return False
 
 
-def record_topic(title: str, video_id: str = "") -> None:
-    """사용한 토픽을 기록한다."""
+def record_topic(title: str, video_id: str = "", **meta) -> None:
+    """사용한 토픽을 기록한다.
+
+    meta로 넘긴 값(len_mode, script_chars 등)을 함께 남긴다. 길이 실험처럼
+    코호트를 나눠 비교해야 하는 변경은 날짜로 추정하면 크론 실패·수동 재업로드
+    한 번에 경계가 무너진다. 영상마다 어떤 설정으로 만들어졌는지 박아 둔다.
+    """
     history = load_history()
     history.append({
         "title": title,
         "video_id": video_id,
         "date": datetime.now().isoformat(),
+        **{k: v for k, v in meta.items() if v is not None},
     })
     # 최근 200개만 유지
     if len(history) > 200:

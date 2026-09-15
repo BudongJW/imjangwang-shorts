@@ -187,6 +187,22 @@ def previous_views(snapshots: list[dict], video_id: str) -> tuple[int, float] | 
     return None
 
 
+def _len_modes() -> dict[str, str]:
+    """video_id → 대본 길이 모드(normal/short). topic_history.json에서 읽는다.
+
+    2026-09-15 이전 영상에는 len_mode가 없다(그 시절은 전부 normal이지만,
+    추정해 채우지 않는다 — 없는 것은 없는 대로 둔다).
+    """
+    path = ROOT / "output" / "topic_history.json"
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {r["video_id"]: r["len_mode"]
+            for r in rows
+            if isinstance(r, dict) and r.get("video_id") and r.get("len_mode")}
+
+
 def _bar(value: float, peak: float, width: int = 18) -> str:
     if peak <= 0:
         return ""
@@ -354,8 +370,11 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     if len(scored) >= 6:
 
         lines.append(f"길이별 시청지속률 중앙값 (지속률이 잡힌 {len(scored)}개):")
-        for lo, hi, label in ((0, 50, "50초 미만"), (50, 60, "50~60초"),
-                              (60, 10 ** 6, "60초 초과")):
+        # 40초 경계를 넣은 이유: 길이 실험(SCRIPT_LEN_MODE=short)이 31~37초를
+        # 노린다. '50초 미만' 한 칸에 두면 45~49초 영상과 섞여 실험 결과가
+        # 보이지 않는다.
+        for lo, hi, label in ((0, 40, "40초 미만"), (40, 50, "40~50초"),
+                              (50, 60, "50~60초"), (60, 10 ** 6, "60초 초과")):
             g = [v for v in scored if lo <= v["duration_s"] < hi]
             if not g:
                 continue
@@ -371,6 +390,31 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
         lines.append(f"(표본 {len(scored)}개라 방향만 본다. 관측된 길이는 "
                      f"{durs[0]}~{durs[-1]}초뿐이므로 그 밖은 말할 수 없다.)")
         lines.append("")
+
+    # ── 길이 실험 코호트 (SCRIPT_LEN_MODE) ──────────────────────
+    # 날짜로 코호트를 가르지 않는다. 크론이 하루 실패하거나 수동 재업로드가
+    # 한 번 끼면 경계가 무너진다. 업로드 시점에 topic_history.json에 박아 둔
+    # len_mode를 그대로 읽는다.
+    modes = _len_modes()
+    if modes:
+        tagged = [v for v in scored if modes.get(v["video_id"])]
+        by_mode = {}
+        for v in tagged:
+            by_mode.setdefault(modes[v["video_id"]], []).append(v)
+        if len(by_mode) >= 2 or (tagged and len(tagged) >= 3):
+            lines.append("길이 실험 (대본 길이 모드별):")
+            for mode in sorted(by_mode):
+                g = by_mode[mode]
+                rets = sorted(_ret(v) for v in g)
+                vws = sorted(v["views"] for v in g)
+                durs = sorted(v["duration_s"] for v in g)
+                lines.append(
+                    f"- {mode} ({len(g)}개, {durs[0]}~{durs[-1]}초): "
+                    f"지속률 중앙 {rets[len(rets) // 2]:.1f}% · "
+                    f"조회수 중앙 {vws[len(vws) // 2]:,}")
+            if len(by_mode) >= 2 and min(len(g) for g in by_mode.values()) < 7:
+                lines.append("(한쪽 표본이 7개 미만이다. 아직 판단하지 말 것.)")
+            lines.append("")
 
     return "\n".join(lines)
 

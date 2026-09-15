@@ -17,7 +17,7 @@ from datetime import datetime
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
     POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
-    PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN,
+    PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN, SCRIPT_LEN_MODE,
 )
 from src.collector import news, images
 from src.utils import buildnotes
@@ -284,7 +284,9 @@ def run(skip_upload: bool = False) -> int:
         # 타이틀카드(AI배경+헤드라인)를 커스텀 썸네일로 설정
         youtube.set_thumbnail(video_id, title_card)
 
-    record_topic(art.title, video_id)
+    record_topic(art.title, video_id,
+                 len_mode=SCRIPT_LEN_MODE,
+                 script_chars=len(plan.caption_script or ""))
     log.info("=== 완료 ===")
     return 0
 

@@ -95,6 +95,12 @@ jobs:
           # force=true면 already_posted_today() 가드를 끈다. 삭제 반영이 늦어
           # 가드가 걸리면 런은 success인데 업로드는 안 되는 조용한 실패가 난다.
           SKIP_IF_POSTED_TODAY: ${{ (github.event.inputs.force == 'true' || contains(github.ref_name, 'force')) && '0' || '1' }}
+          # 대본 길이 실험 스위치. 평소엔 비어 있어 normal(310~350자·48~55초).
+          # 리포지터리 변수 SCRIPT_LEN_MODE=short 로 바꾸면 매일 크론이
+          # 200~240자(31~37초)로 돈다. 브랜치 이름에 'short'가 들어가면
+          # 변수와 무관하게 한 번만 short로 돌아 렌더를 눈으로 검증할 수 있다
+          # (예: run/daily-verify-short-0920).
+          SCRIPT_LEN_MODE: ${{ contains(github.ref_name, 'short') && 'short' || (vars.SCRIPT_LEN_MODE || 'normal') }}
         run: |
           set +e
           SKIP=""

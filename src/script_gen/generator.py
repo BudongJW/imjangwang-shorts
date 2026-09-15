@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from config.settings import (
     GEMINI_API_KEYS, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, DEFAULT_HASHTAGS, FIXED_CTA,
+    SCRIPT_CHARS_MIN, SCRIPT_CHARS_MAX, SCRIPT_CHARS_CAP, SCRIPT_LEN_MODE, CHARS_PER_SEC,
 )
 from src.script_gen.correct_terms import normalize_caption, to_speech
 from src.utils.buildnotes import note
@@ -40,7 +41,7 @@ class ShortPlan:
 
 
 PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
-아래 뉴스 기사를 바탕으로 45~55초 분량 쇼츠 대본을 만드세요.
+아래 뉴스 기사를 바탕으로 {sec_min}~{sec_max}초 분량 쇼츠 대본을 만드세요.
 
 [기사]
 제목: {title}
@@ -131,7 +132,7 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
   "headline": ["타이틀 1줄", "타이틀 2줄", "(선택)3줄"],   // 각 줄 12자 이내, 정책 문제 겨냥
   "hook_word": "헤드라인에서 노랗게 강조할 핵심 단어 1개",
   "highlight_sentence": "기사에서 형광펜 칠할 핵심 한 문장(20자 내외)",
-  "script": "말하는 문장만. 310~350자. 지문·괄호·타임스탬프 없이.",
+  "script": "말하는 문장만. {chars_min}~{chars_max}자. 지문·괄호·타임스탬프 없이.",
   "youtube_title": "따옴표 인용 + 발언 주체 형식의 제목(38자 이내, 해시태그·이모지 제외)",
   "hashtags": ["부동산","집값","..."]
 }}
@@ -188,7 +189,7 @@ def _fallback_plan(art) -> ShortPlan:
     if body[:20] and body[:20] in title:
         body = body[len(title):].strip(" .,·-")
     sents = [s.strip() for s in re.split(r"(?<=[.!?다요])\s+", body) if len(s.strip()) >= 15]
-    body_text = " ".join(sents[:3])[:280]
+    body_text = " ".join(sents[:3])[: max(120, SCRIPT_CHARS_MAX - 70)]
 
     hook = f"{title.rstrip('.')}, 지금 무슨 일이 벌어지고 있을까요?"
     if body_text:
@@ -280,7 +281,7 @@ def _trim_incomplete_tail(text: str, keep_ratio: float = 0.6) -> str:
     return cut
 
 
-def _cap_length(text: str, max_chars: int = 380) -> str:
+def _cap_length(text: str, max_chars: int | None = None) -> str:
     """너무 긴 대본은 문장 경계에서 안전하게 자른다(쇼츠 길이 폭주 방지).
 
     실측 환산은 약 6.4자/초다. 목표 구간 310~350자가 48~55초, 상한 380자가
@@ -299,6 +300,8 @@ def _cap_length(text: str, max_chars: int = 380) -> str:
     비교다(scripts/analyze_performance.py에서 함께 고쳤다). 다만 관측된
     길이가 45~92초뿐이라 45초 미만이 더 나은지는 데이터가 없다.
     """
+    if max_chars is None:
+        max_chars = SCRIPT_CHARS_CAP
     if len(text) <= max_chars:
         return text
     cut = text[:max_chars]
@@ -331,7 +334,13 @@ def generate(art) -> ShortPlan:
         title=getattr(art, "title", ""),
         source=getattr(art, "source", ""),
         summary=(body or getattr(art, "title", ""))[:1200],
+        chars_min=SCRIPT_CHARS_MIN,
+        chars_max=SCRIPT_CHARS_MAX,
+        sec_min=round(SCRIPT_CHARS_MIN / CHARS_PER_SEC),
+        sec_max=round(SCRIPT_CHARS_MAX / CHARS_PER_SEC),
     )
+    note(f"대본 길이 모드: {SCRIPT_LEN_MODE} "
+         f"({SCRIPT_CHARS_MIN}~{SCRIPT_CHARS_MAX}자, 상한 {SCRIPT_CHARS_CAP}자)")
     # 본문 확보에 실패하는 날이 있다(구글뉴스 리다이렉트 해소 실패). 그때
     # 수치 3개를 요구하면 모델이 기사에 없는 숫자를 지어낸다 — 2026-09-15
     # 실측에서 본문 0자인데 "25만 가구대", "10주 연속", "150만원"이 나왔다.
