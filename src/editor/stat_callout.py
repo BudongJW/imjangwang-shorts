@@ -70,6 +70,31 @@ def is_weak(big: str) -> bool:
     return big.endswith(_WEAK_UNITS)
 
 
+# 대본 후반은 해석·결론이라 숫자가 없다. 기사의 숫자는 실거래가 문단에
+# 몰려 있고, 없는 숫자를 지어내라고 할 수는 없다(규칙 17). 그래서 후반
+# 구간은 숫자 대신 대본에 실제로 나온 핵심어를 띄운다. 화면을 채우면서
+# 없는 사실을 만들지 않는 유일한 방법이다.
+# (2026-09-15 실측: 52초 영상에서 수치 6개가 전부 14.2~25.8초에 있었다)
+_KEY_TERMS = (
+    "풍선효과", "공급 부족", "공급부족", "전세난", "역전세", "거래절벽", "미분양",
+    "갭투자", "깡통전세", "전세사기", "신고가", "규제 완화", "규제완화",
+    "대출 규제", "대출규제", "임대차 3법", "임대차3법", "재건축", "재개발",
+    "분양가상한제", "토지거래허가", "보유세", "종부세", "양도세", "취득세",
+    "특별공급", "청약통장", "실거주 의무", "입주 가뭄", "월세화",
+)
+
+
+def pick_keyword(phrase: str) -> str | None:
+    """구절에 실제로 나온 핵심어 1개. 없으면 None.
+
+    긴 것부터 찾는다 — "공급 부족"이 있는데 "공급"만 띄우면 뜻이 달라진다.
+    """
+    for term in sorted(_KEY_TERMS, key=len, reverse=True):
+        if term in phrase:
+            return term
+    return None
+
+
 def pick_stat(phrase: str) -> tuple[str, str] | None:
     """구절에서 대표 수치 1개와 방향(up/down/flat)을 뽑는다. 없으면 None.
 
@@ -108,7 +133,16 @@ def render_stat_card(big: str, direction: str, out: Path) -> Path:
     draw = ImageDraw.Draw(img)
     color = {"up": RED, "down": BLUE}.get(direction, YELLOW)
 
-    font = ImageFont.truetype(font_bold(), 210)
+    # 숫자는 짧아 210px로 충분하지만 핵심어("공급 부족")는 넘친다.
+    # 패널 좌우 여백까지 고려해 폭 안에 들어올 때까지 줄인다.
+    max_w = SHORTS_WIDTH - 200
+    size = 210
+    while size > 70:
+        font = ImageFont.truetype(font_bold(), size)
+        bbox = draw.textbbox((0, 0), big, font=font, stroke_width=10)
+        if bbox[2] - bbox[0] <= max_w:
+            break
+        size -= 10
     bbox = draw.textbbox((0, 0), big, font=font, stroke_width=10)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 

@@ -224,25 +224,34 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     화면이라, 그 위에 210px 숫자 패널을 얹으면 둘 다 못 읽는다
     (2026-09-14 검증 프레임 12초 지점에서 실제로 그렇게 나왔다).
     """
-    from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
-    cands = []
+    from src.editor.stat_callout import (pick_stat, pick_keyword,
+                                          render_stat_card, is_weak)
+    cands, kw_cands = [], []
     n_phrase = n_stat = n_blocked = 0
     for ph, s, e in _phrase_timings(caption_script, total_sec):
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
             continue
         n_phrase += 1
-        st = pick_stat(ph)
-        if not st:
-            continue
-        n_stat += 1
         cs, ce = max(s, title_dur), min(total_sec, e + 0.4)
-        if blocked and cs < blocked[1] and blocked[0] < ce:
-            n_blocked += 1
-            continue          # 기사 캡처 구간과 겹치면 버린다
-        cands.append((st, cs, ce))
+        in_article = bool(blocked and cs < blocked[1] and blocked[0] < ce)
+        st = pick_stat(ph)
+        if st:
+            n_stat += 1
+            if in_article:
+                n_blocked += 1
+                continue      # 기사 캡처 구간과 겹치면 버린다
+            cands.append((st, cs, ce))
+            continue
+        # 수치가 없는 구절은 핵심어 후보로 남겨 둔다. 대본 후반은 해석이라
+        # 숫자가 없고, 없는 숫자를 만들 수는 없다(규칙 17). 화면을 채우면서
+        # 없는 사실을 만들지 않는 방법이 이것뿐이다.
+        if not in_article:
+            kw = pick_keyword(ph)
+            if kw:
+                kw_cands.append(((kw, "flat"), cs, ce))
     note(f"콜아웃 후보: 구절 {n_phrase}개 중 수치 {n_stat}개 "
-         f"(기사구간 제외 {n_blocked}개) → 후보 {len(cands)}개")
-    if not cands:
+         f"(기사구간 제외 {n_blocked}개) → 수치 {len(cands)}개 · 핵심어 {len(kw_cands)}개")
+    if not cands and not kw_cands:
         return []
 
     span_start = title_dur
@@ -267,7 +276,8 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     # 끝난다(실측 58초 영상에서 1개). 자리가 남으면 남은 후보로 채운다.
     # 다만 서로 최소 4초는 떨어뜨려 연달아 튀어나오지 않게 한다.
     if len(picked) < max_n:
-        for st, s, e in cands:
+        # 수치가 남아 있으면 먼저 쓰고, 그다음에 핵심어로 빈 구간을 채운다.
+        for st, s, e in cands + kw_cands:
             if len(picked) >= max_n:
                 break
             if s in used:
