@@ -328,6 +328,13 @@ def render_title_card(headline: list[str], hook_word: str,
     return out
 
 
+# 배너는 화면 상단에 영상 내내 떠 있다. 3줄로 늘리면 세로 17%를 먹고
+# 숫자 콜아웃과 부딪힌다. 줄 수를 고정하고 글자 크기로 맞춘다.
+BANNER_MAX_LINES = 2
+BANNER_FONT_MAX = 74
+BANNER_FONT_MIN = 50
+
+
 def render_headline_banner(headline: list[str], hook_word: str,
                            out_name: str = "headline_banner",
                            accent: tuple = RED) -> Path:
@@ -340,9 +347,27 @@ def render_headline_banner(headline: list[str], hook_word: str,
     img = Image.new("RGBA", (SHORTS_WIDTH, SHORTS_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    lines = headline[:2]  # 배너는 최대 2줄로 압축
-    font = ImageFont.truetype(font_bold(), 74)
-    line_h = 92
+    # 헤드라인을 줄 단위로 자르면 말이 끊긴다. 2026-09-15 검증에서 타이틀카드가
+    # "분당 4억 폭등 / 정책이 부른 / 현금 잔치"였는데 배너는 headline[:2]만 써서
+    # "정책이 부른"으로 끝났다. 배너는 타이틀카드 1.5초를 뺀 나머지 전부(36초)에
+    # 떠 있으므로, 영상 내내 문장이 잘린 채 보인 셈이다.
+    # 자르는 대신 전체 문장을 폭에 맞춰 2줄로 다시 접는다. 2줄에 안 들어가면
+    # 글자를 줄인다.
+    text = " ".join(h.strip() for h in headline if h and h.strip())
+    usable = SHORTS_WIDTH - 120
+    size, lines = BANNER_FONT_MAX, [text]
+    for size in range(BANNER_FONT_MAX, BANNER_FONT_MIN - 1, -6):
+        font = ImageFont.truetype(font_bold(), size)
+        lines = _balance_lines(_wrap_to_width(text, draw, font, usable), draw, font, usable)
+        # 줄 수만 보면 안 된다. 어절 하나가 한 줄보다 길면 줄 수는 1인 채로
+        # 화면 밖으로 삐져나간다(검증에서 실제로 잘려 나갔다).
+        if (len(lines) <= BANNER_MAX_LINES
+                and max(draw.textlength(ln, font=font) for ln in lines) <= usable):
+            break
+    else:
+        # 최소 크기로도 안 되면(끊을 공백이 없는 긴 어절) 글자 단위로 끊는다.
+        lines = _hard_wrap(lines, draw, font, usable)[:BANNER_MAX_LINES]
+    line_h = int(size * 1.24)
     top = 60
     band_h = len(lines) * line_h + 44
     # 반투명 검정 밴드 + 빨강 좌측 액센트
@@ -363,6 +388,59 @@ def render_headline_banner(headline: list[str], hook_word: str,
     out = VIDEO_DIR / f"{out_name}.png"
     img.save(out)
     return out
+
+
+def _wrap_to_width(text: str, draw, font, max_w: float) -> list[str]:
+    """어절 단위로 폭에 맞춰 접는다. 어절은 쪼개지 않는다 — 쪼개면 hook_word가
+    두 줄로 갈려 강조색이 사라진다."""
+    lines: list[str] = []
+    cur = ""
+    for word in text.split():
+        trial = f"{cur} {word}".strip()
+        if cur and draw.textlength(trial, font=font) > max_w:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = trial
+    if cur:
+        lines.append(cur)
+    return lines or [text]
+
+
+def _hard_wrap(lines: list[str], draw, font, max_w: float) -> list[str]:
+    """공백이 없어 어절 단위로는 못 접는 줄을 글자 단위로 끊는다."""
+    out: list[str] = []
+    for line in lines:
+        while draw.textlength(line, font=font) > max_w and len(line) > 1:
+            cut = len(line)
+            while cut > 1 and draw.textlength(line[:cut], font=font) > max_w:
+                cut -= 1
+            out.append(line[:cut])
+            line = line[cut:]
+        if line:
+            out.append(line)
+    return out
+
+
+def _balance_lines(lines: list[str], draw, font, max_w: float) -> list[str]:
+    """2줄이 한쪽으로 쏠리면 마지막 어절을 아래로 내려 길이를 맞춘다.
+
+    배너는 타이틀카드 이후 영상 내내 떠 있다. 첫 줄이 꽉 차고 둘째 줄이
+    두 글자면 계속 눈에 거슬린다.
+    """
+    if len(lines) != 2:
+        return lines
+    a, b = lines
+    while " " in a:
+        head, _, tail = a.rpartition(" ")
+        cand_b = f"{tail} {b}"
+        if draw.textlength(cand_b, font=font) > max_w:
+            break
+        wa, wb = draw.textlength(a, font=font), draw.textlength(b, font=font)
+        if abs(draw.textlength(head, font=font) - draw.textlength(cand_b, font=font)) >= abs(wa - wb):
+            break
+        a, b = head, cand_b
+    return [a, b]
 
 
 def _split_hook(line: str, hook_word: str) -> list[tuple[str, bool]]:
