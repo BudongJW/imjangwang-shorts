@@ -224,7 +224,7 @@ def run(skip_upload: bool = False) -> int:
             plan = _name_government(plan)
 
     # 3) TTS
-    audio = narrate(plan.speech_script)
+    audio, srt = narrate(plan.speech_script)
 
     # 4) 배경 이미지 + 기사 캡처
     bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=4)
@@ -255,7 +255,8 @@ def run(skip_upload: bool = False) -> int:
 
     # 5) 합성
     buildnotes.note(f"대본 {len(plan.caption_script)}자: {plan.caption_script}")
-    final = compose(plan.caption_script, audio, title_card, article_img, bg_paths, banner=banner)
+    final = compose(plan.caption_script, audio, title_card, article_img, bg_paths,
+                    banner=banner, srt_path=srt)
 
     # 6) 업로드
     video_id = ""

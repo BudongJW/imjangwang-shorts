@@ -181,9 +181,98 @@ def _split_phrases(text: str) -> list[str]:
     return [p for p in phrases if p]
 
 
-def _phrase_timings(caption_script: str, total_sec: float) -> list[tuple[str, float, float]]:
-    """구절을 오디오 길이에 비례 배분해 (구절, 시작, 끝) 리스트로."""
+_SRT_TIME_RE = re.compile(
+    r"(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{1,3})")
+
+
+def parse_srt_cues(path) -> list[tuple[str, float, float]]:
+    """SRT를 (텍스트, 시작초, 끝초) 리스트로. 실패하면 빈 리스트.
+
+    edge-tts가 합성하면서 남긴 실제 발화 시각이다. 없거나 깨져도 파이프라인은
+    글자수 비례 배분으로 돌아간다.
+    """
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except (OSError, TypeError):
+        return []
+    cues, lines = [], raw.splitlines()
+    for i, ln in enumerate(lines):
+        m = _SRT_TIME_RE.search(ln)
+        if not m:
+            continue
+        g = [int(x) for x in m.groups()]
+        st = g[0] * 3600 + g[1] * 60 + g[2] + g[3] / (1000 if len(m.group(4)) == 3 else 100)
+        en = g[4] * 3600 + g[5] * 60 + g[6] + g[7] / (1000 if len(m.group(8)) == 3 else 100)
+        text = []
+        for nxt in lines[i + 1:]:
+            if not nxt.strip() or _SRT_TIME_RE.search(nxt):
+                break
+            text.append(nxt.strip())
+        if text:
+            cues.append((" ".join(text), st, en))
+    return cues
+
+
+def _timings_from_cues(phrases: list[str], cues: list[tuple[str, float, float]],
+                       total_sec: float) -> list[tuple[str, float, float]] | None:
+    """발화 시각(cues)에 자막 구절을 맞춘다. 맞출 수 없으면 None.
+
+    자막 원문(caption_script)과 발화 원문(speech_script)은 표기가 다르다
+    ("84㎡" → "팔십사 제곱미터"). 그래서 글자를 직접 맞추지 않고, 각 구절의
+    '발화 기준 길이'만큼 cue를 소비해 경계를 잡는다.
+    """
+    if not cues or not phrases or len(cues) < len(phrases):
+        # 구절보다 구간이 적으면 경계를 나눌 수가 없다 → 폴백.
+        return None
+    from src.script_gen.correct_terms import to_speech
+    targets = [max(1, len(to_speech(p))) for p in phrases]
+    total_target = sum(targets)
+    total_cue = sum(len(c[0]) for c in cues) or 1
+    scale = total_cue / total_target
+
+    out, idx = [], 0
+    n = len(phrases)
+    for i, (ph, tgt) in enumerate(zip(phrases, targets)):
+        if idx >= len(cues):
+            return None           # cue가 모자라면 폴백이 낫다
+        start = cues[idx][1]
+        want = tgt * scale
+        # 남은 구절마다 최소 1구간은 남겨 둔다. 안 그러면 뒤쪽 구절이
+        # 전부 같은 시각으로 뭉개진다.
+        keep = n - i - 1
+        limit = len(cues) - keep
+        got = 0.0
+        while idx < limit:
+            nxt = len(cues[idx][0])
+            # 다음 구간을 먹으면 목표를 절반 이상 넘긴다 → 여기서 끊는다.
+            if got > 0 and got + nxt / 2 > want:
+                break
+            got += nxt
+            idx += 1
+        end = min(total_sec, max(cues[idx - 1][2], start + 0.4))
+        out.append((ph, start, end))
+    if not out:
+        return None
+    # 마지막은 오디오 끝까지 붙인다.
+    ph, st, _ = out[-1]
+    out[-1] = (ph, st, total_sec)
+    return out
+
+
+def _phrase_timings(caption_script: str, total_sec: float,
+                    cues: list[tuple[str, float, float]] | None = None
+                    ) -> list[tuple[str, float, float]]:
+    """구절별 (구절, 시작, 끝). cues가 있으면 실제 발화 시각을 쓴다.
+
+    없으면 예전처럼 오디오 길이에 글자수 비례로 배분한다. 비례 배분은
+    숫자를 읽느라 길어지는 구간을 반영하지 못한다("4,278가구"는 글자수보다
+    오래 걸린다).
+    """
     phrases = _split_phrases(caption_script)
+    if cues:
+        fitted = _timings_from_cues(phrases, cues, total_sec)
+        if fitted:
+            return fitted
     total_chars = sum(len(p) for p in phrases) or 1
     t = 0.0
     out = []
@@ -195,11 +284,12 @@ def _phrase_timings(caption_script: str, total_sec: float) -> list[tuple[str, fl
     return out
 
 
-def build_caption_ass(caption_script: str, total_sec: float, out: Path) -> Path:
-    """교정된 자막을 오디오 길이에 비례 배분해 ASS로 저장(스타일 내장)."""
+def build_caption_ass(caption_script: str, total_sec: float, out: Path,
+                      cues: list[tuple[str, float, float]] | None = None) -> Path:
+    """교정된 자막을 ASS로 저장(스타일 내장). cues가 있으면 실제 발화 시각을 쓴다."""
     out.parent.mkdir(parents=True, exist_ok=True)
     body = []
-    for ph, start, end in _phrase_timings(caption_script, total_sec):
+    for ph, start, end in _phrase_timings(caption_script, total_sec, cues):
         text = _highlight(ph.replace("\n", " ").strip())
         body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
     out.write_text(ASS_HEADER + "\n".join(body) + "\n", encoding="utf-8")
@@ -208,7 +298,8 @@ def build_caption_ass(caption_script: str, total_sec: float, out: Path) -> Path:
 
 def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
                         max_n: int = 6,
-                        blocked: tuple[float, float] | None = None
+                        blocked: tuple[float, float] | None = None,
+                        cues: list[tuple[str, float, float]] | None = None
                         ) -> list[tuple[Path, float, float]]:
     """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성.
 
@@ -228,7 +319,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
                                           render_stat_card, is_weak)
     cands, kw_cands = [], []
     n_phrase = n_stat = n_blocked = 0
-    for ph, s, e in _phrase_timings(caption_script, total_sec):
+    for ph, s, e in _phrase_timings(caption_script, total_sec, cues):
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
             continue
         n_phrase += 1
@@ -391,7 +482,8 @@ def _sub_filter(ass_path: Path, fonts_dir: Path) -> str:
 
 def compose(caption_script: str, audio_path: Path, title_card: Path,
             article_img: Path | None, bg_paths: list[Path],
-            out_name: str = "final", banner: Path | None = None) -> Path:
+            out_name: str = "final", banner: Path | None = None,
+            srt_path: Path | None = None) -> Path:
     """단일 filter_complex 패스로 켄번즈+concat+(상단배너)+자막번인+오디오mux.
 
     per-세그먼트 클립을 만들어 concat 데뮤서로 잇는 방식은 zoompan 타임스탬프
@@ -403,6 +495,10 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     out_path = FINAL_DIR / f"{out_name}.mp4"
     dur = _ffprobe_duration(audio_path)
     log.info(f"  오디오 길이 {dur:.1f}s")
+    # TTS가 남긴 실제 발화 시각. 자막과 콜아웃이 같은 타임라인을 쓰도록
+    # 한 번만 읽어 둘 다에 넘긴다.
+    cues = parse_srt_cues(srt_path) if srt_path else []
+    note(f"자막 타이밍: {'발화 시각 ' + str(len(cues)) + '구간' if cues else '글자수 비례(폴백)'}")
 
     # 자막 SRT·폰트는 비ASCII(한글) 경로에서 libass가 실패할 수 있어 임시 ASCII 폴더에 둔다.
     asset_dir = Path(tempfile.gettempdir()) / "imjang_subs"
@@ -411,7 +507,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         dst = asset_dir / ttf.name
         if not dst.exists():
             shutil.copyfile(ttf, dst)
-    ass = build_caption_ass(caption_script, dur, asset_dir / "display.ass")
+    ass = build_caption_ass(caption_script, dur, asset_dir / "display.ass", cues=cues)
     segs = _plan_segments(title_card, article_img, bg_paths, dur)
     title_dur = segs[0][1]
     log.info(f"  세그먼트 {len(segs)}개 (타이틀 {title_dur:.1f}s 등)")
@@ -424,7 +520,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 blocked = (t, t + d)
                 break
             t += d
-    stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked)
+    stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues)
     # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
     # 눈으로 맞히기 어렵다(2~3.5초씩만 뜬다). 검증 아티팩트에 같이 실어
     # 몇 시에 무엇이 뜨는지 바로 보게 한다.
