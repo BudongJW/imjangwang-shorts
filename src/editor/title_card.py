@@ -353,11 +353,24 @@ def render_headline_banner(headline: list[str], hook_word: str,
     # 떠 있으므로, 영상 내내 문장이 잘린 채 보인 셈이다.
     # 자르는 대신 전체 문장을 폭에 맞춰 2줄로 다시 접는다. 2줄에 안 들어가면
     # 글자를 줄인다.
-    text = " ".join(h.strip() for h in headline if h and h.strip())
+    parts = [h.strip() for h in headline if h and h.strip()]
+    text = " ".join(parts)
     usable = SHORTS_WIDTH - 120
     size, lines = BANNER_FONT_MAX, [text]
     for size in range(BANNER_FONT_MAX, BANNER_FONT_MIN - 1, -6):
         font = ImageFont.truetype(font_bold(), size)
+        # 큰 것부터: ① 한 줄에 다 들어가면 한 줄, ② 모델이 끊어 준 지점을
+        # 살려 인접한 줄만 합치기, ③ 그래도 안 되면 처음부터 다시 접기.
+        # ②가 있는 이유: 전부 다시 접으면 "월세 두 배 폭등 / 정책 실패의
+        # 그림자"가 "월세 두 배 / 폭등 정책 실패의 그림자"로 갈린다.
+        # 모델은 12자 단위로 의미를 끊어 주는데 그걸 버릴 이유가 없다.
+        if draw.textlength(text, font=font) <= usable:
+            lines = [text]
+            break
+        grouped = _group_adjacent(parts, draw, font, usable)
+        if grouped:
+            lines = grouped
+            break
         lines = _balance_lines(_wrap_to_width(text, draw, font, usable), draw, font, usable)
         # 줄 수만 보면 안 된다. 어절 하나가 한 줄보다 길면 줄 수는 1인 채로
         # 화면 밖으로 삐져나간다(검증에서 실제로 잘려 나갔다).
@@ -405,6 +418,25 @@ def _wrap_to_width(text: str, draw, font, max_w: float) -> list[str]:
     if cur:
         lines.append(cur)
     return lines or [text]
+
+
+def _group_adjacent(parts: list[str], draw, font, max_w: float) -> list[str] | None:
+    """원본 줄 순서를 지키면서 인접한 줄만 합쳐 2줄로 만든다.
+
+    모델이 의미 단위로 끊어 준 지점을 살린다. 두 줄 폭이 가장 비슷해지는
+    분할을 고른다. 어떤 분할도 폭에 안 들어가면 None.
+    """
+    if len(parts) < 2:
+        return None
+    best = None
+    for cut in range(1, len(parts)):
+        a, b = " ".join(parts[:cut]), " ".join(parts[cut:])
+        wa, wb = draw.textlength(a, font=font), draw.textlength(b, font=font)
+        if wa > max_w or wb > max_w:
+            continue
+        if best is None or abs(wa - wb) < best[0]:
+            best = (abs(wa - wb), [a, b])
+    return best[1] if best else None
 
 
 def _hard_wrap(lines: list[str], draw, font, max_w: float) -> list[str]:
