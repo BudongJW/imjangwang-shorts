@@ -1,8 +1,10 @@
 """부동산 뉴스 자동 수집.
 
-Google 뉴스 RSS(한국어)에서 부동산 관련 기사를 모아 후보를 만들고,
-중복(history)·차단 도메인을 걸러 대표 기사 1건을 고른다.
-선정된 기사는 원문 URL로 리다이렉트를 따라가 본문 요약과 대표 이미지를 확보한다.
+두 곳에서 후보를 모은다.
+  1. 언론사 RSS(PUBLISHER_FEEDS) — 원문 URL과 본문이 그대로 딸려 온다.
+  2. 구글뉴스 RSS 검색 — 매체를 가로질러 폭넓게 잡지만 원문 URL을 주지 않는다.
+중복(history)·차단 도메인을 걸러 대표 기사 1건을 고르고, 본문 요약과 대표
+이미지를 확보한다.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from config.settings import (
+    PUBLISHER_FEEDS,
     NEWS_QUERIES,
     NEWS_MAX_CANDIDATES,
     NEWS_BLOCK_DOMAINS,
@@ -142,6 +145,36 @@ def _pick_article_image(soup, page_url: str) -> str:
         elif not best:
             best = urljoin(page_url, u)     # 크기 정보가 없으면 첫 후보라도
     return best
+
+
+def _fetch_publisher_rss(source: str, url: str) -> list[Article]:
+    """언론사 RSS 하나를 읽는다. 실패해도 빈 리스트로 넘어간다.
+
+    구글뉴스와 달리 link가 원문 URL이라 _resolve_and_enrich가 그대로 본문을
+    긁어 온다. google_url 자리에 원문 URL을 넣어 이후 경로를 공유한다.
+    """
+    try:
+        resp = requests.get(url, timeout=12, headers={"User-Agent": UA})
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        log.warning(f"언론사 RSS 실패({source}): {e}")
+        return []
+    feed = feedparser.parse(resp.content)
+    out: list[Article] = []
+    for e in feed.entries:
+        link = e.get("link", "")
+        if not link.startswith("http"):
+            continue
+        out.append(
+            Article(
+                title=(e.get("title", "") or "").strip(),
+                source=source,
+                published=e.get("published", ""),
+                google_url=link,
+                query=f"feed:{source}",
+            )
+        )
+    return out
 
 
 def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
@@ -274,6 +307,20 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
     # 질의를 전부 돈다. 예전에는 후보가 max_candidates를 넘으면 break 했는데,
     # 첫 질의 하나만으로 70건이 넘어 나머지 9개 질의가 한 번도 쓰이지 않았다.
     # 그 결과 후보 풀이 한 질의에 갇혀, 신선한 기사가 아예 없는 날이 생겼다.
+    # 언론사 피드를 먼저 넣는다. 원문 URL·본문이 딸려 있어 본문 확보 성공률이
+    # 훨씬 높고, 점수가 같으면 먼저 들어온 쪽이 남는다.
+    feeds = [(src, url, _fetch_publisher_rss(src, url)) for src, url in PUBLISHER_FEEDS]
+    n_feed = sum(len(x[2]) for x in feeds)
+    for _src, _url, arts in feeds:
+        for art in arts:
+            key = art.title[:30]
+            if not art.title or key in seen_titles:
+                continue
+            seen_titles.add(key)
+            if is_duplicate(art.title, history=history) or _blocked(art.google_url):
+                continue
+            candidates.append(art)
+
     for q in NEWS_QUERIES:
         for art in _fetch_rss(q):
             key = art.title[:30]

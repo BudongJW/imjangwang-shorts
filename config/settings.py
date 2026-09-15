@@ -102,5 +102,22 @@ NEWS_QUERIES = [
     "청약 분양",
 ]
 NEWS_MAX_CANDIDATES = 30
+
+# 언론사 RSS. 구글뉴스 RSS는 원문 URL을 주지 않는다 — 링크가 news.google.com
+# 토큰이고, 그 페이지는 JS로만 원문으로 넘어간다(2026-09-15 확인: 응답 HTML에
+# 외부 URL이 아예 없고, 토큰을 base64 디코딩해도 URL이 안 나온다). 그 결과
+# 본문 확보에 통째로 실패하는 날이 생기고, 그러면 대본이 제목만 보고 쓰이고
+# 기사 캡처도 리다이렉트 페이지에서 죽는다.
+# 언론사 피드는 원문 URL과 본문을 그대로 주므로 후보 풀에 함께 넣는다.
+# (실측 본문 674~1032자 + 대표 이미지 확보)
+# 경제 전반 피드는 부동산 외 기사도 섞이지만 topic_score가 걸러 준다.
+PUBLISHER_FEEDS = [
+    ("매일경제", "https://www.mk.co.kr/rss/50300009/"),      # 부동산 전용
+    ("뉴시스", "https://newsis.com/RSS/economy.xml"),
+    ("연합뉴스", "https://www.yna.co.kr/rss/economy.xml"),
+    ("한겨레", "https://www.hani.co.kr/rss/economy/"),
+    ("경향신문", "https://www.khan.co.kr/rss/rssdata/economy_news.xml"),
+]
+
 # 신뢰도 낮은/광고성 도메인 제외
 NEWS_BLOCK_DOMAINS = ["blog.", "cafe.", "post.naver", "youtube.com"]
