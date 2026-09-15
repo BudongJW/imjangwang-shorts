@@ -187,7 +187,7 @@ def _fallback_plan(art) -> ShortPlan:
             f"{hook} 정부 정책과 대출·전세 시장이 맞물리며 실수요자 부담이 커지는 흐름입니다. "
             "앞으로의 방향, 지금 꼭 확인해 두세요."
         )
-    script = _cap_length(_clean_script(normalize_caption(script)))
+    script = _trim_incomplete_tail(_cap_length(_clean_script(normalize_caption(script))))
     return ShortPlan(
         headline=head,
         hook_word=hl,
@@ -230,6 +230,43 @@ def _clean_script(text: str) -> str:
     text = re.sub(r"\s+([,.!?])", r"\1", text)
     text = re.sub(r"\s{2,}", " ", text).strip()
     return text
+
+
+# 문장이 끝났다고 볼 수 있는 자리. 종결어미를 화이트리스트로 둔다.
+# '다'나 '요'만 보면 "계약보다"의 '다'를 문장 끝으로 오인한다(실측).
+_SENT_END_RE = re.compile(
+    r"(?:[.!?]|"
+    r"(?:습니다|니다|었다|았다|였다|는다|한다|된다|겠다|이다|아니다|더라|"
+    r"네요|세요|어요|아요|에요|예요|해요|이죠|죠|군요|까요|나요)"
+    r"(?=[.!?\s]|$))")
+
+
+def _trim_incomplete_tail(text: str, keep_ratio: float = 0.6) -> str:
+    """끝이 잘린 문장을 버린다.
+
+    모델이 "…눈높이를 현실에 맞추세요. 급한 계약보다" 처럼 문장을 미완으로
+    내는 경우가 있다(2026-09-14 실측). 그대로 두면 나레이션도 자막도 중간에
+    끊긴 채로 나가 시청자에게 바로 보인다.
+
+    잘라내면 keep_ratio 미만만 남는 경우에는 손대지 않는다 — 어색한 끝맺음이
+    토막글보다 낫다.
+    """
+    t = (text or "").strip()
+    if not t or t[-1] in ".!?":
+        return t
+    ends = list(_SENT_END_RE.finditer(t))
+    if not ends:
+        return t
+    cut = t[: ends[-1].end()].strip()
+    # 종결어미 뒤에 문장부호가 없으면 붙여 준다("…삽니다" → "…삽니다.")
+    if cut and cut[-1] not in ".!?":
+        cut += "."
+    if len(cut) < len(t) * keep_ratio:
+        log.info(f"  대본 끝이 잘린 듯하나 남는 분량이 적어 그대로 둔다({len(cut)}/{len(t)}자)")
+        return t
+    if cut != t:
+        log.info(f"  대본 미완성 끝 문장 제거: …{t[len(cut):][:20]!r}")
+    return cut
 
 
 def _cap_length(text: str, max_chars: int = 380) -> str:
@@ -298,7 +335,8 @@ def generate(art) -> ShortPlan:
                 data = data2
         log.info(f"  재요청 결과 수치 {_count_stats(str(data.get('script','')))}개")
 
-    script = _cap_length(_clean_script(normalize_caption(str(data["script"]).strip())))
+    script = _trim_incomplete_tail(
+        _cap_length(_clean_script(normalize_caption(str(data["script"]).strip()))))
     headline = [_clean_script(normalize_caption(h)) for h in (data.get("headline") or [])][:3]
     headline = [h for h in headline if h]
     if not headline:
