@@ -221,8 +221,7 @@ def _timings_from_cues(phrases: list[str], cues: list[tuple[str, float, float]],
     ("84㎡" → "팔십사 제곱미터"). 그래서 글자를 직접 맞추지 않고, 각 구절의
     '발화 기준 길이'만큼 cue를 소비해 경계를 잡는다.
     """
-    if not cues or not phrases or len(cues) < len(phrases):
-        # 구절보다 구간이 적으면 경계를 나눌 수가 없다 → 폴백.
+    if not cues or not phrases:
         return None
     from src.script_gen.correct_terms import to_speech
     targets = [max(1, len(to_speech(p))) for p in phrases]
@@ -230,26 +229,31 @@ def _timings_from_cues(phrases: list[str], cues: list[tuple[str, float, float]],
     total_cue = sum(len(c[0]) for c in cues) or 1
     scale = total_cue / total_target
 
-    out, idx = [], 0
-    n = len(phrases)
-    for i, (ph, tgt) in enumerate(zip(phrases, targets)):
-        if idx >= len(cues):
-            return None           # cue가 모자라면 폴백이 낫다
-        start = cues[idx][1]
-        want = tgt * scale
-        # 남은 구절마다 최소 1구간은 남겨 둔다. 안 그러면 뒤쪽 구절이
-        # 전부 같은 시각으로 뭉개진다.
-        keep = n - i - 1
-        limit = len(cues) - keep
-        got = 0.0
-        while idx < limit:
-            nxt = len(cues[idx][0])
-            # 다음 구간을 먹으면 목표를 절반 이상 넘긴다 → 여기서 끊는다.
-            if got > 0 and got + nxt / 2 > want:
-                break
-            got += nxt
-            idx += 1
-        end = min(total_sec, max(cues[idx - 1][2], start + 0.4))
+    # edge-tts SubMaker는 문장 단위로 묶어 준다(실측: 대본 32구절 → 8구간).
+    # 구절이 구간보다 많으므로 '구간 하나를 소비'하는 방식으로는 못 나눈다.
+    # 대신 누적 발화 길이를 구간 시간축에 선형으로 투영해 경계를 잡는다.
+    # 오차가 한 문장 안으로 묶여, 전체를 글자수로 배분하던 것보다 정확하다.
+    spans, acc = [], 0.0
+    for text, st, en in cues:
+        n = max(1, len(text))
+        spans.append((acc, acc + n, st, en))
+        acc += n
+    total_cue_chars = acc or 1
+
+    def at(pos: float) -> float:
+        """발화 누적 글자 위치 → 초."""
+        pos = min(max(pos, 0.0), total_cue_chars)
+        for lo, hi, st, en in spans:
+            if pos <= hi:
+                ratio = (pos - lo) / max(1e-6, hi - lo)
+                return st + (en - st) * ratio
+        return spans[-1][3]
+
+    out, cursor = [], 0.0
+    for ph, tgt in zip(phrases, targets):
+        start = at(cursor)
+        cursor += tgt * scale
+        end = min(total_sec, max(at(cursor), start + 0.4))
         out.append((ph, start, end))
     if not out:
         return None

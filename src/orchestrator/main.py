@@ -39,6 +39,16 @@ log = setup_logger("main")
 _PAST_CTX = re.compile(r"(?:19|20)\d{2}|문재인|박근혜|이명박|노무현|전 정부|과거 정부|당시\s*정부")
 
 
+# '정부'가 단어의 일부일 때는 건드리면 안 된다. 그냥 re.sub(r"정부", ...)로
+# 두었더니 "천정부지"가 "천이재명 정부지"가 됐다(2026-09-15 실측). 부동산
+# 기사에 흔한 표현이라 자주 터진다. 반정부·친정부·정부처·정부미도 같다.
+# 앞에 한글이 붙으면 제외하고, 뒤에는 조사만 허용한다.
+_GOV_PARTICLES = "가|는|은|이|의|를|도|만|에|와|과|로|으로|부터|까지|라도|마저|조차"
+_GOV_RE = re.compile(
+    rf"(?<![가-힣])정부(?![가-힣])"
+    rf"|(?<![가-힣])정부(?=(?:{_GOV_PARTICLES})(?![가-힣]))")
+
+
 def _name_government(plan):
     """대본·제목·헤드라인의 '정부'를 정책 비판 대상(이재명 정부)으로 명시한다.
 
@@ -49,7 +59,7 @@ def _name_government(plan):
         t = t.replace("새 정부", GOV_NAME).replace("현 정부", GOV_NAME).replace("현정부", GOV_NAME)
         # 과거 맥락이 없을 때만 첫 '정부'에 현 정부명을 박음
         if GOV_NAME.split()[0] not in t and not _PAST_CTX.search(t):
-            t = re.sub(r"정부", GOV_NAME, t, count=1)
+            t = _GOV_RE.sub(GOV_NAME, t, count=1)
         return t
     plan.caption_script = ng(plan.caption_script)
     plan.speech_script = to_speech(plan.caption_script)
