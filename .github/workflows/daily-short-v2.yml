@@ -131,6 +131,16 @@ jobs:
             TIMES="$TIMES $T"
             T=$(awk -v t="$T" 'BEGIN{printf "%.1f", t+4}')
           done
+          # 콜아웃은 2~3.5초만 뜬다. 4초 간격 샘플은 그 사이로 빗나가기
+          # 일쑤라 판정이 안 됐다. build_notes에 적힌 구간의 중간 시점을
+          # 따로 뽑는다.
+          if [ -f output/video/build_notes.txt ]; then
+            MID=$(grep '^콜아웃 ' output/video/build_notes.txt \
+                  | sed 's/^콜아웃 *//; s/s .*//; s/~/ /' \
+                  | awk '{printf "%.1f ", ($1+$2)/2}')
+            echo "콜아웃 중간 시점: $MID"
+            TIMES="$TIMES $MID"
+          fi
           for T in $TIMES; do
             ffmpeg -v error -ss "$T" -i "$V" -frames:v 1 \
               -vf scale=432:-2 "output/frames/t$(printf '%05.1f' "$T").png"
