@@ -56,6 +56,12 @@ _STRIP_JS = """() => {
     // 추천·관련기사 블록 (본문이 아니라 링크 목록이라 읽을 게 없다)
     '[class*=recommend]','[id*=recommend]','[class*=related]','[id*=related]',
     '[class*=bannergroup]',
+    // 매체 자체 UI 위젯. 광고는 아니지만 기사 카드 위에 겹쳐 내용을 가린다.
+    // 2026-09-16 실측: 매일경제 캡처 우하단에 AI 챗봇 캐릭터가 말풍선과 함께
+    // 표를 덮고 있었고, 상단에는 구글 검색 위젯과 AI 요약 버튼이 찍혔다.
+    '[class*=ai_], [id*=ai_]','[class*=news_summary]','[class*=floating]',
+    '[class*=mascot]','[class*=btn_top]','[class*=gotop]','[class*=app_down]',
+    '[class*=share]','[class*=sns]','[class*=font_size]','[class*=tooltip]',
     // 기존 목록
     '[class*=cookie]','[class*=consent]','[id*=cookie]','[class*=paywall]',
     '[class*=subscribe]','[class*=modal]','[class*=popup]','[class*=layer]',
