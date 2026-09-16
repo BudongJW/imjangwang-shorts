@@ -91,6 +91,36 @@ def _is_blank(im: Image.Image) -> bool:
     return white > 0.9 or var < 70
 
 
+def _trim_blank_bottom(im: Image.Image, keep: int = 24) -> Image.Image:
+    """캡처 아래쪽의 내용 없는 영역을 잘라낸다.
+
+    기사 캡처는 화면에서 위→아래로 스크롤되는데, 끝점이 (높이 - 화면높이)로
+    고정돼 있다. 캡처 하단이 비어 있으면 그 8초의 뒷부분이 흰 화면이 된다
+    (2026-09-16 검증 12초 프레임에서 아래 절반이 백지였다). 광고·추천 블록을
+    걷어내면 페이지가 짧아져 이 여백이 더 커진다.
+
+    행 단위로 아래에서 위로 올라가며, 그 행의 색이 거의 균일하면 비어 있는
+    것으로 본다. 내용이 나오면 여유 몇 줄만 남기고 자른다.
+    """
+    g = im.convert("L")
+    w, h = g.size
+    step = 4          # 4픽셀마다 본다. 1픽셀씩 보면 느리고 얻는 게 없다.
+    last = 0
+    for y in range(h - 1, -1, -step):
+        row = g.crop((0, y, w, y + 1)).getdata()
+        lo, hi = min(row), max(row)
+        if hi - lo > 12:        # 글자나 그림이 있으면 대비가 생긴다
+            last = y
+            break
+    if last == 0:               # 전부 균일 → 판단 보류, 원본 그대로
+        return im
+    cut = min(h, last + keep)
+    if h - cut < 40:            # 잘라 봐야 몇 줄 → 그대로 둔다
+        return im
+    log.info(f"  기사 캡처 하단 여백 {h - cut}px 제거 ({h} → {cut})")
+    return im.crop((0, 0, w, cut))
+
+
 def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None:
     """모바일 뷰포트로 기사 상단부(헤드라인+본문+사진)를 세로로 길게 캡처."""
     try:
@@ -142,6 +172,7 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
             if im.width != CARD_W:
                 nh = int(im.height * CARD_W / im.width)
                 im = im.resize((CARD_W, nh), Image.LANCZOS)
+            im = _trim_blank_bottom(im)
             if im.height > CAPTURE_MAX_H:
                 im = im.crop((0, 0, CARD_W, CAPTURE_MAX_H))
             # 백지/차단 페이지 검증 — 균일한 흰 화면이면 실패로 간주(→ 카드 폴백)
