@@ -38,6 +38,10 @@ _ISO_DUR = re.compile(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?")
 
 # 하루당 조회수로 '평균 이상/이하'를 판정하기 위한 최소 경과 시간.
 MIN_AGE_H_FOR_VERDICT = 24.0
+# 게시 시각대 비교에 쓸 기간(일). 이 안의 영상끼리만 하루당 조회수를 견준다.
+HOUR_WINDOW_DAYS = 45
+# 시각대 하나가 이 개수는 돼야 중앙값을 믿는다.
+MIN_HOUR_N = 5
 # 이 시간 이상 증가가 0이면 배포가 멈춘 것으로 보고 경고한다.
 STALL_H = 1.0
 
@@ -344,15 +348,32 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     # 업로드 시각 / 길이가 성적과 관계있는지
     lines.append("## 패턴")
     lines.append("")
+    # 시기를 통제하지 않으면 시각대가 아니라 시기를 비교하게 된다.
+    # 하루당 조회수는 오래된 영상일수록 분모(경과일)가 커져 낮게 나온다.
+    # 2026-09-16 실측: 10시대 20개의 중앙값이 3.8인데 그 안에 176.7짜리가
+    # 들어 있었다. 19개가 2025년 영상이라 생긴 착시다. 길이 비교에서 이미
+    # 한 번 고쳤던 실수가 여기 그대로 남아 있었고, 게시 시각을 08:40으로
+    # 옮긴 근거가 바로 이 수치였다.
+    recent = [v for v in public if v["age_hours"] <= HOUR_WINDOW_DAYS * 24]
     by_hour: dict[int, list[float]] = {}
-    for v in public:
+    for v in recent:
         hour = _parse_rfc3339(v["published_at"]).astimezone(KST).hour
         by_hour.setdefault(hour, []).append(v["views_per_day"])
+    lines.append(f"게시 시각대 비교 대상: 최근 {HOUR_WINDOW_DAYS}일 영상 "
+                 f"{len(recent)}개 (전체 {len(public)}개 중)")
+    lines.append("")
     if len(by_hour) > 1:
         lines.append("게시 시각대별 하루당 조회수 중앙값:")
         for hour in sorted(by_hour):
             vals = sorted(by_hour[hour])
-            lines.append(f"- {hour:02d}시대 ({len(vals)}개): {vals[len(vals) // 2]:.1f}")
+            mark = "" if len(vals) >= MIN_HOUR_N else "  (표본 부족, 판단 금지)"
+            lines.append(f"- {hour:02d}시대 ({len(vals)}개): "
+                         f"{vals[len(vals) // 2]:.1f}{mark}")
+        solid = [h for h, v in by_hour.items() if len(v) >= MIN_HOUR_N]
+        if not solid:
+            lines.append("")
+            lines.append(f"어느 시각대도 표본 {MIN_HOUR_N}개를 못 채웠다. "
+                         "게시 시각은 이 데이터로 정하지 말 것.")
         lines.append("")
     # 길이 ↔ 성적. 예전에는 150개 전체를 '50초 초과/이하'로 갈라 하루당
     # 조회수를 비교했는데, 2025년 영상과 2026년 영상이 섞여 있어 길이가
@@ -365,6 +386,12 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     # 값이 실제로 있는 것만 쓴다.
     def _ret(v):
         return (analytics.get(v["video_id"]) or {}).get("averageViewPercentage", 0) or 0
+
+    def _watched(v):
+        """평균 시청시간(초). 지속률(%)은 길이로 나눈 값이라 길이와 구조적으로
+        얽힌다. 절대 시청시간을 함께 봐야 '짧아서 %가 높은 것'과 '실제로 오래
+        본 것'이 구분된다."""
+        return (analytics.get(v["video_id"]) or {}).get("averageViewDuration", 0) or 0
 
     scored = [v for v in public if v.get("duration_s") and _ret(v) > 0]
     if len(scored) >= 6:
@@ -380,12 +407,22 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
                 continue
             rets = sorted(_ret(v) for v in g)
             vws = sorted(v["views"] for v in g)
+            durs = sorted(_watched(v) for v in g)
             lines.append(f"- {label} ({len(g)}개): 지속률 {rets[len(rets) // 2]:.1f}% · "
+                         f"시청시간 중앙 {durs[len(durs) // 2]:.0f}초 · "
                          f"조회수 중앙 {vws[len(vws) // 2]:,}")
         lines.append("")
         lines.append(f"상관계수: 길이↔지속률 {_corr([v['duration_s'] for v in scored], [_ret(v) for v in scored]):+.2f} · "
                      f"지속률↔조회수 {_corr([_ret(v) for v in scored], [v['views'] for v in scored]):+.2f} · "
                      f"길이↔조회수 {_corr([v['duration_s'] for v in scored], [v['views'] for v in scored]):+.2f}")
+        lines.append(f"           길이↔시청시간 {_corr([v['duration_s'] for v in scored], [_watched(v) for v in scored]):+.2f} · "
+                     f"시청시간↔조회수 {_corr([_watched(v) for v in scored], [v['views'] for v in scored]):+.2f}")
+        lines.append("")
+        lines.append("이 상관계수로 제작 방향을 바꾸기 전에: 표본 20개였던 "
+                     "2026-09-13에는 길이↔지속률이 -0.52, 지속률↔조회수가 +0.68이었다. "
+                     "표본 38개가 된 2026-09-16에는 각각 +0.58, +0.07로 뒤집혔다. "
+                     "이 표본 크기에서는 부호가 안 굳는다. 방향을 정하려면 "
+                     "관측이 아니라 통제된 실험이 필요하다.")
         durs = sorted(v["duration_s"] for v in scored)
         lines.append(f"(표본 {len(scored)}개라 방향만 본다. 관측된 길이는 "
                      f"{durs[0]}~{durs[-1]}초뿐이므로 그 밖은 말할 수 없다.)")
