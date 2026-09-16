@@ -74,11 +74,22 @@ _STRIP_JS = """() => {
   // 클래스명이 무작위인 네트워크 주입 위젯은 위 선택자로 안 걸린다.
   // 본문에 나올 리 없는 광고 문구로 한 번 더 훑는다. 짧은 링크 묶음만
   // 지워 본문 문단은 건드리지 않는다.
-  const AD_TEXT = /발기|불끈|한알|부부관계|정력|비아그라|탈모|다이어트 성공|주름이|시력 회복|당뇨 완치|무료 상담 신청/;
-  document.querySelectorAll('div,ul,section,aside,p,a').forEach(e => {
+  const AD_TEXT = /발기|불끈|한알|부부관계|정력|비아그라|탈모|다이어트 성공|주름이|시력 회복|당뇨 완치|무료 상담 신청|나만의 AI|AI 비서|구독하기|앱 다운로드/;
+  document.querySelectorAll('div,ul,section,aside,p,a,span').forEach(e => {
     try {
       const t = (e.innerText || '');
       if (t.length < 300 && AD_TEXT.test(t)) e.remove();
+    } catch(_){}
+  });
+  // 떠 있는 요소는 구조로 잡는다. 클래스명 기반 제거는 매체마다 새로
+  // 뚫린다 — 2026-09-16에 매일경제 'AI 비서' 위젯이 선택자 두 벌을
+  // 통과했다. 화면에 고정된 작은 요소는 기사 본문일 수 없다.
+  document.querySelectorAll('body *').forEach(e => {
+    try {
+      const st = getComputedStyle(e);
+      if (st.position !== 'fixed' && st.position !== 'sticky') return;
+      const r = e.getBoundingClientRect();
+      if (r.height < 500 && r.width < 500) e.remove();
     } catch(_){}
   });
   try { document.body.style.overflow = 'visible'; } catch(_){}
@@ -95,6 +106,24 @@ def _is_blank(im: Image.Image) -> bool:
     mean = sum(px) / len(px)
     var = sum((p - mean) ** 2 for p in px) / len(px)
     return white > 0.9 or var < 70
+
+
+# 제거 후 남은 의심 요소를 찍는다. 태그·class·id·텍스트 앞부분을 돌려주므로
+# 다음 실행에서 정확히 무엇을 지워야 하는지 바로 보인다.
+_LEFTOVER_JS = """() => {
+  const SUS = /발기|불끈|한알|부부관계|AI 비서|나만의 AI|광고|추천|관련 ?기사|구독|앱 다운/;
+  const out = [];
+  document.querySelectorAll('body *').forEach(e => {
+    try {
+      if (e.children.length > 4) return;
+      const t = (e.innerText || '').replace(/\s+/g, ' ').trim();
+      if (!t || t.length > 80 || !SUS.test(t)) return;
+      out.push(e.tagName + '.' + (e.className || '').toString().slice(0, 40)
+               + '#' + (e.id || '').slice(0, 24) + ' "' + t.slice(0, 30) + '"');
+    } catch(_){}
+  });
+  return out.slice(0, 8);
+}"""
 
 
 def _trim_blank_bottom(im: Image.Image, keep: int = 24) -> Image.Image:
@@ -175,6 +204,14 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
             # 캐릭터가 제거 후에도 캡처에 남아 표를 덮었다.
             page.evaluate(_STRIP_JS)
             page.wait_for_timeout(200)
+            # 무엇이 남았는지 남긴다. 클래스명 추측을 반복하지 않으려면
+            # 실제로 남은 요소의 마크업을 봐야 한다.
+            try:
+                left = page.evaluate(_LEFTOVER_JS)
+                if left:
+                    note(f"기사 캡처 잔여 위젯 {len(left)}건: " + " | ".join(left[:4]))
+            except Exception:
+                pass
             png = out.with_suffix(".png")
             page.screenshot(path=str(png), full_page=True)
             browser.close()
