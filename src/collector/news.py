@@ -50,6 +50,13 @@ class Article:
     image_url: str = ""    # 대표 이미지(og:image)
     query: str = ""
     extras: dict = field(default_factory=dict)
+    # 선정 당시의 근거. 왜 이 기사가 뽑혔는지를 나중에 조회수와 맞춰 보려면
+    # 남겨야 한다. 2026-08-31에 신선도 감점(90일 초과 -12)을 넣었는데 그 뒤
+    # 조회수가 내려앉았다. 같은 커밋 메시지에 "3월 기사 기반 08-27 영상
+    # 2,239회"라는 반례가 적혀 있다. 추측으로 되돌리지 않고 기록부터 쌓는다.
+    pick_age_days: float | None = None
+    pick_topic_score: int = 0
+    pick_recency_score: int = 0
 
 
 def _domain(url: str) -> str:
@@ -405,7 +412,13 @@ def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None
                      f"신선도 {recency_score(art.published)}, "
                      f"{'날짜불명' if age is None else f'{age:.1f}일 전'}): "
                      f"{art.title} ({art.source})")
-            note(f"기사 선정: 본문 {len(art.summary)}자 · {art.source} · {art.title[:40]}")
+            note(f"기사 선정: 본문 {len(art.summary)}자 · {art.source} · "
+                 f"{age if age is None else round(age, 1)}일 전 · "
+                 f"{candidate_score(art)}점(소재 {topic_score(art.title)} + "
+                 f"신선도 {recency_score(art.published)}) · {art.title[:40]}")
+            art.pick_age_days = age
+            art.pick_topic_score = topic_score(art.title)
+            art.pick_recency_score = recency_score(art.published)
             return art
         if best is None or len(art.summary) > len(best.summary):
             best = art

@@ -286,7 +286,11 @@ def run(skip_upload: bool = False) -> int:
 
     record_topic(art.title, video_id,
                  len_mode=SCRIPT_LEN_MODE,
-                 script_chars=len(plan.caption_script or ""))
+                 script_chars=len(plan.caption_script or ""),
+                 source=getattr(art, "source", "") or None,
+                 age_days=getattr(art, "pick_age_days", None),
+                 topic_score=getattr(art, "pick_topic_score", None),
+                 recency_score=getattr(art, "pick_recency_score", None))
     log.info("=== 완료 ===")
     return 0
 
