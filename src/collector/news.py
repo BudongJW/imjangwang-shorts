@@ -204,17 +204,55 @@ def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
             if len(c) >= 30 and "Google News" not in c and "aggregated from sources" not in c:
                 desc = c
                 break
-        # 요약 소스2: 본문 <p> 중 한글 포함·충분한 길이 문단(중복 제거)
-        seen, paras = set(), []
-        for p in soup.find_all("p"):
-            t = p.get_text(" ", strip=True)
-            if len(t) >= 50 and re.search(r"[가-힣]", t) and t[:30] not in seen:
-                seen.add(t[:30])
-                paras.append(t)
-        body = " ".join(paras[:6])
-        art.summary = ((desc + " " if desc else "") + body).strip()[:1500]
+        body = _extract_body(soup)
+        art.summary = ((desc + " " if desc else "") + body).strip()[:2500]
     except Exception as e:  # 네트워크/파싱 실패는 후보에서 조용히 스킵 가능
         log.info(f"  enrich 실패({art.source}): {e}")
+
+
+# 매체별 기사 본문 컨테이너. <p>만 모으는 방식은 본문을 거의 못 가져오는
+# 매체가 있다 — 2026-09-16 실측에서 매일경제 기사 본문 2,024자 중 <p>로
+# 잡힌 것은 293자(14%)뿐이었다. 본문이 <div>와 <br>로 조판돼 있어서다.
+# 그 상태로 대본을 쓰면 모델이 빈칸을 추측으로 메운다. 실제로 기사의
+# "월 생활비 최저 190만원(서비스 포함)"이 대본에서 "월세 190만원"이 됐다.
+_BODY_SELECTORS = (
+    ".news_cnt_detail_wrap",        # 매일경제
+    "#textBody", ".viewer",         # 뉴시스
+    ".story-news", "#articleWrap",  # 연합뉴스
+    ".article-text", ".text",       # 한겨레
+    "#articleBody", ".art_body",    # 경향신문
+    "article",                      # 일반
+)
+_BODY_JUNK = ("script, style, iframe, figure, figcaption, "
+              ".ad, .banner, .relate, .reporter, .share, .copyright, "
+              ".txt-copyright, .comp-box-title, .end-photo, .article-photo, "
+              ".photo, .caption, .img-con, .adrs")
+# 본문 앞에 붙는 위젯·사진설명 찌꺼기. 태그로 못 걸러지는 것만 여기서 턴다.
+# 실측으로 확인된 것만 넣는다 — 일반화하려다 본문 첫 문장을 날리면 손해가 크다.
+_BODY_LEAD_JUNK = re.compile(
+    r"^(?:광고\s*|\S{2,4}\s*기자\s*구독\s*구독중\s*이전\s*다음\s*)+")
+_MIN_BODY = 300
+
+
+def _extract_body(soup) -> str:
+    """기사 본문 텍스트. 매체별 컨테이너를 먼저 보고, 없으면 <p>를 모은다."""
+    for sel in _BODY_SELECTORS:
+        node = soup.select_one(sel)
+        if node is None:
+            continue
+        for junk in node.select(_BODY_JUNK):
+            junk.decompose()
+        text = _BODY_LEAD_JUNK.sub("", re.sub(r"\s+", " ", node.get_text(" ")).strip())
+        if len(text) >= _MIN_BODY:
+            return text
+    # 폴백: 한글이 든 충분한 길이의 <p>를 모은다(중복 제거).
+    seen, paras = set(), []
+    for p in soup.find_all("p"):
+        t = p.get_text(" ", strip=True)
+        if len(t) >= 50 and re.search(r"[가-힣]", t) and t[:30] not in seen:
+            seen.add(t[:30])
+            paras.append(t)
+    return " ".join(paras[:10])
 
 
 # 실수요자 직결 핵심 주제(가점) vs 추상·니치 주제(감점) — 조회 부진 원인이 주제 관련성.
