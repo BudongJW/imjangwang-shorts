@@ -170,6 +170,11 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                     highlight,
                 )
             page.wait_for_timeout(400)
+            # 한 번 더 걷어낸다. 플로팅 위젯은 지연 삽입되는 것이 있어
+            # 첫 제거 뒤에 다시 나타난다. 2026-09-16 실측: 매일경제 AI 비서
+            # 캐릭터가 제거 후에도 캡처에 남아 표를 덮었다.
+            page.evaluate(_STRIP_JS)
+            page.wait_for_timeout(200)
             png = out.with_suffix(".png")
             page.screenshot(path=str(png), full_page=True)
             browser.close()
