@@ -31,6 +31,54 @@ MOBILE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 16_4 like Mac OS X) "
 CAPTURE_MAX_H = 3400         # 캡처 세로 최대(너무 길면 스크롤이 빨라짐)
 
 
+# 기사 캡처에서 걷어낼 것들. 2026-09-16 실측에서 뉴시스 기사 캡처에
+# "발기부전 옛날! '이것' 한알이면 밤새3번", "70代 남성! 부부관계 매일
+# '2시간' 비결이" 같은 광고가 본문 첫 문단 바로 뒤에 붙어 8초간 화면에
+# 박혀 나갔다. 부동산 채널에 성인·의료 광고가 뜨는 것이라 수익화와 신뢰
+# 양쪽에 직접 타격이다.
+#
+# 원인: 제거 목록에 광고 컨테이너가 아예 없었다. 뉴시스 기사에 iframe이
+# 27개, 매일경제에 taboola·adshufflenative·adbox가 있다.
+#
+# class*=ad 처럼 넓게 잡으면 안 된다. "header"에도 'ad'가 들어 있어
+# 헤드라인이 통째로 날아간다. 경계를 붙인 패턴만 쓴다.
+_STRIP_JS = """() => {
+  const sels = [
+    // 스크립트·외부 프레임. 기사 본문은 iframe 안에 없다.
+    'iframe','ins','script','noscript','object','embed',
+    // 광고 컨테이너 (경계를 붙여 header/read/shadow 오탐을 피한다)
+    '[id^=ad]','[id*=adpos]','[id*="ad-"]','[id*="ad_"]',
+    '[class^=ad]','[class*=" ad"]','[class*=adbox]','[class*=adshuffle]',
+    '[class*=advert]','[class*=adarea]','[class*=adwrap]',
+    // 외부 광고·추천 네트워크
+    '[class*=dable]','[id*=dable]','[class*=taboola]','[id*=taboola]',
+    '[class*=outbrain]','[class*=powerlink]','[class*=sponsor]','[class*=promo]',
+    // 추천·관련기사 블록 (본문이 아니라 링크 목록이라 읽을 게 없다)
+    '[class*=recommend]','[id*=recommend]','[class*=related]','[id*=related]',
+    '[class*=bannergroup]',
+    // 기존 목록
+    '[class*=cookie]','[class*=consent]','[id*=cookie]','[class*=paywall]',
+    '[class*=subscribe]','[class*=modal]','[class*=popup]','[class*=layer]',
+    '[class*=banner]','header[class*=fixed]','[class*=sticky]'
+  ];
+  sels.forEach(s => {
+    try { document.querySelectorAll(s).forEach(e => { try { e.remove(); } catch(_){} }); }
+    catch(_){}
+  });
+  // 클래스명이 무작위인 네트워크 주입 위젯은 위 선택자로 안 걸린다.
+  // 본문에 나올 리 없는 광고 문구로 한 번 더 훑는다. 짧은 링크 묶음만
+  // 지워 본문 문단은 건드리지 않는다.
+  const AD_TEXT = /발기|불끈|한알|부부관계|정력|비아그라|탈모|다이어트 성공|주름이|시력 회복|당뇨 완치|무료 상담 신청/;
+  document.querySelectorAll('div,ul,section,aside,p,a').forEach(e => {
+    try {
+      const t = (e.innerText || '');
+      if (t.length < 300 && AD_TEXT.test(t)) e.remove();
+    } catch(_){}
+  });
+  try { document.body.style.overflow = 'visible'; } catch(_){}
+}"""
+
+
 def _is_blank(im: Image.Image) -> bool:
     """이미지가 사실상 백지(균일한 흰 화면)인지 판별."""
     small = im.resize((48, max(1, int(48 * im.height / im.width)))).convert("L")
@@ -61,15 +109,7 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
             page.goto(url, wait_until="domcontentloaded", timeout=15000)
             page.wait_for_timeout(1600)
             # 쿠키/구독/모달 배너 best-effort 제거
-            page.evaluate(
-                """() => {
-                    const sels = ['[class*=cookie]','[class*=consent]','[id*=cookie]',
-                        '[class*=paywall]','[class*=subscribe]','[class*=modal]',
-                        '[class*=popup]','[class*=banner]','header[class*=fixed]','[class*=sticky]'];
-                    sels.forEach(s => document.querySelectorAll(s).forEach(e => { try { e.remove(); } catch(_){} }));
-                    try { document.body.style.overflow='visible'; } catch(_){}
-                }"""
-            )
+            page.evaluate(_STRIP_JS)
             # 핵심 문장/헤드라인 형광펜 (모든 접근에 null 가드)
             if highlight:
                 page.evaluate(
