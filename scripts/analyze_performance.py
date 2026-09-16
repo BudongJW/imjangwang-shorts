@@ -370,6 +370,20 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
             lines.append(f"- {hour:02d}시대 ({len(vals)}개): "
                          f"{vals[len(vals) // 2]:.1f}{mark}")
         solid = [h for h, v in by_hour.items() if len(v) >= MIN_HOUR_N]
+        # 버킷 안을 보여 준다. 시기를 45일로 좁혀도 한 시각대에 잘 터진 주가
+        # 몰려 있으면 시각이 아니라 그 주를 보는 것이 된다. 날짜가 흩어져
+        # 있는지 눈으로 확인할 수 있어야 게시 시각을 바꿀지 정할 수 있다.
+        if solid:
+            lines.append("")
+            lines.append(f"표본 {MIN_HOUR_N}개 이상 시각대의 내역 (시기 쏠림 확인용):")
+            for hour in sorted(solid):
+                rows = sorted((v for v in recent
+                               if _parse_rfc3339(v["published_at"]).astimezone(KST).hour == hour),
+                              key=lambda v: v["published_at"])
+                inner = " · ".join(
+                    f"{v['published_kst'][5:10]} {v['views']:,}({v['views_per_day']:.0f}/d)"
+                    for v in rows)
+                lines.append(f"- {hour:02d}시대: {inner}")
         if not solid:
             lines.append("")
             lines.append(f"어느 시각대도 표본 {MIN_HOUR_N}개를 못 채웠다. "
