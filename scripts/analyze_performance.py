@@ -191,6 +191,34 @@ def previous_views(snapshots: list[dict], video_id: str) -> tuple[int, float] | 
     return None
 
 
+# 소재 비교용. 하루당 조회수는 어린 영상일수록 높아 시기 교란이 심하다
+# (2026-09-16 실측: 09-12 영상이 404/d인데 총 1,628회, 08-08 영상은 32/d인데
+# 1,266회). 게시 30일이 지나 조회수가 대체로 멈춘 영상만 절대 조회수로 견준다.
+TOPIC_MIN_AGE_DAYS = 30
+MIN_TOPIC_N = 5
+_METRO_RE = re.compile(r"서울|수도권|강남|송파|서초|마포|노원|성북|경기|인천|분당|판교|과천")
+_LOCAL_RE = re.compile(r"대구|부산|광주|대전|울산|세종|창원|청주|천안|전주|포항|강원|제주|지방")
+_NUM_RE = re.compile(r"\d+\s*(?:%|퍼센트|억|만원|만 원|조|배|주|가구|채|실)")
+
+
+def _topic_groups(videos: list[dict]) -> list[tuple[str, list[dict]]]:
+    """제목 기준으로 소재를 나눈다. 서울·수도권 / 지방 도시 / 지역 언급 없음."""
+    metro, local, none = [], [], []
+    for v in videos:
+        t = v["title"]
+        if _LOCAL_RE.search(t) and not _METRO_RE.search(t):
+            local.append(v)
+        elif _METRO_RE.search(t):
+            metro.append(v)
+        else:
+            none.append(v)
+    return [("서울·수도권", metro), ("지방 도시", local), ("지역 언급 없음", none)]
+
+
+def _med(vals: list[int]) -> int:
+    vals = sorted(vals)
+    return vals[len(vals) // 2] if vals else 0
+
 def _len_modes() -> dict[str, str]:
     """video_id → 대본 길이 모드(normal/short). topic_history.json에서 읽는다.
 
@@ -227,7 +255,27 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     public = [v for v in videos if v["privacy"] == "public"]
     if not public:
         lines.append("\n공개 영상이 없습니다.")
-        return "\n".join(lines)
+        # ── 소재 비교 (시기 통제) ────────────────────────────────
+    grown = [v for v in public if v["age_hours"] >= TOPIC_MIN_AGE_DAYS * 24]
+    if len(grown) >= MIN_TOPIC_N * 2:
+        lines.append(f"소재별 조회수 중앙값 (게시 {TOPIC_MIN_AGE_DAYS}일 이상 지난 "
+                     f"{len(grown)}개, 절대 조회수):")
+        for label, g in _topic_groups(grown):
+            if not g:
+                continue
+            mark = "" if len(g) >= MIN_TOPIC_N else "  (표본 부족, 판단 금지)"
+            lines.append(f"- {label} ({len(g)}개): {_med([v['views'] for v in g]):,}{mark}")
+        lines.append("")
+        with_num = [v for v in grown if _NUM_RE.search(v["title"])]
+        without = [v for v in grown if not _NUM_RE.search(v["title"])]
+        if len(with_num) >= MIN_TOPIC_N and len(without) >= MIN_TOPIC_N:
+            lines.append(f"제목에 단위 붙은 수치 있음 ({len(with_num)}개): "
+                         f"{_med([v['views'] for v in with_num]):,}")
+            lines.append(f"제목에 수치 없음 ({len(without)}개): "
+                         f"{_med([v['views'] for v in without]):,}")
+            lines.append("")
+
+    return "\n".join(lines)
 
     # 하루당 조회수 = 게시 시점이 다른 영상들을 공정하게 비교하는 기준
     for v in public:
