@@ -300,8 +300,39 @@ def build_caption_ass(caption_script: str, total_sec: float, out: Path,
     return out
 
 
+# 콜아웃이 이보다 짧으면 깜빡이는 것처럼 보인다.
+MIN_CALLOUT_SEC = 0.8
+
+
+def _clip_blocked(cs: float, ce: float, blocked: tuple[float, float] | None
+                  ) -> tuple[float, float]:
+    """금지 구간(기사 캡처)과 겹치는 부분을 잘라낸 (시작, 끝).
+
+    양쪽에 다 걸치면(구절이 기사 구간을 통째로 감싸면) 더 긴 쪽을 남긴다.
+    겹치지 않으면 그대로 돌려준다.
+    """
+    if not blocked:
+        return cs, ce
+    b0, b1 = blocked
+    if ce <= b0 or cs >= b1:
+        return cs, ce
+    before, after = b0 - cs, ce - b1
+    if after >= before:
+        cs = max(cs, b1)
+        return cs, max(ce, cs)      # 구절이 금지 구간에 통째로 들어가면 길이 0
+    ce = min(ce, b0)
+    return min(cs, ce), ce
+
+
+# 콜아웃 하나당 목표 간격(초). 개수를 6으로 고정하면 길이에 따라 밀도가
+# 달라진다 — 59초 영상은 듬성듬성해지고 37초 영상은 빽빽해진다. 길이 실험
+# (SCRIPT_LEN_MODE)이 길이만 비교하려면 밀도가 두 조건에서 같아야 한다.
+SEC_PER_CALLOUT = 8.0
+MIN_CALLOUT_N = 4
+
+
 def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
-                        max_n: int = 6,
+                        max_n: int | None = None,
                         blocked: tuple[float, float] | None = None,
                         cues: list[tuple[str, float, float]] | None = None
                         ) -> list[tuple[Path, float, float]]:
@@ -321,6 +352,8 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     """
     from src.editor.stat_callout import (pick_stat, pick_keyword,
                                           render_stat_card, is_weak)
+    if max_n is None:
+        max_n = max(MIN_CALLOUT_N, round(total_sec / SEC_PER_CALLOUT))
     cands, kw_cands = [], []
     n_phrase = n_stat = n_blocked = 0
     for ph, s, e in _phrase_timings(caption_script, total_sec, cues):
@@ -328,13 +361,18 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
             continue
         n_phrase += 1
         cs, ce = max(s, title_dur), min(total_sec, e + 0.4)
-        in_article = bool(blocked and cs < blocked[1] and blocked[0] < ce)
+        # 기사 캡처 구간과 겹치면 통째로 버리고 있었는데, 살짝 걸친 후보까지
+        # 날아갔다. 2026-09-16 실측: 12.1~14.0s의 "0.34%"가 12.4s에 끝나는
+        # 기사 구간에 0.3초 걸려 버려졌고, 그 탓에 12.4~20.8s 8초가 비었다.
+        # 겹치지 않는 쪽으로 잘라 쓰고, 남는 길이가 모자랄 때만 버린다.
+        cs, ce = _clip_blocked(cs, ce, blocked)
+        in_article = ce - cs < MIN_CALLOUT_SEC
         st = pick_stat(ph)
         if st:
             n_stat += 1
             if in_article:
                 n_blocked += 1
-                continue      # 기사 캡처 구간과 겹치면 버린다
+                continue
             cands.append((st, cs, ce))
             continue
         # 수치가 없는 구절은 핵심어 후보로 남겨 둔다. 대본 후반은 해석이라
@@ -393,7 +431,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         e = min(e, s + STAT_MAX_SEC)
         if i + 1 < len(picked):
             e = min(e, picked[i + 1][1] - 0.2)
-        if e - s < 0.8:           # 너무 짧으면 깜빡이는 것처럼 보인다
+        if e - s < MIN_CALLOUT_SEC:   # 너무 짧으면 깜빡이는 것처럼 보인다
             continue
         path = VIDEO_DIR / f"stat_{len(overlays)}.png"
         render_stat_card(st[0], st[1], path)
