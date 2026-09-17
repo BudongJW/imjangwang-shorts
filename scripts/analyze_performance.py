@@ -281,54 +281,7 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
     public = [v for v in videos if v["privacy"] == "public"]
     if not public:
         lines.append("\n공개 영상이 없습니다.")
-        # ── 소재 비교 (시기 통제) ────────────────────────────────
-    grown = [v for v in public if v["age_hours"] >= TOPIC_MIN_AGE_DAYS * 24]
-    if len(grown) >= MIN_TOPIC_N * 2:
-        lines.append(f"소재별 조회수 중앙값 (게시 {TOPIC_MIN_AGE_DAYS}일 이상 지난 "
-                     f"{len(grown)}개, 절대 조회수):")
-        for label, g in _topic_groups(grown):
-            if not g:
-                continue
-            mark = "" if len(g) >= MIN_TOPIC_N else "  (표본 부족, 판단 금지)"
-            lines.append(f"- {label} ({len(g)}개): {_med([v['views'] for v in g]):,}{mark}")
-        lines.append("")
-        with_num = [v for v in grown if _NUM_RE.search(v["title"])]
-        without = [v for v in grown if not _NUM_RE.search(v["title"])]
-        if len(with_num) >= MIN_TOPIC_N and len(without) >= MIN_TOPIC_N:
-            lines.append(f"제목에 단위 붙은 수치 있음 ({len(with_num)}개): "
-                         f"{_med([v['views'] for v in with_num]):,}")
-            lines.append(f"제목에 수치 없음 ({len(without)}개): "
-                         f"{_med([v['views'] for v in without]):,}")
-            lines.append("")
-
-    # ── 기사 나이 ↔ 성적 (계측 코호트) ──────────────────────
-    meta = _pick_meta()
-    judged = [v for v in public
-              if v["video_id"] in meta and v["age_hours"] >= MIN_AGE_H_FOR_VERDICT]
-    lines.append(f"기사 나이 분석용 표본: {len(judged)}편 / 목표 {PICK_TARGET_N}편"
-                 + (f" (앞으로 {PICK_TARGET_N - len(judged)}편)"
-                    if len(judged) < PICK_TARGET_N else "  ← 목표 도달"))
-    lines.append("")
-    if judged:
-        for v in sorted(judged, key=lambda v: v["published_at"]):
-            m = meta[v["video_id"]]
-            lines.append(f"- {v['published_kst'][5:10]} {v['views']:>5,}회 · "
-                         f"기사 {float(m.get('age_days') or 0):.1f}일 전 · "
-                         f"소재 {m.get('topic_score', '-')} + 신선도 "
-                         f"{m.get('recency_score', '-')} · {m.get('source', '')}")
-        lines.append("")
-    if len(judged) >= PICK_TARGET_N:
-        ages = [float(meta[v["video_id"]].get("age_days") or 0) for v in judged]
-        vws = [v["views"] for v in judged]
-        tsc = [meta[v["video_id"]].get("topic_score") or 0 for v in judged]
-        lines.append(f"상관계수: 기사나이↔조회수 {_corr(ages, vws):+.2f} · "
-                     f"소재점수↔조회수 {_corr(tsc, vws):+.2f}")
-        lines.append(f"({PICK_TARGET_N}편은 방향을 정하기엔 적다. 2026-09-13에 표본 "
-                     "20개로 정한 길이 방향이 38개에서 부호가 뒤집혔다. "
-                     "여기서는 신호가 있는지만 보고, 바꾸려면 더 쌓을 것.)")
-        lines.append("")
-
-    return "\n".join(lines)
+        return "\n".join(lines)
 
     # 하루당 조회수 = 게시 시점이 다른 영상들을 공정하게 비교하는 기준
     for v in public:
@@ -567,6 +520,54 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
             if len(by_mode) >= 2 and min(len(g) for g in by_mode.values()) < 7:
                 lines.append("(한쪽 표본이 7개 미만이다. 아직 판단하지 말 것.)")
             lines.append("")
+
+    # ── 소재 비교 (시기 통제) ────────────────────────────────
+    grown = [v for v in public if v["age_hours"] >= TOPIC_MIN_AGE_DAYS * 24]
+    if len(grown) >= MIN_TOPIC_N * 2:
+        lines.append(f"소재별 조회수 중앙값 (게시 {TOPIC_MIN_AGE_DAYS}일 이상 지난 "
+                     f"{len(grown)}개, 절대 조회수):")
+        for label, g in _topic_groups(grown):
+            if not g:
+                continue
+            mark = "" if len(g) >= MIN_TOPIC_N else "  (표본 부족, 판단 금지)"
+            lines.append(f"- {label} ({len(g)}개): {_med([v['views'] for v in g]):,}{mark}")
+        lines.append("")
+        with_num = [v for v in grown if _NUM_RE.search(v["title"])]
+        without = [v for v in grown if not _NUM_RE.search(v["title"])]
+        if len(with_num) >= MIN_TOPIC_N and len(without) >= MIN_TOPIC_N:
+            lines.append(f"제목에 단위 붙은 수치 있음 ({len(with_num)}개): "
+                         f"{_med([v['views'] for v in with_num]):,}")
+            lines.append(f"제목에 수치 없음 ({len(without)}개): "
+                         f"{_med([v['views'] for v in without]):,}")
+            lines.append("")
+
+    # ── 기사 나이 ↔ 성적 (계측 코호트) ──────────────────────
+    meta = _pick_meta()
+    judged = [v for v in public
+              if v["video_id"] in meta and v["age_hours"] >= MIN_AGE_H_FOR_VERDICT]
+    lines.append(f"기사 나이 분석용 표본: {len(judged)}편 / 목표 {PICK_TARGET_N}편"
+                 + (f" (앞으로 {PICK_TARGET_N - len(judged)}편)"
+                    if len(judged) < PICK_TARGET_N else "  ← 목표 도달"))
+    lines.append("")
+    if judged:
+        for v in sorted(judged, key=lambda v: v["published_at"]):
+            m = meta[v["video_id"]]
+            lines.append(f"- {v['published_kst'][5:10]} {v['views']:>5,}회 · "
+                         f"기사 {float(m.get('age_days') or 0):.1f}일 전 · "
+                         f"소재 {m.get('topic_score', '-')} + 신선도 "
+                         f"{m.get('recency_score', '-')} · {m.get('source', '')}")
+        lines.append("")
+    if len(judged) >= PICK_TARGET_N:
+        ages = [float(meta[v["video_id"]].get("age_days") or 0) for v in judged]
+        vws = [v["views"] for v in judged]
+        tsc = [meta[v["video_id"]].get("topic_score") or 0 for v in judged]
+        lines.append(f"상관계수: 기사나이↔조회수 {_corr(ages, vws):+.2f} · "
+                     f"소재점수↔조회수 {_corr(tsc, vws):+.2f}")
+        lines.append(f"({PICK_TARGET_N}편은 방향을 정하기엔 적다. 2026-09-13에 표본 "
+                     "20개로 정한 길이 방향이 38개에서 부호가 뒤집혔다. "
+                     "여기서는 신호가 있는지만 보고, 바꾸려면 더 쌓을 것.)")
+        lines.append("")
+
 
     return "\n".join(lines)
 
