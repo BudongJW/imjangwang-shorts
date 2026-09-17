@@ -201,6 +201,32 @@ _LOCAL_RE = re.compile(r"대구|부산|광주|대전|울산|세종|창원|청주
 _NUM_RE = re.compile(r"\d+\s*(?:%|퍼센트|억|만원|만 원|조|배|주|가구|채|실)")
 
 
+# 기사 나이 ↔ 성적. 2026-08-31에 신선도 감점(90일 초과 -12)을 넣은 뒤 9월
+# 조회수가 8월 말 피크에서 내려앉았다. topic_score 최대치가 12 안팎이라
+# -12는 소재 점수를 통째로 상쇄한다. 그 커밋 메시지에 반례도 적혀 있다 —
+# "3월 기사 기반 08-27 영상 2,239회".
+# 추측으로 감점을 되돌리지 않기로 하고(866일 된 기사를 다시 고르면 더 나쁘다)
+# 2026-09-16(커밋 e53b3e6)부터 영상마다 기사 나이와 점수를 기록하기 시작했다.
+PICK_TARGET_N = 7
+
+
+def _pick_meta() -> dict[str, dict]:
+    """video_id → 선정 당시 기록(age_days, topic_score, recency_score, source)."""
+    path = ROOT / "output" / "topic_history.json"
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out = {}
+    for r in rows:
+        if not isinstance(r, dict) or not r.get("video_id"):
+            continue
+        if r.get("age_days") is None:
+            continue          # 계측 이전 영상. 추정해 채우지 않는다.
+        out[r["video_id"]] = r
+    return out
+
+
 def _topic_groups(videos: list[dict]) -> list[tuple[str, list[dict]]]:
     """제목 기준으로 소재를 나눈다. 서울·수도권 / 지방 도시 / 지역 언급 없음."""
     metro, local, none = [], [], []
@@ -274,6 +300,33 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
             lines.append(f"제목에 수치 없음 ({len(without)}개): "
                          f"{_med([v['views'] for v in without]):,}")
             lines.append("")
+
+    # ── 기사 나이 ↔ 성적 (계측 코호트) ──────────────────────
+    meta = _pick_meta()
+    judged = [v for v in public
+              if v["video_id"] in meta and v["age_hours"] >= MIN_AGE_H_FOR_VERDICT]
+    lines.append(f"기사 나이 분석용 표본: {len(judged)}편 / 목표 {PICK_TARGET_N}편"
+                 + (f" (앞으로 {PICK_TARGET_N - len(judged)}편)"
+                    if len(judged) < PICK_TARGET_N else "  ← 목표 도달"))
+    lines.append("")
+    if judged:
+        for v in sorted(judged, key=lambda v: v["published_at"]):
+            m = meta[v["video_id"]]
+            lines.append(f"- {v['published_kst'][5:10]} {v['views']:>5,}회 · "
+                         f"기사 {float(m.get('age_days') or 0):.1f}일 전 · "
+                         f"소재 {m.get('topic_score', '-')} + 신선도 "
+                         f"{m.get('recency_score', '-')} · {m.get('source', '')}")
+        lines.append("")
+    if len(judged) >= PICK_TARGET_N:
+        ages = [float(meta[v["video_id"]].get("age_days") or 0) for v in judged]
+        vws = [v["views"] for v in judged]
+        tsc = [meta[v["video_id"]].get("topic_score") or 0 for v in judged]
+        lines.append(f"상관계수: 기사나이↔조회수 {_corr(ages, vws):+.2f} · "
+                     f"소재점수↔조회수 {_corr(tsc, vws):+.2f}")
+        lines.append(f"({PICK_TARGET_N}편은 방향을 정하기엔 적다. 2026-09-13에 표본 "
+                     "20개로 정한 길이 방향이 38개에서 부호가 뒤집혔다. "
+                     "여기서는 신호가 있는지만 보고, 바꾸려면 더 쌓을 것.)")
+        lines.append("")
 
     return "\n".join(lines)
 
