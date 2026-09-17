@@ -39,6 +39,12 @@ UA = (
 )
 
 
+# 피드 요청 전용. 한국경제는 브라우저를 흉내 낸 긴 UA에 403을 준다
+# (2026-09-17 실측: Chrome UA 403, "Mozilla/5.0" 200). 기사 본문 요청은
+# 기존 UA를 그대로 쓴다 — 본문 쪽은 반대로 짧은 UA를 막는 매체가 있다.
+FEED_UA = "Mozilla/5.0"
+
+
 @dataclass
 class Article:
     title: str
@@ -160,11 +166,21 @@ def _fetch_publisher_rss(source: str, url: str) -> list[Article]:
     구글뉴스와 달리 link가 원문 URL이라 _resolve_and_enrich가 그대로 본문을
     긁어 온다. google_url 자리에 원문 URL을 넣어 이후 경로를 공유한다.
     """
-    try:
-        resp = requests.get(url, timeout=12, headers={"User-Agent": UA})
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        log.warning(f"언론사 RSS 실패({source}): {e}")
+    # UA 취향이 매체마다 갈린다. 2026-09-17 실측: 한국경제는 브라우저를
+    # 흉내 낸 긴 UA에 403을 주고 "Mozilla/5.0"에 200, 매일경제는 정반대다.
+    # 하나로는 어느 쪽이든 피드 하나가 통째로 죽는다. 둘 다 시도한다.
+    resp = None
+    last = None
+    for ua in (FEED_UA, UA):
+        try:
+            r = requests.get(url, timeout=12, headers={"User-Agent": ua})
+            r.raise_for_status()
+            resp = r
+            break
+        except requests.RequestException as e:
+            last = e
+    if resp is None:
+        log.warning(f"언론사 RSS 실패({source}): {last}")
         return []
     feed = feedparser.parse(resp.content)
     out: list[Article] = []
@@ -295,12 +311,26 @@ def relatability_score(title: str) -> int:
     return core * 2 - niche * 3
 
 
+# 단지 하나짜리 실거래가 글. 제목에 전용면적이 박혀 있는 것이 신호다.
+#   "[MAI부동산] 마포구 성사1차 풍림아파트 59.85㎡ 8억 3,000만 원 거래"
+# 매일경제가 이 코너를 하루 10건씩 쏟아내고, 제목에 아파트·거래·신고가가
+# 들어가 topic_score가 11점까지 나온다. 2026-09-16과 09-17 이틀 연속으로
+# 이게 영상 소재가 됐다(조회수 162회, 51회로 채널 최저권).
+#
+# 이건 성적 추정이 아니라 편집 판단이다. 단지 한 채 실거래가는 뉴스가
+# 아니라 시세 DB 자동 생성 글이고, 이 채널의 상위 영상은 전부 전국 공통
+# 이슈였다. 배제가 아니라 감점이라 소재가 없는 날에는 여전히 쓸 수 있다.
+_UNIT_BRIEF_RE = re.compile(r"\d+(?:[.,]\d+)?\s*(?:㎡|m2|제곱미터)")
+BRIEF_PENALTY = 8
+
+
 def topic_score(title: str) -> int:
     """영상 소재 점수 = 관련성 + 정책 비판 + '가격 폭등 고통' 강가점(대박 패턴 편향)."""
     t = title or ""
     crit = sum(1 for k in _CRIT_KW if k in t)
     pain = sum(1 for k in _PAIN_KW if k in t)
-    return relatability_score(t) + crit * 2 + pain * 3
+    brief = BRIEF_PENALTY if _UNIT_BRIEF_RE.search(t) else 0
+    return relatability_score(t) + crit * 2 + pain * 3 - brief
 
 
 def _age_days(published: str) -> float | None:
@@ -389,7 +419,28 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
     return candidates[:max_candidates]
 
 
-def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None:
+def _enrich_order(candidates: list[Article]) -> list[Article]:
+    """본문을 실제로 가져올 수 있는 후보를 먼저 시도하도록 재배열한다.
+
+    구글뉴스 링크는 원문 URL을 주지 않아 본문 확보가 거의 확정적으로
+    실패한다(과제 #14). 2026-09-17 실측: 점수 상위 8개 중 7개가 구글뉴스라
+    본문 0자로 탈락하고, 8번째 언론사 직접 링크 하나만 통과했다. 그래서
+    실질적으로 매일경제 부동산 피드 하나에 소재가 묶였다.
+
+    점수 순서는 그대로 두고, 같은 점수대에서 직접 링크를 앞에 놓는다.
+    직접 링크가 모두 실패하면 구글뉴스 후보도 그대로 시도한다.
+    """
+    direct = [a for a in candidates if "news.google" not in _domain(a.google_url or a.url)]
+    via_google = [a for a in candidates if a not in direct]
+    return direct + via_google
+
+
+# 구글뉴스 후보가 앞을 채우는 날이 있어 실제로 시도되는 언론사 후보가
+# 한두 개뿐이었다. 넉넉히 본다(각 후보당 약 0.5초).
+PICK_TOP_N = 14
+
+
+def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Article | None:
     """관련성 높은 순으로 원문 해소하여 본문 확보된 첫 기사를 반환한다.
 
     아무도 기준(본문 80자)을 넘기지 못하면, 예전에는 candidates[0]을 그대로
@@ -404,7 +455,7 @@ def pick_and_enrich(candidates: list[Article], top_n: int = 8) -> Article | None
     session = requests.Session()
     session.headers.update({"User-Agent": UA})
     best: Article | None = None
-    for art in candidates[:top_n]:
+    for art in _enrich_order(candidates)[:top_n]:
         _resolve_and_enrich(art, session)
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
             age = _age_days(art.published)
