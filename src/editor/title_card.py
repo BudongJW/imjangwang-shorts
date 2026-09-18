@@ -220,16 +220,19 @@ def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
 
 def _paste_face(base: Image.Image, face: Path, side: str = "right",
                 height_ratio: float = 0.62, width_ratio: float = 0.95,
-                crop: tuple = (0.0, 0.0, 1.0, 1.0)) -> None:
+                crop: tuple = (0.0, 0.0, 1.0, 1.0)) -> tuple[int, int] | None:
     """정치인 얼굴을 좌/우 바닥에 부각(안쪽 경계는 페이드로 배경에 블렌드).
 
     side="left"면 이미지를 좌우 반전해 시선이 화면 안쪽을 향하게 하고,
     페이드도 오른쪽(안쪽) 경계에 준다.
+
+    실제로 붙은 (상단 y, 높이)를 돌려준다. 폭 상한에 걸리면 height_ratio는
+    그대로 못 쓰이므로, 밴드를 피해 놓으려면 계산값이 아니라 이 값이 필요하다.
     """
     try:
         fim = Image.open(face).convert("RGB")
     except Exception:
-        return
+        return None
     if crop and crop != (0.0, 0.0, 1.0, 1.0):
         l, t, r, b = crop
         fim = fim.crop((int(fim.width * l), int(fim.height * t),
@@ -258,6 +261,7 @@ def _paste_face(base: Image.Image, face: Path, side: str = "right",
         d = x if side == "right" else fw - 1 - x
         md.line([(x, 0), (x, fh)], fill=255 if d >= fade else int(255 * d / fade))
     base.paste(fim, (fx, fy), mask)
+    return fy, fh
 
 
 def _fit_font(draw: ImageDraw.ImageDraw, lines: list[str], max_w: int,
@@ -289,9 +293,10 @@ def render_title_card(headline: list[str], hook_word: str,
         base = Image.new("RGB", (SHORTS_WIDTH, SHORTS_HEIGHT), (22, 30, 54))
 
     # 정치인 얼굴 부각(있으면 화살표 대신 얼굴을 초점으로) — 구도별 좌/우·크기 변주
+    face_box = None
     if has_face:
-        _paste_face(base, face, side=lay.face_side, height_ratio=lay.face_h,
-                    width_ratio=lay.face_w, crop=lay.face_crop)
+        face_box = _paste_face(base, face, side=lay.face_side, height_ratio=lay.face_h,
+                               width_ratio=lay.face_w, crop=lay.face_crop)
 
     draw = ImageDraw.Draw(base, "RGBA")
 
@@ -308,6 +313,27 @@ def render_title_card(headline: list[str], hook_word: str,
     total_h = len(headline) * line_h
     top = int(SHORTS_HEIGHT * lay.band_y)
     band_top, band_bottom = top - pad, top + total_h + pad
+
+    # 밴드가 얼굴 윗부분(눈·이마)을 덮지 않게 비켜 놓는다.
+    # eyes-left 구도에서 밴드가 정확히 눈두덩에 얹혀 '눈 아래만 보이는'
+    # 카드가 나왔다. 밴드의 세로 위치는 구도에 고정돼 있는데 얼굴이 놓이는
+    # 높이는 원본 사진 비율과 폭 상한에 따라 달라져서, 고정값끼리 맞춰 두면
+    # 사진을 바꾸는 순간 다시 겹친다. 그래서 실제로 붙은 좌표를 보고 판단한다.
+    if face_box:
+        f_top, f_h = face_box
+        eyes_top, eyes_bot = f_top, f_top + int(f_h * 0.45)
+        if band_bottom > eyes_top and band_top < eyes_bot:
+            up = band_bottom - (eyes_top - 24)          # 얼굴 위로 올리기
+            down = (eyes_bot + 24) - band_top           # 눈 아래로 내리기
+            if band_top - up >= int(SHORTS_HEIGHT * 0.04):
+                shift = -up
+            elif band_bottom + down <= SHORTS_HEIGHT - 24:
+                shift = down
+            else:
+                shift = -up                             # 둘 다 빠듯하면 위가 낫다
+            band_top += shift
+            band_bottom += shift
+            top += shift
 
     if lay.band_style == "accent":
         draw.rectangle([x0, band_top, x1, band_bottom], fill=(*accent, 210))

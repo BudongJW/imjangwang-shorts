@@ -180,6 +180,33 @@ def fetch_traffic_sources(creds, start: str, end: str) -> dict:
     return {r[0]: r[1] for r in res.get("rows", [])}
 
 
+def fetch_traffic_by_video(creds, video_ids: list[str], start: str, end: str) -> dict:
+    """최근 업로드별 유입경로. 채널 도달이 끊긴 건지 소재가 나쁜 건지 가른다.
+
+    이 채널은 조회수의 95%가 SHORTS 피드에서 온다. 즉 피드에 안 실리면
+    영상이 아무리 좋아도 0이다. 영상별 성적만 보면 '소재가 나빴나'와
+    '피드가 안 실어줬나'가 구분이 안 된다. 업로드별로 SHORTS 비중과
+    절대량을 같이 보면 갈린다 — 비중은 그대로인데 절대량만 준다면
+    피드 배포량이 줄어든 것이고, SHORTS 비중 자체가 무너졌다면 그 영상이
+    Shorts로 안 잡혔거나 피드에서 빠진 것이다.
+    """
+    if not video_ids:
+        return {}
+    try:
+        ya = build("youtubeAnalytics", "v2", credentials=creds)
+        res = ya.reports().query(
+            ids="channel==MINE", startDate=start, endDate=end,
+            metrics="views", dimensions="video,insightTrafficSourceType",
+            filters="video==" + ",".join(video_ids[:200]), sort="-views",
+        ).execute()
+    except Exception as e:
+        return {"error": str(e)[:200]}
+    out: dict = {}
+    for vid, src, views in res.get("rows", []):
+        out.setdefault(vid, {})[src] = views
+    return out
+
+
 def load_snapshots() -> list[dict]:
     if SNAPSHOT_PATH.exists():
         try:
@@ -288,7 +315,7 @@ def _bar(value: float, peak: float, width: int = 18) -> str:
     return "█" * max(1, round(value / peak * width)) if value > 0 else ""
 
 
-def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None) -> str:
+def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None, tbv=None) -> str:
     now = datetime.now(KST)
     lines: list[str] = []
     cs = channel.get("statistics", {})
@@ -410,6 +437,32 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
         if pcts:
             avg = sum(pcts) / len(pcts)
             lines.append(f"채널 평균 시청지속률 **{avg:.1f}%**")
+            lines.append("")
+
+    # 업로드별 유입경로 — 채널 도달이 끊긴 건지 소재가 나쁜 건지 가르는 지표.
+    # 조회수의 95%가 SHORTS 피드라, 피드 배포량이 곧 성적이다.
+    if tbv and "error" not in tbv:
+        recent = sorted((v for v in videos if v["privacy"] == "public"),
+                        key=lambda v: v["published_at"], reverse=True)[:10]
+        rows = [(v, tbv.get(v["video_id"], {})) for v in recent]
+        if any(src for _, src in rows):
+            lines.append("## 업로드별 유입경로 (최근 10편)")
+            lines.append("")
+            lines.append("| 게시 | 총조회 | SHORTS | 비중 | 검색 | 제목 |")
+            lines.append("|------|------:|-------:|-----:|-----:|------|")
+            for v, src in rows:
+                tot = sum(src.values())
+                sh = src.get("SHORTS", 0)
+                se = src.get("YT_SEARCH", 0)
+                pct = f"{sh / tot * 100:.0f}%" if tot else "-"
+                pub = _parse_rfc3339(v["published_at"]).astimezone(KST)
+                lines.append(
+                    f"| {pub.strftime('%m-%d %H:%M')} | {tot:,} | {sh:,} | {pct} | "
+                    f"{se:,} | {v['title'].split(' #')[0][:30]} |"
+                )
+            lines.append("")
+            lines.append("SHORTS 비중은 그대로인데 절대량만 줄면 피드 배포량이 준 것이고, "
+                         "비중 자체가 무너지면 그 영상이 피드에서 빠진 것이다.")
             lines.append("")
 
     if traffic and "error" not in traffic:
@@ -639,9 +692,13 @@ def main() -> int:
         traffic = fetch_traffic_sources(creds, start.isoformat(), end.isoformat())
 
     daily = fetch_daily(creds, start.isoformat(), end.isoformat())
+    recent_ids = [v["video_id"] for v in videos if v["privacy"] == "public"][:10]
+    tbv = fetch_traffic_by_video(creds, recent_ids, start.isoformat(), end.isoformat())
+    if "error" in tbv:
+        print(f"[analyze] 영상별 유입경로 실패: {tbv['error']}", file=sys.stderr)
     snapshots = load_snapshots()
     report = build_report(channel, videos, analytics, traffic, snapshots, args.days,
-                          daily=daily)
+                          daily=daily, tbv=tbv)
     if not args.no_save:
         save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots)
 
