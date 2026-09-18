@@ -146,6 +146,27 @@ def fetch_analytics(creds, video_ids: list[str], start: str, end: str) -> dict:
     return out
 
 
+def fetch_daily(creds, start: str, end: str) -> list[dict]:
+    """채널 전체의 일별 지표. 개별 영상 성적으로는 안 보이는 것을 잡는다.
+
+    2026-09-18 실측: 09-15 474회 → 09-16 200 → 09-17 114 → 09-18 0(2.4시간).
+    소재를 지정 대본으로 바꾼 날에도 0이었다. 영상 하나하나가 아니라 채널
+    노출 자체가 줄고 있는지 봐야 판단이 된다.
+    """
+    try:
+        ya = build("youtubeAnalytics", "v2", credentials=creds)
+        res = ya.reports().query(
+            ids="channel==MINE", startDate=start, endDate=end,
+            metrics="views,estimatedMinutesWatched,subscribersGained",
+            dimensions="day", sort="day",
+        ).execute()
+    except Exception as e:
+        log_err = str(e)[:200]
+        return [{"error": log_err}]
+    cols = [h["name"] for h in res.get("columnHeaders", [])]
+    return [dict(zip(cols, row)) for row in res.get("rows", [])]
+
+
 def fetch_traffic_sources(creds, start: str, end: str) -> dict:
     """채널 전체 유입경로 분포."""
     try:
@@ -267,7 +288,7 @@ def _bar(value: float, peak: float, width: int = 18) -> str:
     return "█" * max(1, round(value / peak * width)) if value > 0 else ""
 
 
-def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
+def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None) -> str:
     now = datetime.now(KST)
     lines: list[str] = []
     cs = channel.get("statistics", {})
@@ -397,6 +418,30 @@ def build_report(channel, videos, analytics, traffic, snapshots, days) -> str:
         tot = sum(traffic.values()) or 1
         for src, val in sorted(traffic.items(), key=lambda kv: -kv[1])[:8]:
             lines.append(f"- {src}: {val:,}회 ({val / tot * 100:.1f}%)")
+        lines.append("")
+
+    # 채널 전체 일별 추이. 영상 하나하나의 성적으로는 '이 소재가 나빴나'까지만
+    # 보이고, 채널 노출 자체가 줄고 있는지는 안 보인다.
+    if daily and "error" not in daily[0]:
+        rows = daily[-21:]
+        peak = max((r.get("views", 0) for r in rows), default=0) or 1
+        lines.append("## 채널 일별 조회수 (최근 3주)")
+        lines.append("")
+        for r in rows:
+            v = r.get("views", 0)
+            sub = r.get("subscribersGained", 0)
+            lines.append(f"- {r.get('day', '')[5:]} {v:>6,}회 "
+                         f"{_bar(v, peak)} 구독 {sub:+d}")
+        half = len(rows) // 2
+        if half:
+            old_avg = sum(r.get("views", 0) for r in rows[:half]) / half
+            new_avg = sum(r.get("views", 0) for r in rows[half:]) / (len(rows) - half)
+            lines.append("")
+            lines.append(f"앞 {half}일 평균 {old_avg:,.0f}회 → 뒤 {len(rows)-half}일 평균 "
+                         f"{new_avg:,.0f}회 ({(new_avg/old_avg-1)*100:+.0f}%)")
+        lines.append("")
+    elif daily:
+        lines.append(f"채널 일별 조회수 조회 실패: {daily[0]['error'][:120]}")
         lines.append("")
 
     # 업로드 시각 / 길이가 성적과 관계있는지
@@ -593,8 +638,10 @@ def main() -> int:
     else:
         traffic = fetch_traffic_sources(creds, start.isoformat(), end.isoformat())
 
+    daily = fetch_daily(creds, start.isoformat(), end.isoformat())
     snapshots = load_snapshots()
-    report = build_report(channel, videos, analytics, traffic, snapshots, args.days)
+    report = build_report(channel, videos, analytics, traffic, snapshots, args.days,
+                          daily=daily)
     if not args.no_save:
         save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots)
 
