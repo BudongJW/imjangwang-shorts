@@ -108,6 +108,14 @@ def fetch_videos(youtube) -> list[dict]:
                 "age_hours": (datetime.now(timezone.utc) - published).total_seconds() / 3600,
                 "duration_s": _duration_seconds(it["contentDetails"].get("duration", "")),
                 "privacy": it.get("status", {}).get("privacyStatus", "?"),
+                # 배포를 통째로 끊을 수 있는 플래그들. 아동용으로 잡히면 추천·
+                # Shorts 피드가 전부 막히고, 지역 제한이 걸리면 국내 노출이 사라진다.
+                # 조회수만 봐서는 '소재가 나빴다'와 구분이 안 된다.
+                "made_for_kids": it.get("status", {}).get("madeForKids"),
+                "upload_status": it.get("status", {}).get("uploadStatus", "?"),
+                "rejection": it.get("status", {}).get("rejectionReason", ""),
+                "embeddable": it.get("status", {}).get("embeddable"),
+                "region": it.get("contentDetails", {}).get("regionRestriction", {}),
                 "views": int(st.get("viewCount", 0)),
                 "likes": int(st.get("likeCount", 0)),
                 "comments": int(st.get("commentCount", 0)),
@@ -438,6 +446,39 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
             avg = sum(pcts) / len(pcts)
             lines.append(f"채널 평균 시청지속률 **{avg:.1f}%**")
             lines.append("")
+
+    # 배포를 막는 플래그. 이상한 것만 찍는다 — 전부 정상이면 한 줄로 끝난다.
+    # 아동용으로 잡히면 추천·Shorts 피드가 통째로 막히고, 지역 제한이나
+    # 처리 실패도 같은 모양(조회수 0)으로 나타난다. 도달이 무너졌을 때
+    # '소재가 나빴다'로 넘겨짚지 않으려면 먼저 이쪽을 지워야 한다.
+    flagged = []
+    for v in videos:
+        bad = []
+        if v.get("made_for_kids"):
+            bad.append("아동용")
+        if v.get("upload_status") not in ("processed", "?", None):
+            bad.append(f"업로드상태={v['upload_status']}")
+        if v.get("rejection"):
+            bad.append(f"거부={v['rejection']}")
+        if v.get("region"):
+            bad.append(f"지역제한={v['region']}")
+        if v.get("embeddable") is False:
+            bad.append("퍼가기 불가")
+        if bad:
+            flagged.append((v, bad))
+    lines.append("## 배포 차단 플래그")
+    lines.append("")
+    if flagged:
+        for v, bad in flagged[:20]:
+            lines.append(f"- `{v['video_id']}` {v['published_kst']} — {', '.join(bad)}"
+                         f" · {v['title'][:30]}")
+        lines.append("")
+        lines.append(f"**{len(flagged)}편에 플래그가 걸려 있다.**")
+    else:
+        lines.append(f"{len(videos)}편 전부 정상 (아동용·지역제한·처리실패·퍼가기 없음).")
+        lines.append("")
+        lines.append("→ 도달이 무너졌다면 영상 단위 차단이 아니라 채널 단위 배포량 문제다.")
+    lines.append("")
 
     # 업로드별 유입경로 — 채널 도달이 끊긴 건지 소재가 나쁜 건지 가르는 지표.
     # 조회수의 95%가 SHORTS 피드라, 피드 배포량이 곧 성적이다.
