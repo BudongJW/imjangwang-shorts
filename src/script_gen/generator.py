@@ -38,6 +38,7 @@ class ShortPlan:
     youtube_title: str
     hashtags: list[str] = field(default_factory=list)
     cta: str = FIXED_CTA
+    layout: str = ""      # 지정 대본에서 타이틀카드 구도를 고정할 때만 사용
 
 
 PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.

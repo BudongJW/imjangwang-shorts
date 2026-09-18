@@ -74,6 +74,20 @@ def _today_ord() -> int:
     return datetime.now(timezone(timedelta(hours=9))).date().toordinal()
 
 
+def layout_by_name(name: str) -> "_Layout | None":
+    """이름으로 구도를 고른다. 지정 대본에서 구도를 고정할 때 쓴다.
+
+    구도는 날짜별 회전이라 어떤 날은 소재와 안 맞는 것이 걸린다.
+    2026-09-18 실측: eyes-left(밴드 0.62, 얼굴 0.62)가 걸려 헤드라인 밴드가
+    인물 얼굴 위를 덮었고, 얼굴은 눈 아래만 남아 누구인지 알아볼 수 없었다.
+    사람 발언이 소재인 날에는 full-right처럼 밴드가 위에 있는 구도가 맞다.
+    """
+    for lay in LAYOUTS:
+        if lay.name == name:
+            return lay
+    return None
+
+
 def pick_layout(day_ord: int | None = None) -> _Layout:
     return LAYOUTS[(day_ord if day_ord is not None else _today_ord()) % len(LAYOUTS)]
 

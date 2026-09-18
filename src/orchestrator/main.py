@@ -28,6 +28,7 @@ from src.script_gen.generator import generate, ShortPlan
 from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
 from src.editor.title_card import (render_title_card, resolve_face, face_credit,
+                                   layout_by_name,
                                    render_headline_banner, pick_accent)
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
@@ -99,6 +100,7 @@ def _load_pinned_plan():
             speech_script=to_speech(cap),
             youtube_title=str(p.get("youtube_title", ""))[:40],
             hashtags=list(p.get("hashtags", []) or DEFAULT_HASHTAGS),
+            layout=str(p.get("layout", "")).strip(),
         )
         # 얼굴 지정: "none"이면 인물 사진을 아예 안 넣고, 파일명이면 그 사진을 쓴다.
         # 주제 인물이 이재명이 아닌 날(예: 다른 인사 의혹)에 엉뚱한 얼굴이
@@ -251,8 +253,12 @@ def run(skip_upload: bool = False) -> int:
     face = resolve_face(face_pin, article_text) if POLITICIAN_FACE_ENABLED else None
     log.info(f"  얼굴: {face.name if face else '없음'}"
              + (f" (지정: {face_pin})" if face_pin else ""))
+    lay = layout_by_name(plan.layout) if getattr(plan, "layout", "") else None
+    if plan.layout and lay is None:
+        log.warning(f"지정 구도 '{plan.layout}'를 찾지 못해 날짜 회전을 씁니다")
     title_card = render_title_card(plan.headline, plan.hook_word,
-                                   background=title_bg, accent=accent, face=face)
+                                   background=title_bg, accent=accent, face=face,
+                                   layout=lay)
     if face:
         bg_paths = bg_paths + [face]   # 영상 중간에도 얼굴 등장
     # 상단 헤드라인 배너(타이틀카드 이후 전 구간) — 자동 프레임 썸네일 품질 개선
