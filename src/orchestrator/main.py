@@ -17,7 +17,7 @@ from datetime import datetime
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
     POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
-    PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN, SCRIPT_LEN_MODE,
+    PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN, SCRIPT_LEN_MODE, BROLL_VIDEO_N,
 )
 from src.collector import news, images
 from src.utils import buildnotes
@@ -302,6 +302,26 @@ def run(skip_upload: bool = False) -> int:
 
     # 4) 배경 이미지 + 기사 캡처
     bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=4)
+    # 실사 b-roll을 섞는다. "정적 이미지 루프"는 유튜브가 AI 양산 채널을
+    # 가려내는 지표로 직접 지목한 형태고, 지금 배경은 사진에 켄번즈만 건
+    # 것이라 정확히 그 모양이다. Pexels 영상은 사진과 같은 라이선스라
+    # 상업적 이용이 되고 출처 표기 의무도 없다.
+    #
+    # 전부 영상으로 바꾸지는 않는다. 켄번즈 사진과 번갈아 나오는 편이
+    # 화면 변화가 크고, 받아오는 데 실패해도 그대로 굴러간다.
+    if BROLL_VIDEO_N > 0:
+        try:
+            brolls = images.collect_video_broll(need=BROLL_VIDEO_N)
+        except Exception as e:
+            log.info(f"b-roll 영상 확보 실패(사진만 사용): {e}")
+            brolls = []
+        if brolls:
+            mixed: list = []
+            for i, bg in enumerate(bg_paths):
+                mixed.append(bg)
+                if i < len(brolls):
+                    mixed.append(brolls[i])
+            bg_paths = mixed
     # AI 썸네일 배경(성공 시 타이틀카드 배경 + 첫 컷으로 사용, 실패 시 폴백)
     ai_bg = generate_background(" ".join(plan.headline) or plan.youtube_title) if AI_THUMBNAIL else None
     if ai_bg:

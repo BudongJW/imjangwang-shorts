@@ -440,7 +440,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
 
 def _seg_filter(idx: int, dur: float, zoom_in: bool,
                 scroll: bool = False, fit: bool = False,
-                punch: bool = False) -> str:
+                punch: bool = False, is_video: bool = False) -> str:
     """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
     scroll=True(긴 기사): 폭 맞추고 위→아래로 천천히 세로 스크롤.
@@ -463,6 +463,12 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
         chain = (f"scale={W}:-2,"
                  f"pad={W}:{H}:0:(oh-ih)/2:color=0x101624")
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
+    if is_video:
+        # 실사 영상은 이미 움직인다. 켄번즈를 얹으면 화면이 두 번 흔들려
+        # 오히려 산만하다. 프레임레이트만 맞추고 채워 넣는다.
+        chain = (f"fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase,"
+                 f"crop={W}:{H}")
+        return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if KENBURNS:
         # 과도한 업스케일은 CI에서 느리다 → 1.2배(1296x2304)면 충분.
         rate = 0.0012
@@ -481,6 +487,13 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
     else:
         chain = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}"
     return f"[{idx}:v]{chain},setsar=1[v{idx}]"
+
+
+VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
+
+
+def _is_video(path) -> bool:
+    return str(path).lower().endswith(VIDEO_EXTS)
 
 
 def _plan_segments(title_card: Path, article_img: Path | None,
@@ -586,8 +599,13 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 입력 구성: 각 세그먼트 이미지 (+상단 배너 +스탯카드) + 오디오
     inputs: list[str] = []
     for img, d in segs:
-        # -framerate FPS 로 입력 프레임수를 dur*FPS 로 고정 (zoompan d=1 과 정합)
-        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{d:.3f}", "-i", str(img)]
+        if _is_video(img):
+            # 클립이 컷보다 짧으면 이어 붙여 채운다. -t 로 잘라 길이를 맞춘다.
+            inputs += ["-stream_loop", "-1", "-t", f"{d:.3f}", "-i", str(img)]
+        else:
+            # -framerate FPS 로 입력 프레임수를 dur*FPS 로 고정 (zoompan d=1 과 정합)
+            inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{d:.3f}",
+                       "-i", str(img)]
     banner_idx = None
     if banner and Path(banner).exists():
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(banner)]
@@ -621,7 +639,10 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             i, d, zoom_in=(i % 2 == 0),
             scroll=(is_art and art_h >= H),
             fit=(is_art and art_h < H),
-            punch=(i == 0),        # 타이틀카드만
+            # punch는 타이틀카드 전용 줌이다. 카드를 영상에서 뺀 뒤로는
+            # 0번 세그먼트가 카드가 아니므로 경로가 같을 때만 건다.
+            punch=(i == 0 and str(img) == str(title_card)),
+            is_video=_is_video(img),
         ))
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"

@@ -171,3 +171,72 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
         paths.append(p)
     log.info(f"  배경 이미지 {len(paths)}개 확보")
     return paths
+
+
+# ── 동영상 b-roll ──────────────────────────────────────────────
+#
+# "정적 이미지 루프"는 유튜브가 AI 양산 채널을 가려내는 지표로 직접 지목한
+# 형태다(2026년 정리된 채널들의 공통 지문: 합성 나레이션 · 템플릿 썸네일 ·
+# 정적 이미지 루프 · 비인간적 업로드 속도). 지금 배경은 사진에 켄번즈만
+# 걸어 둔 것이라 정확히 그 모양이다.
+#
+# Pexels 영상은 사진과 같은 라이선스라 상업적 이용이 되고 출처 표기 의무도
+# 없다. 키도 이미 등록돼 있다(PEXELS_API_KEY).
+def _pexels_videos(query: str, n: int) -> list[str]:
+    """세로 영상 링크 n개. 실패하면 빈 리스트."""
+    if not PEXELS_API_KEY:
+        return []
+    try:
+        r = requests.get(
+            "https://api.pexels.com/videos/search",
+            headers={"Authorization": PEXELS_API_KEY},
+            params={"query": query, "per_page": max(n * 2, 6),
+                    "orientation": "portrait", "size": "medium"},
+            timeout=15,
+        )
+        r.raise_for_status()
+    except Exception as e:
+        log.info(f"  Pexels 영상 실패: {e}")
+        return []
+
+    links: list[str] = []
+    for vid in r.json().get("videos", []):
+        # 너무 짧으면 컷 하나도 못 채우고, 너무 길면 내려받는 시간이 아깝다.
+        if not (3 <= (vid.get("duration") or 0) <= 60):
+            continue
+        best, best_h = None, 0
+        for f in vid.get("video_files", []):
+            w, h = f.get("width") or 0, f.get("height") or 0
+            if f.get("file_type") != "video/mp4" or not w or not h:
+                continue
+            if w >= h:                      # 가로 영상은 크롭하면 다 잘린다
+                continue
+            if h > best_h and h <= 1920:    # 1080x1920 넘게 받을 이유가 없다
+                best, best_h = f.get("link"), h
+        if best:
+            links.append(best)
+        if len(links) >= n:
+            break
+    return links
+
+
+def collect_video_broll(query: str = "", need: int = 2) -> list[Path]:
+    """세로 b-roll 영상 need개를 내려받아 경로 리스트 반환. 실패 시 []."""
+    query = query or _today_query()
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    out: list[Path] = []
+    for i, link in enumerate(_pexels_videos(query, need)):
+        dst = VIDEO_DIR / f"broll_{i}.mp4"
+        try:
+            with requests.get(link, headers=UA, timeout=30, stream=True) as resp:
+                resp.raise_for_status()
+                with open(dst, "wb") as f:
+                    for chunk in resp.iter_content(1 << 16):
+                        f.write(chunk)
+        except Exception as e:
+            log.info(f"  b-roll 내려받기 실패: {e}")
+            continue
+        if dst.exists() and dst.stat().st_size > 50_000:
+            out.append(dst)
+    log.info(f"  b-roll 영상 {len(out)}개 ('{query}')")
+    return out
