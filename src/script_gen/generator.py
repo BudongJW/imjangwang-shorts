@@ -261,20 +261,61 @@ def _fallback_plan(art) -> ShortPlan:
     hl = words[0] if words else "부동산"
     head = _split_headline(title)
 
-    # 본문에서 제목과 겹치는 앞부분 제거 후, 문장 단위로 2~3문장 추출
+    # 본문에서 제목과 겹치는 앞부분 제거
     body = summary
     if body[:20] and body[:20] in title:
         body = body[len(title):].strip(" .,·-")
-    sents = [s.strip() for s in re.split(r"(?<=[.!?다요])\s+", body) if len(s.strip()) >= 15]
-    body_text = " ".join(sents[:3])[: max(120, SCRIPT_CHARS_MAX - 70)]
+
+    # 기사 머리의 부제·사진설명·발신지·기자 바이라인을 걷어낸다.
+    # 2026-09-19 실측(1GWtMyDh3Ic): 이걸 안 지워서 나레이션이
+    # "변해정 기자 = 서울 민간아파트 3.3㎡당..."으로 시작했다.
+    body = re.sub(r"\[[^\]]{0,40}\]", " ", body)          # [서울=뉴시스]
+    # 한국 기사는 "[서울=뉴시스] 변해정 기자 = " 뒤부터가 본문이다. 그 앞은
+    # 부제와 사진 설명이라 나레이션에 들어가면 안 된다. 바이라인만 지우면
+    # 앞의 부제·사진설명이 그대로 남아 첫 문장에 붙는다 — 실측에서
+    # "HUG 집계 최근 1년 평균…서울 강북구의 한 아파트 단지 모습."이 실렸다.
+    byline = re.search(r"\S{1,10}\s*기자\s*=\s*", body)
+    if byline and byline.end() < len(body) * 0.5:
+        body = body[byline.end():]
+    else:
+        body = re.sub(r"\S{1,10}\s*기자\s*=\s*", "", body)
+    # 바이라인이 없는 매체는 사진 설명이 맨 앞에 남는다("…단지 모습.")
+    body = re.sub(r"^.{0,120}?(?:모습|사진)\s*[.。]\s*", "", body)
+    body = re.sub(r"\S+@\S+\.\S+", " ", body)              # 메일 주소
+    body = re.sub(r"\s+", " ", body).strip()
+
+    # 완결된 문장만 쓴다. 부제·사진설명은 '~다.'로 끝나지 않아 여기서 걸러진다.
+    #
+    # 문장 끝은 '다/요 + 마침표'로만 본다. 마침표 하나로 자르면 소수점에서
+    # 끊긴다 — "34.2%"가 "34." + "2%..."로 갈려 나레이션에 "2%(484만8000원)
+    # 각각 증가한 것이다"가 실렸다. 뒤에 숫자가 오는 마침표는 문장 끝이 아니다.
+    parts = re.split(r"(?<=[다요])[.!?]+(?!\d)", body)
+    sents = []
+    for part in parts:
+        part = part.strip()
+        if len(part) >= 20:
+            sents.append(part + ".")
+
+    # 길이는 문장 단위로 맞춘다. 글자 수로 자르면 수치 한가운데가 잘린다 —
+    # 실측에서 "1.26%(23만70.." 이 그대로 나레이션과 자막에 실렸다.
+    budget = max(120, SCRIPT_CHARS_MAX - 90)
+    picked: list[str] = []
+    for sent in sents:
+        if sum(len(x) + 1 for x in picked) + len(sent) > budget:
+            break
+        picked.append(sent)
+    body_text = " ".join(picked)
 
     hook = f"{title.rstrip('.')}, 지금 무슨 일이 벌어지고 있을까요?"
+    # 맺음말에 매수·매도 타이밍을 암시하지 않는다(규칙 18). 예전 문구
+    # "놓치면 내 집 마련 타이밍이 달라질 수 있습니다"는 설명란의
+    # '투자 권유가 아닙니다' 고지와 정면으로 어긋났다.
     if body_text:
-        script = f"{hook} {body_text} 지금 시장 흐름, 놓치면 내 집 마련 타이밍이 달라질 수 있습니다."
+        script = f"{hook} {body_text} 관련 소식은 계속 정리해 전해 드리겠습니다."
     else:
         script = (
-            f"{hook} 정부 정책과 대출·전세 시장이 맞물리며 실수요자 부담이 커지는 흐름입니다. "
-            "앞으로의 방향, 지금 꼭 확인해 두세요."
+            f"{hook} 정부 정책과 대출·전세 시장이 맞물리며 실수요자 부담이 "
+            "커지는 흐름입니다. 관련 소식은 계속 정리해 전해 드리겠습니다."
         )
     script = _trim_incomplete_tail(_cap_length(_clean_script(normalize_caption(script))))
     return ShortPlan(
