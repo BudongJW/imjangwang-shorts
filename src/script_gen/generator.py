@@ -142,9 +142,10 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
    투자 권유가 아니라고 적어 두고 본문에서 매수 타이밍을 조언하면 그 자체로
    모순이다. 제도와 숫자를 설명하는 데서 끝낸다.
 
-[출력: 아래 JSON만, 다른 텍스트 없이]
+[출력: 아래 JSON만, 다른 텍스트 없이. 주석(//)을 달지 말 것.
+ 값 안에 큰따옴표를 쓸 때는 반드시 \\" 로 이스케이프할 것]
 {{
-  "headline": ["타이틀 1줄", "타이틀 2줄", "(선택)3줄"],   // 각 줄 12자 이내, 정책 문제 겨냥
+  "headline": ["타이틀 1줄(12자 이내, 정책 문제 겨냥)", "타이틀 2줄", "(선택)3줄"],
   "hook_word": "헤드라인에서 노랗게 강조할 핵심 단어 1개",
   "highlight_sentence": "기사에서 형광펜 칠할 핵심 한 문장(20자 내외)",
   "script": "말하는 문장만. {chars_min}~{chars_max}자. 지문·괄호·타임스탬프 없이.",
@@ -181,14 +182,75 @@ def _gemini(prompt: str) -> str | None:
     return None
 
 
+# 모델이 내는 JSON의 키. 파싱이 깨졌을 때 필드 단위로 건져 내는 데 쓴다.
+_JSON_KEYS = ("headline", "hook_word", "highlight_sentence", "script",
+              "youtube_title", "hashtags")
+
+
+def _loose_fields(txt: str) -> dict:
+    """깨진 JSON에서 아는 키만 골라 값을 건져 낸다.
+
+    프롬프트가 youtube_title에 '따옴표 인용'을 요구하기 때문에 모델이
+    문자열 안에 이스케이프 없는 "를 넣는 일이 잦다. 출력 예시에 //
+    주석까지 들어 있어 그걸 따라 쓰기도 한다. 둘 다 json.loads를
+    통째로 실패시킨다.
+
+    따옴표 한 개 때문에 대본을 버리고 템플릿 폴백으로 내려가는 손해가
+    너무 크다. 스키마를 아는 쪽이 우리이므로 키 위치로 잘라 읽는다.
+    """
+    spans = []
+    for key in _JSON_KEYS:
+        m = re.search(r'"%s"\s*:' % re.escape(key), txt)
+        if m:
+            spans.append((m.start(), m.end(), key))
+    spans.sort()
+
+    out: dict = {}
+    for i, (_start, val_at, key) in enumerate(spans):
+        end = spans[i + 1][0] if i + 1 < len(spans) else len(txt)
+        chunk = txt[val_at:end].strip()
+        if chunk.startswith("["):
+            arr = chunk[:chunk.rfind("]") + 1] if "]" in chunk else chunk
+            vals = [v.strip() for v in re.findall(r'"([^"]*)"', arr)]
+            out[key] = [v for v in vals if v]
+        else:
+            # 값의 시작 "와 끝 " 사이. 뒤에 붙은 쉼표·주석·중괄호는 버린다.
+            a, b = chunk.find('"'), chunk.rfind('"')
+            if a != -1 and b > a:
+                out[key] = (chunk[a + 1:b]
+                            .replace('\\"', '"').replace("\\n", " ").strip())
+    return out
+
+
 def _parse_json(raw: str) -> dict | None:
     m = re.search(r"\{.*\}", raw, re.DOTALL)
     if not m:
+        log.info(f"  대본 JSON: 중괄호를 못 찾음 (raw {len(raw)}자): {raw[:120]!r}")
         return None
+    blob = m.group(0)
     try:
-        return json.loads(m.group(0))
+        return json.loads(blob)
+    except Exception as e:
+        first = str(e)[:100]
+
+    # 1차 수선: // 줄 주석 제거 + 후행 쉼표 제거
+    fixed = re.sub(r'(?m)//[^"\n]*$', "", blob)
+    fixed = re.sub(r",\s*([}\]])", r"\1", fixed)
+    try:
+        data = json.loads(fixed)
+        log.info("  대본 JSON: 주석·후행쉼표 수선 후 파싱 성공")
+        return data
     except Exception:
-        return None
+        pass
+
+    # 2차: 키 위치로 잘라 읽기(이스케이프 안 된 따옴표 대응)
+    loose = _loose_fields(blob)
+    if loose.get("script"):
+        log.info(f"  대본 JSON: 느슨한 파싱으로 복구 "
+                 f"({', '.join(sorted(loose))}) — 원인: {first}")
+        return loose
+    log.info(f"  대본 JSON 파싱 실패: {first} / raw {len(raw)}자: {blob[:200]!r}")
+    return None
 
 
 def _fallback_plan(art) -> ShortPlan:
