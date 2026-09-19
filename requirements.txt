@@ -2,7 +2,9 @@
 google-generativeai>=0.8.0
 
 # TTS
+# edge-tts는 AZURE_SPEECH_KEY가 없을 때의 폴백으로 남겨 둔다.
 edge-tts>=6.1.0
+azure-cognitiveservices-speech>=1.40.0
 
 # 뉴스 수집 / 파싱
 requests>=2.31.0

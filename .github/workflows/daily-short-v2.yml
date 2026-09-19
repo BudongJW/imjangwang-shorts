@@ -90,6 +90,12 @@ jobs:
           AI_THUMBNAIL: '0'
           # 시크릿 이름이 PEXELS_KEY로 등록돼 있어 둘 다 받는다.
           PEXELS_API_KEY: ${{ secrets.PEXELS_KEY || secrets.PEXELS_API_KEY }}
+          # Azure AI Speech. 키가 없으면 narrate()가 edge-tts로 떨어지므로
+          # 등록 전에도 파이프라인은 그대로 돈다. 등록하면 같은 목소리를
+          # 공식 API로 쓰게 되고(권리 정리), SSML로 끊어 읽기가 붙는다.
+          # 무료 등급 월 50만 자 / 이 채널 사용량 월 1만 자.
+          AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+          AZURE_SPEECH_REGION: ${{ vars.AZURE_SPEECH_REGION || 'koreacentral' }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
           YOUTUBE_TOKEN_REFRESH_OUT: ${{ github.workspace }}/refreshed_token.json
           # force=true면 already_posted_today() 가드를 끈다. 삭제 반영이 늦어
