@@ -108,6 +108,40 @@ def _is_blank(im: Image.Image) -> bool:
     return white > 0.9 or var < 70
 
 
+# 언론사 사진을 걷어낸다. 광고 제거와는 다른 이유다 — 이쪽은 저작권이다.
+#
+# 뉴스 사진은 기사 본문과 별개의 사진저작물이고 보호가 두텁다. 저작권법
+# 제28조의 인용은 "정당한 범위 + 공정한 관행"을 요구하는데, 해설의 근거로
+# 필요한 것은 본문의 수치와 문장이지 사진이 아니다. 화면에 8초 띄우면서
+# 굳이 사진까지 들고 갈 이유가 없다.
+#
+# 반대로 그래프·표는 남긴다. 한국부동산원·HUG 같은 기관 자료는 공공저작물
+# 성격이 강하고, 무엇보다 대본 수치의 근거로 화면에 있을 이유가 있다.
+# 2026-09-18 실측에서 전세가격 추이 그래프가 대본 수치와 맞아떨어졌다.
+#
+# 구분은 캡션으로 한다. 한국 기사의 보도사진은 거의 예외 없이 "[서울=뉴시스]
+# … 기자", "사진 제공", "ⓒ" 같은 캡션을 달고 있다. 캡션이 없으면 건드리지
+# 않는다 — 과하게 지워 카드가 백지가 되는 쪽이 더 나쁘다.
+_STRIP_PHOTO_JS = """() => {
+  const PRESS = /사진|뉴시스|연합뉴스|뉴스1|제공|기자|촬영|자료사진|ⓒ|©/;
+  const KEEP  = /그래프|차트|추이|통계|지수|자료\s*:|출처\s*:|단위\s*:/;
+  let n = 0;
+  document.querySelectorAll('figure, [class*=figure], [class*=photo], [class*=image]')
+    .forEach(el => {
+      try {
+        if (!el.isConnected) return;
+        const img = el.querySelector('img');
+        if (!img) return;
+        const cap = (el.innerText || '') + ' ' + (img.alt || '') + ' ' + (img.title || '');
+        if (KEEP.test(cap)) return;
+        if (!PRESS.test(cap)) return;
+        el.remove(); n++;
+      } catch(_){}
+    });
+  return n;
+}"""
+
+
 # 제거 후 남은 의심 요소를 찍는다. 태그·class·id·텍스트 앞부분을 돌려주므로
 # 다음 실행에서 정확히 무엇을 지워야 하는지 바로 보인다.
 _LEFTOVER_JS = """() => {
@@ -203,6 +237,14 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
             # 첫 제거 뒤에 다시 나타난다. 2026-09-16 실측: 매일경제 AI 비서
             # 캐릭터가 제거 후에도 캡처에 남아 표를 덮었다.
             page.evaluate(_STRIP_JS)
+            # 보도사진 제거는 캡처 직전에 한 번만 한다. 지연 로딩되는
+            # 이미지가 있어 너무 일찍 돌리면 캡션이 아직 안 붙어 있다.
+            try:
+                removed = page.evaluate(_STRIP_PHOTO_JS)
+                if removed:
+                    note(f"기사 캡처: 보도사진 {removed}건 제거(저작권)")
+            except Exception as e:
+                note(f"기사 캡처: 보도사진 제거 실패(무시) {str(e)[:80]}")
             page.wait_for_timeout(200)
             # 무엇이 남았는지 남긴다. 클래스명 추측을 반복하지 않으려면
             # 실제로 남은 요소의 마크업을 봐야 한다.
