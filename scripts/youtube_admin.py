@@ -9,6 +9,7 @@ Studio에 들어가는 것은 낭비다. Actions에서 처리할 수 있게 한�
     ACTION=show VIDEO_ID=xxxx          # 올라간 제목·설명 원문 확인
     ACTION=edit VIDEO_ID=xxxx TITLE="새 제목" DESCRIPTION="새 설명"
         (TITLE/DESCRIPTION은 준 것만 바뀐다)
+    ACTION=striplinks [DRY_RUN=1]      # 전체 영상 설명에서 외부 링크 제거
 """
 
 import os
@@ -19,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from googleapiclient.errors import HttpError
 
 from src.uploader.youtube import get_youtube_service
+from src.orchestrator.main import strip_links
 
 
 def _summary(text: str) -> None:
@@ -132,8 +134,78 @@ def show(video_id: str) -> int:
     return 0
 
 
+def striplinks(dry_run: bool = True) -> int:
+    """채널 전체 영상 설명에서 외부 링크를 걷어낸다.
+
+    2026-09-19 유튜브 조치: 09-19 업로드 설명에 있던 뉴시스 기사 URL이
+    "스팸, 현혹 행위, 사기에 대한 정책" 위반으로 삭제됐다. 채널 경고는
+    없었지만, 이 채널은 160편 전부가 같은 자리에 외부 기사 링크를 달고
+    있다. 파이프라인만 고치면 앞으로 올라갈 것만 깨끗해지고, 이미 올라간
+    것들은 링크 스팸 신호로 계속 남는다.
+
+    설명의 나머지(제목·대본·출처 매체명·해시태그·고지)는 그대로 두고
+    URL만 뺀다. DRY_RUN=1이면 바꿀 목록만 찍고 실제로 쓰지 않는다.
+    """
+    yt = get_youtube_service()
+    ch = yt.channels().list(part="contentDetails", mine=True).execute()
+    if not ch.get("items"):
+        _summary("채널을 찾을 수 없습니다."); return 1
+    uploads = ch["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+
+    ids, page = [], None
+    while True:
+        pl = yt.playlistItems().list(part="contentDetails", playlistId=uploads,
+                                     maxResults=50, pageToken=page).execute()
+        ids += [i["contentDetails"]["videoId"] for i in pl.get("items", [])]
+        page = pl.get("nextPageToken")
+        if not page:
+            break
+
+    targets = []
+    for i in range(0, len(ids), 50):
+        res = yt.videos().list(part="snippet", id=",".join(ids[i:i + 50])).execute()
+        for it in res.get("items", []):
+            sn = it["snippet"]
+            before = sn.get("description", "") or ""
+            after = strip_links(before)
+            if after != before:
+                targets.append((it["id"], sn, before, after))
+
+    _summary(f"## 설명에 외부 링크가 있는 영상: {len(targets)}편 / 전체 {len(ids)}편")
+    _summary("")
+    if not targets:
+        return 0
+    if dry_run:
+        _summary("DRY_RUN — 실제로 바꾸지 않았습니다. 바꾸려면 DRY_RUN=0.")
+        _summary("")
+        for vid_, sn, before, after in targets[:5]:
+            _summary(f"### `{vid_}` {sn.get('title','')[:40]}")
+            _summary("```\n- " + "\n- ".join(
+                ln for ln in before.split("\n") if "http" in ln or "www." in ln) + "\n```")
+        return 0
+
+    ok = fail = 0
+    for vid_, sn, _before, after in targets:
+        sn["description"] = after[:5000]
+        try:
+            yt.videos().update(part="snippet",
+                               body={"id": vid_, "snippet": sn}).execute()
+            ok += 1
+        except HttpError as e:
+            fail += 1
+            status = getattr(e.resp, "status", "?")
+            _summary(f"- 실패 `{vid_}` (status={status})")
+            if status in (403, 429):      # 할당량 소진이면 더 돌려도 의미 없다
+                _summary("**할당량이 소진된 것 같습니다. 내일 이어서 돌리세요.**")
+                break
+    _summary(f"\n**{ok}편 수정 완료, {fail}편 실패.**")
+    return 0 if fail == 0 else 1
+
+
 if __name__ == "__main__":
     action = os.getenv("ACTION", "").strip()
+    if action == "striplinks":
+        raise SystemExit(striplinks(os.getenv("DRY_RUN", "1") != "0"))
     vid = os.getenv("VIDEO_ID", "").strip()
     if not vid:
         _summary("VIDEO_ID가 비어 있습니다."); raise SystemExit(1)
@@ -149,5 +221,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks)")
     raise SystemExit(1)

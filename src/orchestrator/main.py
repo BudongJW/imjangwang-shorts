@@ -116,18 +116,58 @@ def _load_pinned_plan():
         return None
 
 
+_URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.I)
+
+
+def strip_links(text: str) -> str:
+    """설명에서 외부 링크를 걷어낸다.
+
+    유튜브가 2026-09-19에 설명 속 기사 URL을 스팸 정책 위반으로 삭제했다.
+    도메인만 남겨 두면 유튜브가 자동 링크로 만드는 경우가 있어 통째로 뺀다.
+    """
+    out = _URL_RE.sub("", text)
+    # 링크만 있던 줄이 빈 껍데기로 남지 않게 정리
+    lines = [ln.rstrip() for ln in out.split("\n")]
+    lines = [ln for ln in lines if ln.strip() not in ("출처:", "사진:")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
 def _build_description(plan, art, face=None) -> str:
     tags = " ".join(f"#{t.lstrip('#')}" for t in (plan.hashtags or DEFAULT_HASHTAGS))
-    src = f"\n\n출처: {art.source} {art.url}".rstrip() if getattr(art, "url", "") else ""
+    # 출처는 매체명 + 기사 제목으로만 쓴다. URL은 넣지 않는다.
+    #
+    # 2026-09-19 유튜브 조치: 09-19 업로드(1GWtMyDh3Ic)의 설명에 있던
+    # 뉴시스 기사 URL이 "스팸, 현혹 행위, 사기에 대한 정책" 위반으로
+    # 삭제됐다. 채널 경고는 없었지만 링크는 제거됐다.
+    #
+    # 이 채널은 160편 전부가 같은 자리에 외부 기사 링크를 달고 있었다.
+    # 매일 같은 형태로 외부 링크를 붙이는 것 자체가 링크 스팸 신호이고,
+    # 그건 영상 하나가 아니라 채널 단위로 도달에 걸린다. 실제로 09-14
+    # 이후 Shorts 피드 유입이 비중은 97%로 유지된 채 절대량만 1/8로
+    # 줄었다(1,046 → 136 → 140).
+    #
+    # 출처 표시는 링크가 아니라 사실로 하는 것이다. 매체명과 기사 제목이면
+    # 독자가 원문을 찾을 수 있고, 인용 표시 의무도 충족된다.
+    if getattr(art, "source", "") or getattr(art, "title", ""):
+        head = (art.title or "").strip().replace("\n", " ")
+        if len(head) > 60:
+            head = head[:60].rstrip() + "…"
+        bits = " ".join(x for x in [art.source, f"「{head}」" if head else ""] if x)
+        src = f"\n\n출처: {bits}".rstrip()
+    else:
+        src = ""
     # 인물 사진 출처 — KOGL 1유형·CC BY 계열은 표시가 의무다
     credit = face_credit(face)
     photo = f"\n사진: {credit}" if credit else ""
-    return (
+    body = (
         f"{plan.youtube_title}\n\n"
         f"{plan.caption_script}\n\n"
         f"{FIXED_CTA}{src}{photo}\n\n{tags}\n\n"
         "※ 본 영상은 공개된 뉴스를 바탕으로 한 정보 제공용이며 투자 권유가 아닙니다."
     )
+    # 마지막 방어선. 대본은 모델이 쓰기 때문에 본문에 링크가 섞여 들어올 수
+    # 있고, 설명에 외부 링크가 하나라도 남으면 같은 조치를 또 받는다.
+    return strip_links(body)
 
 
 def _title_with_tags(plan) -> str:

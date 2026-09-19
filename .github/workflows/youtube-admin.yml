@@ -6,6 +6,7 @@ name: 영상 삭제·제목변경
 # 브랜치 실행: output/admin_request.json 에 지시를 적고 run/admin-* 푸시
 #   {"action": "delete",  "video_id": "xxxx"}
 #   {"action": "retitle", "video_id": "xxxx", "title": "새 제목"}
+#   {"action": "striplinks", "dry_run": true}   # 전체 설명에서 외부 링크 제거
 on:
   push:
     branches: ['run/admin-*']
@@ -55,6 +56,7 @@ jobs:
             echo "video_id=$IN_VIDEO" >> $GITHUB_OUTPUT
             printf 'title<<EOF\n%s\nEOF\n' "$IN_TITLE" >> $GITHUB_OUTPUT
             printf 'description<<EOF\n%s\nEOF\n' "" >> $GITHUB_OUTPUT
+            echo "dry_run=1" >> $GITHUB_OUTPUT
           else
             f=output/admin_request.json
             [ -f "$f" ] || { echo "$f 가 없습니다"; exit 1; }
@@ -65,6 +67,7 @@ jobs:
           print(f"video_id={d.get('video_id','')}")
           print("title<<EOF"); print(d.get("title", "")); print("EOF")
           print("description<<EOF"); print(d.get("description", "")); print("EOF")
+          print(f"dry_run={'0' if d.get('dry_run') is False else '1'}")
           PY
           fi
 
@@ -78,6 +81,7 @@ jobs:
           VIDEO_ID: ${{ steps.req.outputs.video_id }}
           TITLE: ${{ steps.req.outputs.title }}
           DESCRIPTION: ${{ steps.req.outputs.description }}
+          DRY_RUN: ${{ steps.req.outputs.dry_run }}
         run: python scripts/youtube_admin.py
 
       - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)
