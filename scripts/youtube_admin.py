@@ -10,6 +10,7 @@ Studio에 들어가는 것은 낭비다. Actions에서 처리할 수 있게 한�
     ACTION=edit VIDEO_ID=xxxx TITLE="새 제목" DESCRIPTION="새 설명"
         (TITLE/DESCRIPTION은 준 것만 바뀐다)
     ACTION=striplinks [DRY_RUN=1]      # 전체 영상 설명에서 외부 링크 제거
+    ACTION=approve VIDEO_ID=xxxx       # 검토 대기(비공개) 영상을 공개로 전환
 """
 
 import os
@@ -108,6 +109,38 @@ def edit(video_id: str, title: str = "", description: str = "") -> int:
         _summary(f"- {what} 후: {after}")
     if description:
         _summary("\n### 새 설명\n```\n" + sn["description"] + "\n```")
+    _summary(f"- https://youtube.com/shorts/{video_id}")
+    return 0
+
+
+def approve(video_id: str) -> int:
+    """검토 대기 중인 비공개 영상을 공개로 바꾼다.
+
+    REVIEW_MODE에서 파이프라인은 비공개로만 올린다. 사람이 대본을 읽고
+    이 액션을 돌려야 공개된다. 편집 판단이 실제로 사람한테 있다는 뜻이고,
+    그 기록이 커밋과 Actions 로그에 남는다.
+    """
+    yt = get_youtube_service()
+    res = yt.videos().list(part="status,snippet", id=video_id).execute()
+    items = res.get("items", [])
+    if not items:
+        _summary(f"## 영상을 찾을 수 없습니다: `{video_id}`")
+        return 1
+    st = items[0]["status"]
+    title = items[0]["snippet"].get("title", "")
+    if st.get("privacyStatus") == "public":
+        _summary(f"## 이미 공개 상태입니다: `{video_id}` — {title}")
+        return 0
+    st["privacyStatus"] = "public"
+    st.pop("publishAt", None)     # 예약이 걸려 있으면 즉시 공개와 충돌한다
+    try:
+        yt.videos().update(part="status", body={"id": video_id, "status": st}).execute()
+    except HttpError as e:
+        status = getattr(e.resp, "status", "?")
+        _summary(f"## 공개 전환 실패 (status={status})\n```\n"
+                 f"{(e.content or b'').decode('utf-8', 'replace')[:300]}\n```")
+        return 1
+    _summary(f"## 공개 완료 — {title}")
     _summary(f"- https://youtube.com/shorts/{video_id}")
     return 0
 
@@ -211,6 +244,8 @@ if __name__ == "__main__":
         _summary("VIDEO_ID가 비어 있습니다."); raise SystemExit(1)
     if action == "show":
         raise SystemExit(show(vid))
+    if action == "approve":
+        raise SystemExit(approve(vid))
     if action == "edit":
         raise SystemExit(edit(vid, os.getenv("TITLE", "").strip(),
                              os.getenv("DESCRIPTION", "")))
@@ -221,5 +256,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve)")
     raise SystemExit(1)

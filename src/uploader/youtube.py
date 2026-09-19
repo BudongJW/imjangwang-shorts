@@ -133,6 +133,7 @@ def upload(
     tags: list[str] | None = None,
     category_id: str = "22",  # People & Blogs
     publish_at: str | None = None,
+    privacy: str | None = None,
 ) -> str:
     """YouTube에 영상을 업로드한다.
 
@@ -144,6 +145,9 @@ def upload(
         category_id: YouTube 카테고리 ID
         publish_at: 예약 공개 시각(RFC3339, 예 '2026-08-17T03:45:00Z'). 주면
             비공개로 올린 뒤 해당 시각에 자동 공개.
+        privacy: 공개 상태를 직접 지정(public/unlisted/private). 검토 대기
+            모드에서 'private'로 올려 두고 사람이 승인하면 공개하는 데 쓴다.
+            publish_at 과 같이 주면 publish_at 이 우선한다.
 
     Returns:
         업로드된 영상의 video ID
@@ -156,7 +160,7 @@ def upload(
     else:
         status = {
             # 기본은 공개. 첫 검토용 등은 PRIVACY_STATUS=unlisted/private 로 오버라이드.
-            "privacyStatus": os.getenv("PRIVACY_STATUS", "public"),
+            "privacyStatus": privacy or os.getenv("PRIVACY_STATUS", "public"),
             "selfDeclaredMadeForKids": False,
         }
     body = {

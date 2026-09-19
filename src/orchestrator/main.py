@@ -155,6 +155,43 @@ def _build_description(plan, art, face=None) -> str:
     return strip_links(body)
 
 
+def _review_summary(plan, art, video_id: str, final) -> None:
+    """검토에 필요한 것만 Actions 요약 탭에 쓴다.
+
+    승인하는 사람이 휴대폰으로 5분 안에 읽고 판단할 수 있어야 한다.
+    대본 전문과 원문 대조에 필요한 것만 싣고 나머지는 로그에 둔다.
+    """
+    lines = [
+        f"# 검토 대기 — {plan.youtube_title}",
+        "",
+        f"**비공개로 올라가 있다.** 승인해야 공개된다. `{video_id}`",
+        "",
+        f"- 원문: {art.source} 「{art.title}」",
+        f"- {art.url}" if getattr(art, "url", "") else "",
+        f"- 대본 {len(plan.caption_script or '')}자",
+        "",
+        "## 대본 전문",
+        "",
+        plan.caption_script or "(없음)",
+        "",
+        "## 승인하려면",
+        "",
+        "`output/admin_request.json` 에 아래를 적고 `run/admin-*` 브랜치를 푸시한다.",
+        "",
+        "```json",
+        f'{{"action": "approve", "video_id": "{video_id}"}}',
+        "```",
+        "",
+        "버리려면 `\"action\": \"delete\"`.",
+    ]
+    text = "\n".join(x for x in lines if x is not None)
+    path = os.getenv("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text + "\n")
+    log.info(f"검토 대기 — 비공개 업로드 완료: {video_id}")
+
+
 def _title_with_tags(plan) -> str:
     base = plan.youtube_title.strip()
     tags = " ".join(f"#{t.lstrip('#')}" for t in (plan.hashtags or [])[:3])
@@ -300,6 +337,17 @@ def run(skip_upload: bool = False) -> int:
                     banner=banner, srt_path=srt)
 
     # 6) 업로드
+    #
+    # REVIEW_MODE(기본 켬)에서는 비공개로 올리고 사람이 승인해야 공개된다.
+    #
+    # 유튜브가 2026년에 정리한 채널들의 공통점은 "사람의 편집 판단 없이
+    # 기계가 끝까지 내보내는 것"이었다. 이 파이프라인의 진짜 가치는 앞단
+    # (수집·선정·본문 추출·수치 대조)에 있고, 뒷단을 사람 없이 내보내는
+    # 것은 이득이 아니라 위험이다. 실제로 09-19 영상은 폴백 대본이
+    # 기자 바이라인과 잘린 수치를 그대로 읽었는데 아무도 못 막았다.
+    #
+    # 승인은 run/admin-* 브랜치의 {"action":"approve","video_id":"..."} 로 한다.
+    review = os.getenv("REVIEW_MODE", "1") != "0"
     video_id = ""
     if skip_upload:
         log.info(f"[skip-upload] 검증 완료: {final}")
@@ -310,10 +358,13 @@ def run(skip_upload: bool = False) -> int:
             title=_title_with_tags(plan),
             description=_build_description(plan, art, face=face),
             tags=[t.lstrip("#") for t in (plan.hashtags or DEFAULT_HASHTAGS)],
-            publish_at=_publish_at(),
+            publish_at=None if review else _publish_at(),
+            privacy="private" if review else None,
         )
         # 타이틀카드(AI배경+헤드라인)를 커스텀 썸네일로 설정
         youtube.set_thumbnail(video_id, title_card)
+        if review:
+            _review_summary(plan, art, video_id, final)
 
     record_topic(art.title, video_id,
                  len_mode=SCRIPT_LEN_MODE,
