@@ -21,8 +21,7 @@ from pathlib import Path
 
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
-    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME,
-)
+    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO)
 from src.editor.fonts import font_bold
 from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
@@ -486,8 +485,12 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
 
 def _plan_segments(title_card: Path, article_img: Path | None,
                    bg_paths: list[Path], dur: float) -> list[tuple[Path, float]]:
-    """도입 3~4초 룰 + 3초 컷 + 기사 중간 배치."""
-    t_title = min(TITLE_CARD_MAX_SEC, dur * 0.2)
+    """도입 3~4초 룰 + 3초 컷 + 기사 중간 배치.
+
+    TITLE_CARD_IN_VIDEO가 꺼져 있으면 타이틀카드 컷을 아예 넣지 않는다.
+    카드는 썸네일로만 쓰고 영상은 첫 프레임부터 내용으로 시작한다.
+    """
+    t_title = min(TITLE_CARD_MAX_SEC, dur * 0.2) if TITLE_CARD_IN_VIDEO else 0.0
     t_article = min(8.0, max(4.0, dur * 0.22)) if article_img else 0.0
     rest = max(1.0, dur - t_title - t_article)
     n_img = max(1, math.ceil(rest / IMAGE_MAX_SEC))
@@ -495,8 +498,11 @@ def _plan_segments(title_card: Path, article_img: Path | None,
 
     imgs = cycle(bg_paths) if bg_paths else cycle([title_card])
     img_segs = [(next(imgs), per) for _ in range(n_img)]
+    if not img_segs and not article_img:
+        # 배경도 기사도 없는 극단적인 경우엔 카드라도 띄운다(빈 영상 방지).
+        img_segs = [(title_card, rest)]
 
-    segs: list[tuple[Path, float]] = [(title_card, t_title)]
+    segs: list[tuple[Path, float]] = [(title_card, t_title)] if t_title > 0 else []
     if article_img and img_segs:
         # 첫 이미지컷 뒤에 기사 캡처 삽입
         segs.append(img_segs[0])
@@ -551,7 +557,9 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             shutil.copyfile(ttf, dst)
     ass = build_caption_ass(caption_script, dur, asset_dir / "display.ass", cues=cues)
     segs = _plan_segments(title_card, article_img, bg_paths, dur)
-    title_dur = segs[0][1]
+    # 배너 등장 시점과 콜아웃 시작 기준. 타이틀카드를 안 넣으면 0이고,
+    # 그러면 배너가 0초부터 뜨고 콜아웃도 곧바로 시작할 수 있다.
+    title_dur = (segs[0][1] if segs and str(segs[0][0]) == str(title_card) else 0.0)
     log.info(f"  세그먼트 {len(segs)}개 (타이틀 {title_dur:.1f}s 등)")
     # 기사 캡처 세그먼트의 시간대를 구해 콜아웃 금지 구간으로 넘긴다.
     blocked = None
