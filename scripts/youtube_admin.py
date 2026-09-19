@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from googleapiclient.errors import HttpError
 
 from src.uploader.youtube import get_youtube_service
-from src.orchestrator.main import strip_links
+from src.utils.text import strip_links
 
 
 def _summary(text: str) -> None:

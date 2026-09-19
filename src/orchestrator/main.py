@@ -32,6 +32,7 @@ from src.editor.title_card import (render_title_card, resolve_face, face_credit,
                                    render_headline_banner, pick_accent)
 from src.editor.composer import compose
 from src.utils.logger import setup_logger
+from src.utils.text import strip_links
 
 log = setup_logger("main")
 
@@ -114,22 +115,6 @@ def _load_pinned_plan():
     except Exception as e:
         log.info(f"지정 대본 로드 실패(무시하고 자동 선택): {e}")
         return None
-
-
-_URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.I)
-
-
-def strip_links(text: str) -> str:
-    """설명에서 외부 링크를 걷어낸다.
-
-    유튜브가 2026-09-19에 설명 속 기사 URL을 스팸 정책 위반으로 삭제했다.
-    도메인만 남겨 두면 유튜브가 자동 링크로 만드는 경우가 있어 통째로 뺀다.
-    """
-    out = _URL_RE.sub("", text)
-    # 링크만 있던 줄이 빈 껍데기로 남지 않게 정리
-    lines = [ln.rstrip() for ln in out.split("\n")]
-    lines = [ln for ln in lines if ln.strip() not in ("출처:", "사진:")]
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
 def _build_description(plan, art, face=None) -> str:
