@@ -163,6 +163,49 @@ _STRIP_PHOTO_JS = """() => {
 }"""
 
 
+# 클래스명으로는 못 잡는 매체 UI를 '텍스트 모양'으로 잡는다.
+#
+# 한국일보는 Tailwind 유틸리티 클래스를 쓴다. 실측으로 남은 것이
+#   UL.space-y-16 max-sm:py-8 gtm-article-write "신지후 기자 hoo@... 구독"
+# 인데, 광고·위젯 선택자에 걸릴 이름이 아예 없다. 보도사진 제거와 같은
+# 문제다 — 클래스명을 맞히는 방식은 매체가 바뀌면 그냥 안 걸린다.
+#
+# 대신 '무엇이 쓰여 있는가'로 판단한다. 기자 바이라인·구독 버튼·공유
+# 버튼은 텍스트 모양이 정해져 있고 짧다. 80자를 넘으면 본문으로 보고
+# 건드리지 않는다.
+_STRIP_WIDGET_JS = """() => {
+  const HIT = [
+    /\\S{1,8}\\s*기자\\s*\\S+@\\S+/,          // 신지후 기자 hoo@hankookilbo.com
+    /^구독\\s*[+＋]?(하기)?$/,
+    /^기자\\s*제보$/,
+    /^(공유|스크랩|프린트|글씨\\s*크기|댓글|좋아요)$/,
+    /^이미지\\s*확대보기$/,
+    /^(카카오톡|페이스북|트위터|네이버|밴드)$/,
+  ];
+  const out = [];
+  document.querySelectorAll('body *').forEach(e => {
+    try {
+      if (!e.isConnected) return;
+      if (e.children.length > 6) return;
+      const t = (e.innerText || '').replace(/\\s+/g, ' ').trim();
+      if (!t || t.length > 80) return;        // 본문 문단은 건드리지 않는다
+      if (!HIT.some(re => re.test(t))) return;
+      // 같은 텍스트만 감싼 가장 바깥 요소까지 올라가 한 번에 지운다.
+      // 텍스트가 달라지는 순간 멈추므로 본문을 삼킬 수 없다.
+      let node = e, par = e.parentElement;
+      for (let i = 0; i < 3 && par; i++) {
+        const pt = (par.innerText || '').replace(/\\s+/g, ' ').trim();
+        if (pt !== t) break;
+        node = par; par = par.parentElement;
+      }
+      out.push(t.slice(0, 34));
+      node.remove();
+    } catch(_){}
+  });
+  return out;
+}"""
+
+
 # 제거 후 남은 의심 요소를 찍는다. 태그·class·id·텍스트 앞부분을 돌려주므로
 # 다음 실행에서 정확히 무엇을 지워야 하는지 바로 보인다.
 _LEFTOVER_JS = """() => {
@@ -265,6 +308,10 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                 if removed:
                     note(f"기사 캡처: 사진 {len(removed)}건 제거(저작권) — "
                          + " | ".join(removed[:4]))
+                wid = page.evaluate(_STRIP_WIDGET_JS) or []
+                if wid:
+                    note(f"기사 캡처: 매체 위젯 {len(wid)}건 제거 — "
+                         + " | ".join(wid[:4]))
             except Exception as e:
                 note(f"기사 캡처: 보도사진 제거 실패(무시) {str(e)[:80]}")
             page.wait_for_timeout(200)
