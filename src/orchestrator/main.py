@@ -195,6 +195,31 @@ def _review_summary(plan, art, video_id: str, final) -> None:
     log.info(f"검토 대기 — 비공개 업로드 완료: {video_id}")
 
 
+_QUOTE_RE = re.compile(r'["\u201c\u201d\u2018\u2019\u300c\u300d\u300e\u300f\']')
+
+
+def _title_style(title: str) -> str:
+    """제목이 인용형인지 주장형인지 기록한다.
+
+    2026-09-09에 규칙 12를 "따옴표 인용 + 발언 주체" 형식으로 바꿨다.
+    경쟁 채널 조사가 근거였는데, 같은 뉴스에서 정치대학 20만 vs 우리
+    1,100이라는 한 건 비교였고 구독자 규모(7.9만 vs 우리) 차이가 통제되지
+    않았다. 표본 1로 제목 문법을 통째로 바꾼 셈이다.
+
+    성적 비교는 지금 불가능하다. 규칙 변경(09-09)이 토큰 만료로 8일간
+    업로드가 끊긴 구간(09-02~09-09) 바로 뒤에 얹혀 있고, 그 다음엔
+    도달 붕괴(09-14~)가 왔다. 어느 쪽도 제목 탓으로 못 돌린다.
+
+    그래서 되돌리지도, 밀어붙이지도 않는다. 영상마다 어느 문법이었는지만
+    박아 두면 도달이 회복된 뒤에 갈라 볼 수 있다. 날짜로 추정하면 지정
+    대본·수동 재업로드 한 번에 경계가 무너진다.
+
+      주장형  이재명 정부 1년, 서울 집값 14% 폭등 미스터리!
+      인용형  뉴시스 "서울 월세 160만원 시대"
+    """
+    return "인용" if _QUOTE_RE.search(title or "") else "주장"
+
+
 def _title_with_tags(plan) -> str:
     base = plan.youtube_title.strip()
     tags = " ".join(f"#{t.lstrip('#')}" for t in (plan.hashtags or [])[:3])
@@ -398,6 +423,7 @@ def run(skip_upload: bool = False) -> int:
             _review_summary(plan, art, video_id, final)
 
     record_topic(art.title, video_id,
+                 title_style=_title_style(plan.youtube_title),
                  len_mode=SCRIPT_LEN_MODE,
                  script_chars=len(plan.caption_script or ""),
                  source=getattr(art, "source", "") or None,
