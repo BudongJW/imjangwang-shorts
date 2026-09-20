@@ -103,6 +103,9 @@ def _load_pinned_plan():
             hashtags=list(p.get("hashtags", []) or DEFAULT_HASHTAGS),
             layout=str(p.get("layout", "")).strip(),
         )
+        # 지정 대본이 공개 시각을 직접 고를 수 있게 한다("HH:MM" KST).
+        # 특정 시간대를 노린 기획물은 08:40 기본값이 맞지 않는다.
+        plan.publish_at_kst = str(p.get("publish_at_kst", "")).strip()
         # 얼굴 지정: "none"이면 인물 사진을 아예 안 넣고, 파일명이면 그 사진을 쓴다.
         # 주제 인물이 이재명이 아닌 날(예: 다른 인사 의혹)에 엉뚱한 얼굴이
         # 붙는 것을 막는다. 미지정이면 기존 날짜 회전을 그대로 쓴다.
@@ -199,7 +202,7 @@ def _title_with_tags(plan) -> str:
     return title[:100]  # 유튜브 제목 100자 제한
 
 
-def _publish_at() -> str | None:
+def _publish_at(target_kst: str = "") -> str | None:
     """오늘(KST) 목표 시각의 RFC3339 UTC 문자열. 이미 지났으면 None(즉시 공개).
 
     스케줄 지연을 크론 분으로 보정하려 했는데 오프셋이 일정하지 않았다.
@@ -215,15 +218,16 @@ def _publish_at() -> str | None:
     """
     from datetime import timezone, timedelta
     kst = timezone(timedelta(hours=9))
+    want = target_kst or PUBLISH_TARGET_KST
     try:
-        hh, mm = (int(x) for x in PUBLISH_TARGET_KST.split(":"))
+        hh, mm = (int(x) for x in want.split(":"))
     except ValueError:
-        log.warning(f"PUBLISH_TARGET_KST 형식 오류({PUBLISH_TARGET_KST!r}) → 즉시 공개")
+        log.warning(f"공개 시각 형식 오류({want!r}) → 즉시 공개")
         return None
     now = datetime.now(kst)
     target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
     if target - now < timedelta(minutes=PUBLISH_MIN_LEAD_MIN):
-        log.info(f"  게시: 즉시 공개 (목표 {PUBLISH_TARGET_KST} KST가 이미 지났거나 "
+        log.info(f"  게시: 즉시 공개 (목표 {want} KST가 이미 지났거나 "
                  f"{PUBLISH_MIN_LEAD_MIN}분 미만 남음)")
         return None
     log.info(f"  게시: {target:%H:%M} KST 예약 공개 "
@@ -368,6 +372,13 @@ def run(skip_upload: bool = False) -> int:
     #
     # 승인은 run/admin-* 브랜치의 {"action":"approve","video_id":"..."} 로 한다.
     review = os.getenv("REVIEW_MODE", "1") != "0"
+    # 지정 대본이 공개 시각을 콕 집었으면 예약 공개를 쓴다. 예약 공개는
+    # 그 시각까지 비공개라 검토 시간이 그대로 남고, 사람이 시각을 직접
+    # 고른 것 자체가 편집 판단이다.
+    pinned_time = getattr(plan, "publish_at_kst", "")
+    if review and pinned_time:
+        log.info(f"  검토 대기 해제: 지정 대본이 {pinned_time} KST 예약 공개를 지정")
+        review = False
     video_id = ""
     if skip_upload:
         log.info(f"[skip-upload] 검증 완료: {final}")
@@ -378,7 +389,7 @@ def run(skip_upload: bool = False) -> int:
             title=_title_with_tags(plan),
             description=_build_description(plan, art, face=face),
             tags=[t.lstrip("#") for t in (plan.hashtags or DEFAULT_HASHTAGS)],
-            publish_at=None if review else _publish_at(),
+            publish_at=None if review else _publish_at(pinned_time),
             privacy="private" if review else None,
         )
         # 타이틀카드(AI배경+헤드라인)를 커스텀 썸네일로 설정
