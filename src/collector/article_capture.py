@@ -123,22 +123,43 @@ def _is_blank(im: Image.Image) -> bool:
 # … 기자", "사진 제공", "ⓒ" 같은 캡션을 달고 있다. 캡션이 없으면 건드리지
 # 않는다 — 과하게 지워 카드가 백지가 되는 쪽이 더 나쁘다.
 _STRIP_PHOTO_JS = """() => {
-  const PRESS = /사진|뉴시스|연합뉴스|뉴스1|제공|기자|촬영|자료사진|ⓒ|©/;
-  const KEEP  = /그래프|차트|추이|통계|지수|자료\s*:|출처\s*:|단위\s*:/;
-  let n = 0;
-  document.querySelectorAll('figure, [class*=figure], [class*=photo], [class*=image]')
-    .forEach(el => {
-      try {
-        if (!el.isConnected) return;
-        const img = el.querySelector('img');
-        if (!img) return;
-        const cap = (el.innerText || '') + ' ' + (img.alt || '') + ' ' + (img.title || '');
-        if (KEEP.test(cap)) return;
-        if (!PRESS.test(cap)) return;
-        el.remove(); n++;
-      } catch(_){}
-    });
-  return n;
+  const PRESS = /사진|뉴시스|연합뉴스|뉴스1|제공|기자|촬영|자료사진|ⓒ|©|게티|AP|AFP|로이터/;
+  const KEEP  = /그래프|차트|추이|통계|지수|자료\\s*[:：]|출처\\s*[:：]|단위\\s*[:：]/;
+  const out = [];
+  document.querySelectorAll('img').forEach(img => {
+    try {
+      if (!img.isConnected) return;
+      const r = img.getBoundingClientRect();
+      const w = r.width || img.naturalWidth || 0;
+      const h = r.height || img.naturalHeight || 0;
+      if (w < 200 || h < 150) return;        // 아이콘·로고·목록 썸네일은 둔다
+
+      // 캡션 위치는 매체마다 다르다. figure/figcaption인 곳도 있고,
+      // 한국일보처럼 <div class=editor-img-box> 안의 형제 <div class=caption>
+      // 인 곳도 있다. 클래스명을 맞히는 대신 조상을 세 단계 올라가며
+      // 주변 텍스트를 모은다. 다른 이미지가 끼면 거기서 멈춘다.
+      // 조상을 올라가며 캡션을 찾되, 텍스트가 캡션 길이를 넘으면 멈춘다.
+      // 안 그러면 본문을 통째로 감싼 컨테이너까지 올라가 기사 텍스트가
+      // 같이 지워진다. 실측에서 한국일보 본문 수치가 전부 사라졌다.
+      let node = img;
+      let text = ((img.alt || '') + ' ' + (img.title || '')).trim();
+      for (let i = 0; i < 3 && node.parentElement; i++) {
+        const par = node.parentElement;
+        if (par.querySelectorAll('img').length > 1) break;
+        const t = (par.innerText || '').replace(/\\s+/g, ' ').trim();
+        if (t.length > 200) break;          // 여기부터는 본문이다
+        node = par;
+        if (t) text = t;
+      }
+      if (KEEP.test(text)) return;          // 그래프·표는 근거라서 남긴다
+      // 출처 표시가 없는 이미지는 건드리지 않는다. 사이트 아이콘·로고까지
+      // 지우다 화면을 통째로 비우는 쪽이 더 나쁘다(실측 167건 오삭제).
+      if (!PRESS.test(text)) return;
+      out.push(text.slice(0, 40));
+      node.remove();
+    } catch(_){}
+  });
+  return out;
 }"""
 
 
@@ -240,9 +261,10 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
             # 보도사진 제거는 캡처 직전에 한 번만 한다. 지연 로딩되는
             # 이미지가 있어 너무 일찍 돌리면 캡션이 아직 안 붙어 있다.
             try:
-                removed = page.evaluate(_STRIP_PHOTO_JS)
+                removed = page.evaluate(_STRIP_PHOTO_JS) or []
                 if removed:
-                    note(f"기사 캡처: 보도사진 {removed}건 제거(저작권)")
+                    note(f"기사 캡처: 사진 {len(removed)}건 제거(저작권) — "
+                         + " | ".join(removed[:4]))
             except Exception as e:
                 note(f"기사 캡처: 보도사진 제거 실패(무시) {str(e)[:80]}")
             page.wait_for_timeout(200)
