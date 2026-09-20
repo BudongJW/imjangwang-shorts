@@ -539,7 +539,24 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
     # 채널 전체 일별 추이. 영상 하나하나의 성적으로는 '이 소재가 나빴나'까지만
     # 보이고, 채널 노출 자체가 줄고 있는지는 안 보인다.
     if daily and "error" not in daily[0]:
-        rows = daily[-21:]
+        # 끝쪽 0회 행을 버린다. 영상 160편짜리 채널의 하루 조회수가 정확히
+        # 0인 일은 없다 — 아직 집계가 안 끝난 날에 API가 자리만 채워 주는
+        # 것이다. 09-20 실측: 09-19 리포트에서 201회였던 09-16이 다음날
+        # 0회로 바뀌어 돌아왔고, 같은 API의 영상별 집계는 그 날 업로드분에
+        # 204회를 주고 있었다.
+        #
+        # 그대로 두면 '채널이 죽었다'로 읽히고, 아래 앞/뒤 절반 비교도
+        # 0으로 끌려 내려간다. 실제로 그 비교가 -53%로 찍혔다.
+        settled = list(daily)
+        dropped = 0
+        while settled and settled[-1].get("views", 0) == 0:
+            settled.pop()
+            dropped += 1
+        rows = settled[-21:]
+        if not rows:
+            lines.append("채널 일별 조회수: 집계된 날이 없다(전부 미확정).")
+            lines.append("")
+            daily = None
         peak = max((r.get("views", 0) for r in rows), default=0) or 1
         lines.append("## 채널 일별 조회수 (최근 3주)")
         lines.append("")
@@ -554,7 +571,12 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
             new_avg = sum(r.get("views", 0) for r in rows[half:]) / (len(rows) - half)
             lines.append("")
             lines.append(f"앞 {half}일 평균 {old_avg:,.0f}회 → 뒤 {len(rows)-half}일 평균 "
-                         f"{new_avg:,.0f}회 ({(new_avg/old_avg-1)*100:+.0f}%)")
+                         f"{new_avg:,.0f}회 ({(new_avg/old_avg-1)*100:+.0f}%)"
+                         if old_avg else "앞 절반 평균이 0이라 비교 생략")
+        if dropped:
+            lines.append("")
+            lines.append(f"※ 끝 {dropped}일은 집계 미확정(0회)이라 뺐다. "
+                         f"Analytics 일별은 2~3일 지연되고, 확정 전에는 0으로 온다.")
         lines.append("")
     elif daily:
         lines.append(f"채널 일별 조회수 조회 실패: {daily[0]['error'][:120]}")
