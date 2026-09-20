@@ -11,6 +11,8 @@ Studio에 들어가는 것은 낭비다. Actions에서 처리할 수 있게 한�
         (TITLE/DESCRIPTION은 준 것만 바뀐다)
     ACTION=striplinks [DRY_RUN=1]      # 전체 영상 설명에서 외부 링크 제거
     ACTION=approve VIDEO_ID=xxxx       # 검토 대기(비공개) 영상을 공개로 전환
+    ACTION=delete_below MAX_VIEWS=200 [MIN_AGE_H=24] [DRY_RUN=1]
+        # 조회수가 기준 이하인 영상을 일괄 삭제. 되돌릴 수 없다.
 """
 
 import os
@@ -145,6 +147,81 @@ def approve(video_id: str) -> int:
     return 0
 
 
+def delete_below(max_views: int, min_age_h: float, dry_run: bool = True) -> int:
+    """조회수가 기준 이하인 영상을 일괄 삭제한다. 되돌릴 수 없다.
+
+    min_age_h 보다 어린 영상은 건드리지 않는다. 갓 올라간 영상은 성적이
+    나쁜 게 아니라 아직 시간이 없는 것이라, 나이 기준 없이 조회수로만
+    자르면 오늘 올린 영상이 무조건 지워진다.
+
+    DRY_RUN이 기본이다. 목록을 눈으로 확인한 뒤 DRY_RUN=0으로 실행한다.
+    """
+    from datetime import datetime, timezone
+    yt = get_youtube_service()
+    ch = yt.channels().list(part="contentDetails", mine=True).execute()
+    if not ch.get("items"):
+        _summary("채널을 찾을 수 없습니다."); return 1
+    uploads = ch["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+
+    ids, page = [], None
+    while True:
+        pl = yt.playlistItems().list(part="contentDetails", playlistId=uploads,
+                                     maxResults=50, pageToken=page).execute()
+        ids += [i["contentDetails"]["videoId"] for i in pl.get("items", [])]
+        page = pl.get("nextPageToken")
+        if not page:
+            break
+
+    now = datetime.now(timezone.utc)
+    targets, young = [], []
+    for i in range(0, len(ids), 50):
+        res = yt.videos().list(part="snippet,statistics,status",
+                               id=",".join(ids[i:i + 50])).execute()
+        for it in res.get("items", []):
+            views = int(it.get("statistics", {}).get("viewCount", 0))
+            if views > max_views:
+                continue
+            pub = it["snippet"]["publishedAt"]
+            age = (now - datetime.strptime(pub[:19], "%Y-%m-%dT%H:%M:%S")
+                   .replace(tzinfo=timezone.utc)).total_seconds() / 3600
+            row = (it["id"], views, age, it["snippet"]["title"][:38],
+                   it.get("status", {}).get("privacyStatus", "?"))
+            (targets if age >= min_age_h else young).append(row)
+
+    targets.sort(key=lambda r: r[1])
+    _summary(f"## 조회수 {max_views}회 이하 · 게시 {min_age_h:g}시간 경과: "
+             f"**{len(targets)}편** (전체 {len(ids)}편)")
+    _summary("")
+    _summary("| 조회수 | 경과 | 공개 | 영상 | 제목 |")
+    _summary("|------:|-----:|------|------|------|")
+    for vid, views, age, title, priv in targets:
+        _summary(f"| {views} | {age:.0f}h | {priv} | `{vid}` | {title} |")
+    if young:
+        _summary("")
+        _summary(f"### 아직 어려서 제외한 {len(young)}편 (MIN_AGE_H 미만)")
+        for vid, views, age, title, _p in sorted(young, key=lambda r: r[2]):
+            _summary(f"- `{vid}` {views}회 · {age:.1f}시간 · {title}")
+    _summary("")
+    if dry_run:
+        _summary("**DRY_RUN — 아무것도 지우지 않았다. 지우려면 DRY_RUN=0.**")
+        return 0
+
+    ok = fail = 0
+    for vid, _v, _a, title, _p in targets:
+        try:
+            yt.videos().delete(id=vid).execute()
+            ok += 1
+        except HttpError as e:
+            fail += 1
+            status = getattr(e.resp, "status", "?")
+            _summary(f"- 실패 `{vid}` (status={status}) {title}")
+            if status in (403, 429):
+                _summary("**할당량 소진으로 중단. 내일 이어서 실행하세요.**")
+                break
+    _summary(f"\n**{ok}편 삭제, {fail}편 실패.**")
+    return 0 if fail == 0 else 1
+
+
 def show(video_id: str) -> int:
     """올라간 영상의 제목·설명을 그대로 출력한다.
 
@@ -243,6 +320,11 @@ def striplinks(dry_run: bool = True) -> int:
 
 if __name__ == "__main__":
     action = os.getenv("ACTION", "").strip()
+    if action == "delete_below":
+        raise SystemExit(delete_below(
+            int(os.getenv("MAX_VIEWS", "200")),
+            float(os.getenv("MIN_AGE_H", "24")),
+            os.getenv("DRY_RUN", "1") != "0"))
     if action == "striplinks":
         raise SystemExit(striplinks(os.getenv("DRY_RUN", "1") != "0"))
     vid = os.getenv("VIDEO_ID", "").strip()
@@ -262,5 +344,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | delete_below)")
     raise SystemExit(1)
