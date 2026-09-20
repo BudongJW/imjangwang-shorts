@@ -172,7 +172,12 @@ def fetch_daily(creds, start: str, end: str) -> list[dict]:
         log_err = str(e)[:200]
         return [{"error": log_err}]
     cols = [h["name"] for h in res.get("columnHeaders", [])]
-    return [dict(zip(cols, row)) for row in res.get("rows", [])]
+    rows = [dict(zip(cols, row)) for row in res.get("rows", [])]
+    # 09-20 실측: 어제 201회로 찍힌 09-16이 오늘 0회로 나왔다. 같은 API의
+    # 영상별 집계는 그 날 올린 영상에 204회를 주고 있어 앞뒤가 안 맞는다.
+    # 추측으로 넘기지 않으려면 원본 행을 봐야 한다.
+    print(f"[analyze] daily 원본 {len(rows)}행, 마지막 5행: {rows[-5:]}", file=sys.stderr)
+    return rows
 
 
 def fetch_traffic_sources(creds, start: str, end: str) -> dict:
@@ -466,6 +471,23 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
             bad.append("퍼가기 불가")
         if bad:
             flagged.append((v, bad))
+    # 검토 대기(비공개)로 묶여 있는 영상. REVIEW_MODE를 켜면서 생긴
+    # 새 실패 모드다 — 승인이 빠지면 영상이 조용히 비공개로 남고,
+    # 업로드가 멈춘 것과 결과가 같아진다. 9/2~9/9 토큰 만료 때 채널
+    # 조회수가 하루 2회까지 내려앉은 적이 있어 가볍게 볼 일이 아니다.
+    pending = [v for v in videos
+               if v["privacy"] != "public" and v["age_hours"] < 24 * 7]
+    if pending:
+        lines.append("## ⚠ 검토 대기 (비공개)")
+        lines.append("")
+        for v in sorted(pending, key=lambda x: x["age_hours"]):
+            lines.append(f"- `{v['video_id']}` {v['published_kst']} "
+                         f"({v['age_hours']:.1f}시간 경과) — {v['title'][:34]}")
+        lines.append("")
+        lines.append("승인: `output/admin_request.json` 에 "
+                     '`{"action":"approve","video_id":"..."}` 후 run/admin-* 푸시')
+        lines.append("")
+
     lines.append("## 배포 차단 플래그")
     lines.append("")
     if flagged:
