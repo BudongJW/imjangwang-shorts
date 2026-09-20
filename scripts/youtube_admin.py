@@ -153,14 +153,20 @@ def show(video_id: str) -> int:
     긁을 수 없으므로 API로 읽는다.
     """
     yt = get_youtube_service()
-    res = yt.videos().list(part="snippet", id=video_id).execute()
+    res = yt.videos().list(part="snippet,status", id=video_id).execute()
     items = res.get("items", [])
     if not items:
         _summary(f"## 영상을 찾을 수 없습니다: `{video_id}`")
         return 1
     sn = items[0]["snippet"]
+    st = items[0].get("status", {})
     _summary(f"## {video_id}")
     _summary(f"- 게시: {sn.get('publishedAt', '')}")
+    # 예약 공개가 실제로 걸렸는지는 status.publishAt 을 봐야 확인된다.
+    # snippet.publishedAt 은 업로드 시각이라 예약을 안 보여 준다.
+    _summary(f"- 공개 상태: {st.get('privacyStatus', '?')}")
+    if st.get("publishAt"):
+        _summary(f"- **예약 공개: {st['publishAt']}**")
     _summary(f"- 제목: {sn.get('title', '')}")
     _summary(f"- 태그: {', '.join(sn.get('tags', []) or [])}")
     _summary("\n### 설명 원문\n```\n" + (sn.get("description", "") or "") + "\n```")
