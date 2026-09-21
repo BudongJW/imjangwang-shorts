@@ -165,7 +165,7 @@ def fetch_daily(creds, start: str, end: str) -> list[dict]:
         ya = build("youtubeAnalytics", "v2", credentials=creds)
         res = ya.reports().query(
             ids="channel==MINE", startDate=start, endDate=end,
-            metrics="views,estimatedMinutesWatched,subscribersGained",
+            metrics="views,estimatedMinutesWatched,subscribersGained,subscribersLost",
             dimensions="day", sort="day",
         ).execute()
     except Exception as e:
@@ -229,9 +229,20 @@ def load_snapshots() -> list[dict]:
     return []
 
 
-def save_snapshot(videos: list[dict], snapshots: list[dict]) -> None:
+def save_snapshot(videos: list[dict], snapshots: list[dict],
+                  channel: dict | None = None) -> None:
+    # 구독자 총수를 같이 남긴다. Analytics 일별은 2~3일 지연되는데 사용자는
+    # 스튜디오에서 실시간에 가까운 숫자를 본다. 총수를 스냅샷에 박아 두면
+    # "며칠 사이 몇 명 줄었나"를 지연 없이 바로 답할 수 있다.
+    subs = None
+    if channel:
+        try:
+            subs = int(channel.get("statistics", {}).get("subscriberCount", 0))
+        except (TypeError, ValueError):
+            subs = None
     snapshots.append({
         "taken_at": datetime.now(timezone.utc).isoformat(),
+        **({"subscribers": subs} if subs is not None else {}),
         "videos": {v["video_id"]: {"views": v["views"], "likes": v["likes"],
                                    "comments": v["comments"]} for v in videos},
     })
@@ -560,11 +571,21 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
         peak = max((r.get("views", 0) for r in rows), default=0) or 1
         lines.append("## 채널 일별 조회수 (최근 3주)")
         lines.append("")
+        # 구독은 순증감으로 본다. 지금까지 subscribersGained만 찍고 있어서
+        # 이탈이 보이지 않았다 — 늘어난 날처럼 보여도 실제로는 줄었을 수 있다.
         for r in rows:
             v = r.get("views", 0)
-            sub = r.get("subscribersGained", 0)
-            lines.append(f"- {r.get('day', '')[5:]} {v:>6,}회 "
-                         f"{_bar(v, peak)} 구독 {sub:+d}")
+            up = int(r.get("subscribersGained", 0) or 0)
+            down = int(r.get("subscribersLost", 0) or 0)
+            net = up - down
+            tail = f"구독 {net:+d}" + (f" (+{up}/-{down})" if down else "")
+            lines.append(f"- {r.get('day', '')[5:]} {v:>6,}회 {_bar(v, peak)} {tail}")
+        tot_up = sum(int(r.get("subscribersGained", 0) or 0) for r in rows)
+        tot_down = sum(int(r.get("subscribersLost", 0) or 0) for r in rows)
+        if tot_down or tot_up:
+            lines.append("")
+            lines.append(f"구간 합계 구독 {tot_up - tot_down:+d} "
+                         f"(신규 +{tot_up} / 이탈 -{tot_down})")
         half = len(rows) // 2
         if half:
             old_avg = sum(r.get("views", 0) for r in rows[:half]) / half
@@ -785,7 +806,8 @@ def main() -> int:
     report = build_report(channel, videos, analytics, traffic, snapshots, args.days,
                           daily=daily, tbv=tbv)
     if not args.no_save:
-        save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots)
+        save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots,
+                      channel=channel)
 
     print(report)
     summary = os.getenv("GITHUB_STEP_SUMMARY")
