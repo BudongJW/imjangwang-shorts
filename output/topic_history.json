@@ -350,5 +350,17 @@
     "age_days": 0.9168432139583332,
     "topic_score": 7,
     "recency_score": 4
+  },
+  {
+    "title": "집값도 전월세도 올랐다…수도권 아파트 19개월째 상승",
+    "video_id": "loIjgN6nYrw",
+    "date": "2026-09-21T20:43:09.751812",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 373,
+    "source": "한국경제",
+    "age_days": 0.6246035037731481,
+    "topic_score": 8,
+    "recency_score": 4
   }
 ]
