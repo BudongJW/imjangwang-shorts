@@ -511,6 +511,75 @@ def _fake_quotes(text: str, source_text: str) -> list[str]:
     return bad
 
 
+# 퍼센트는 분모가 있어야 뜻이 생긴다. 모델은 개별 수치는 잘 옮기고
+# 수치 사이의 '관계'를 자주 뒤집는다.
+#
+# 2026-09-22 실측: 기사는 "향후 5년간 공급되는 임대 성격의 공적주택은
+# 94만5000가구다 … 전체 공적주택 118만8000가구의 79.5%에 달한다"고 썼다.
+# 대본은 "공적주택 94만 5천 가구 … 이 중 무려 79.5%가 임대주택"이라고
+# 했다. 부분과 전체를 맞바꾼 것이다. 두 숫자 다 기사에 있으니 수치 검증
+# 으로는 안 걸리고, 따옴표도 없으니 인용 검사로도 안 걸린다.
+#
+# 그래서 퍼센트 옆에 붙은 규모를 본다. 대본이 어떤 퍼센트 옆에 규모를
+# 적었다면, 기사에서 같은 퍼센트 옆에도 그 규모가 있어야 한다.
+_PCT_RE = re.compile(r"\d+(?:\.\d+)?\s?%")
+_MAG_RE = re.compile(r"\d[\d,\.]*\s?(?:억|만|천)\s?\d*(?:천)?")
+_KOR_UNIT = {"억": 100_000_000, "만": 10_000, "천": 1_000}
+
+# 이보다 작은 값은 비교하지 않는다. "10%", "2년" 같은 것이 섞여 들어와
+# 우연히 안 맞는 일이 생긴다.
+MAG_COMPARE_MIN = 10_000
+
+
+def _kor_num(tok: str) -> float | None:
+    """'94만5000', '94만 5천'을 같은 수로 읽는다."""
+    t = re.sub(r"[,\s]", "", tok)
+    total, cur, seen = 0.0, "", False
+    for c in t:
+        if c.isdigit() or c == ".":
+            cur += c
+        elif c in _KOR_UNIT:
+            total += (float(cur) if cur else 1.0) * _KOR_UNIT[c]
+            cur, seen = "", True
+        else:
+            break
+    if cur:
+        total += float(cur)          # '94만5000'의 뒤 5000
+        seen = True
+    return total if seen else None
+
+
+def _mags_near(text: str, start: int, end: int, pad: int) -> set[float]:
+    win = text[max(0, start - pad):end + pad]
+    out = set()
+    for m in _MAG_RE.finditer(win):
+        v = _kor_num(m.group(0))
+        if v and v >= MAG_COMPARE_MIN:
+            out.add(v)
+    return out
+
+
+def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    """(대본에 있는 퍼센트 표기, 문제 사유). 표기는 문장 삭제용 바늘로도 쓴다."""
+    src = re.sub(r"\s+", " ", source_text or "")
+    out: list[tuple[str, str]] = []
+    for m in _PCT_RE.finditer(script or ""):
+        raw = m.group(0)
+        pct = raw.replace(" ", "")
+        hits = list(re.finditer(re.escape(pct[:-1]) + r"\s?%", src))
+        if not hits:
+            out.append((raw, f"{pct}는 기사에 없는 수치다"))
+            continue
+        mine = _mags_near(script, m.start(), m.end(), 60)
+        if not mine:
+            continue                  # 규모를 안 붙였으면 관계 주장도 없다
+        theirs: set[float] = set()
+        for h in hits:
+            theirs |= _mags_near(src, h.start(), h.end(), 80)
+        if theirs and not (mine & theirs):
+            out.append((raw, f"{pct} 옆에 붙인 규모가 기사의 분모와 다르다"))
+    return out
+
 def _drop_sentences_with(script: str, quotes: list[str]) -> str:
     """위조 인용이 들어간 문장만 버린다. 파이프라인은 멈추지 않는다."""
     if not quotes:
@@ -575,23 +644,31 @@ def generate(art) -> ShortPlan:
     # 제목은 걸리면 기사 헤드라인으로 되돌린다.
     if has_body:
         hay = f"{getattr(art, 'title', '')} {body}"
-        bad = _fake_quotes(str(data.get("script", "")), hay)
+        def _defects(text: str) -> tuple[list[str], list[str]]:
+            """(문장 삭제에 쓸 바늘, 사람이 읽을 사유)."""
+            q = _fake_quotes(text, hay)
+            p = _pct_problems(text, hay)
+            return q + [n for n, _ in p], [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
+
+        bad, why = _defects(str(data.get("script", "")))
         if bad:
-            log.info(f"대본: 기사에 없는 인용 {len(bad)}건 → 재요청 {bad[:2]}")
+            log.info(f"대본: 사실 대조 실패 {len(bad)}건 → 재요청 {why[:2]}")
             raw3 = _gemini(
-                prompt + "\n\n[재작성 — 인용 위조] 앞선 초안의 따옴표 안 문장이 기사에 "
-                "없다: " + " / ".join(f'"{b}"' for b in bad[:3]) + ". 따옴표 안에는 "
-                "기사 본문에 그대로 있는 말만 옮긴다. 기사에 없으면 따옴표를 쓰지 말고 "
-                "네 해석으로 풀어 써라. 특히 실명 인물의 발언은 기사에 있는 취지를 "
-                "바꾸지 말 것 — 긍정 평가를 우려로 뒤집는 것은 허위 인용이다.")
+                prompt + "\n\n[재작성 — 기사와 안 맞는 부분] 앞선 초안에서 다음이 기사와 "
+                "다르다: " + " / ".join(why[:3]) + ".\n"
+                "따옴표 안에는 기사 본문에 그대로 있는 말만 옮긴다. 기사에 없으면 따옴표를 "
+                "쓰지 말고 네 해석으로 풀어 써라. 실명 인물의 발언은 기사에 있는 취지를 "
+                "바꾸지 말 것 — 긍정 평가를 우려로 뒤집는 것은 허위 인용이다.\n"
+                "퍼센트는 기사가 쓴 분모를 그대로 따른다. 기사가 'A는 B의 N%'라고 썼으면 "
+                "'A 중 N%가 B'로 뒤집지 말 것 — 부분과 전체를 맞바꾸는 것이다.")
             data3 = _parse_json(raw3) if raw3 else None
-            if data3 and data3.get("script") and not _fake_quotes(str(data3["script"]), hay):
+            if data3 and data3.get("script") and not _defects(str(data3["script"]))[0]:
                 data = data3
-                note(f"대본: 위조 인용 {len(bad)}건 → 재요청으로 교체")
+                note(f"대본: 사실 대조 실패 {len(bad)}건 → 재요청으로 교체")
             else:
-                left = _fake_quotes(str(data.get("script", "")), hay)
+                left, lwhy = _defects(str(data.get("script", "")))
                 data["script"] = _drop_sentences_with(str(data.get("script", "")), left)
-                note(f"대본: 위조 인용 {len(bad)}건 → 해당 문장 삭제 ({bad[0][:30]})")
+                note(f"대본: 사실 대조 실패 {len(left)}건 → 해당 문장 삭제 ({lwhy[0][:40]})")
                 log.info(f"  재요청도 실패 → 문장 {len(left)}건 삭제")
         if not str(data.get("script", "")).strip():
             log.info("대본: 인용 삭제 후 남은 문장이 없다 → 폴백")
