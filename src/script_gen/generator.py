@@ -467,6 +467,59 @@ def _count_stats(script: str) -> int:
 MIN_BODY_FOR_STATS = 80
 
 
+# 따옴표 안은 남의 말이다. 지어내면 규칙 위반이 아니라 허위 인용이다.
+#
+# 2026-09-22 실측: 모델이 남혁우 우리은행 부동산연구원의 발언을 "매입 약정
+# 가격이 물량 확보를 좌우할 것"이라며 우려했다고 썼다. 기사에서 그는 매입
+# 약정이 "신축 공급까지 시차를 줄이려는 성격이 있다"고 긍정 평가했다.
+# 실명 인물의 입장을 반대로 뒤집은 것이고, 수치는 다 맞았으니 숫자 검증
+# 으로는 안 걸린다. 규칙 14로 금지해 뒀지만 프롬프트만으로는 막히지 않았다.
+#
+# 그래서 규칙이 아니라 검사로 막는다. 따옴표 안 문장이 기사 본문에 그대로
+# 있는지 문자 단위로 확인한다.
+_QUOTE_SPAN_RE = re.compile(
+    r"[\"“‟]([^\"“”‟]{1,120})[\"”‟]"
+    r"|'([^']{1,120})'"
+    r"|‘([^’]{1,120})’"
+)
+
+# 비교는 글자만 남겨서 한다. 기사와 대본은 띄어쓰기·가운뎃점·말줄임표가
+# 제각각이라 원문 그대로 옮겨도 문자열이 안 맞는다.
+_QUOTE_NORM_RE = re.compile(r"[^0-9A-Za-z가-힣%]")
+
+# 짧은 따옴표는 인용이 아니라 강조다('실입주 물량', '갭투자'). 기사에
+# 그 낱말이 그대로 없어도 문제가 아니라서 검사하지 않는다. 사람의 말을
+# 옮긴 인용은 이보다 길다.
+QUOTE_CHECK_MIN = 12
+
+
+def _norm_quote(s: str) -> str:
+    return _QUOTE_NORM_RE.sub("", s or "")
+
+
+def _fake_quotes(text: str, source_text: str) -> list[str]:
+    """따옴표 안 내용 중 기사에 없는 것들을 돌려준다."""
+    hay = _norm_quote(source_text)
+    bad: list[str] = []
+    for m in _QUOTE_SPAN_RE.finditer(text or ""):
+        span = next((g for g in m.groups() if g), "")
+        n = _norm_quote(span)
+        if len(n) < QUOTE_CHECK_MIN or n in hay:
+            continue
+        if span not in bad:
+            bad.append(span)
+    return bad
+
+
+def _drop_sentences_with(script: str, quotes: list[str]) -> str:
+    """위조 인용이 들어간 문장만 버린다. 파이프라인은 멈추지 않는다."""
+    if not quotes:
+        return script
+    parts = [p.strip() for p in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or "")]
+    keep = [p for p in parts if p and not any(q in p for q in quotes)]
+    return (". ".join(keep) + ".") if keep else ""
+
+
 def generate(art) -> ShortPlan:
     body = (getattr(art, "summary", "") or "").strip()
     has_body = len(body) >= MIN_BODY_FOR_STATS
@@ -513,6 +566,40 @@ def generate(art) -> ShortPlan:
             if _count_stats(str(data2["script"])) > _count_stats(str(data["script"])):
                 data = data2
         log.info(f"  재요청 결과 수치 {_count_stats(str(data.get('script','')))}개")
+
+    # 따옴표 검사. 한 번 다시 요청하고, 그래도 지어내면 그 문장을 버린다.
+    # 제목은 기사 헤드라인을 인용하는 형식이라 본문에 제목까지 붙여서 본다.
+    #
+    # 제목은 재요청 사유로 쓰지 않는다. 제목 인용은 38자에 맞춰 압축되므로
+    # 원문과 한 낱말만 달라도 걸린다. 그걸로 대본 전체를 다시 뽑으면 손해다.
+    # 제목은 걸리면 기사 헤드라인으로 되돌린다.
+    if has_body:
+        hay = f"{getattr(art, 'title', '')} {body}"
+        bad = _fake_quotes(str(data.get("script", "")), hay)
+        if bad:
+            log.info(f"대본: 기사에 없는 인용 {len(bad)}건 → 재요청 {bad[:2]}")
+            raw3 = _gemini(
+                prompt + "\n\n[재작성 — 인용 위조] 앞선 초안의 따옴표 안 문장이 기사에 "
+                "없다: " + " / ".join(f'"{b}"' for b in bad[:3]) + ". 따옴표 안에는 "
+                "기사 본문에 그대로 있는 말만 옮긴다. 기사에 없으면 따옴표를 쓰지 말고 "
+                "네 해석으로 풀어 써라. 특히 실명 인물의 발언은 기사에 있는 취지를 "
+                "바꾸지 말 것 — 긍정 평가를 우려로 뒤집는 것은 허위 인용이다.")
+            data3 = _parse_json(raw3) if raw3 else None
+            if data3 and data3.get("script") and not _fake_quotes(str(data3["script"]), hay):
+                data = data3
+                note(f"대본: 위조 인용 {len(bad)}건 → 재요청으로 교체")
+            else:
+                left = _fake_quotes(str(data.get("script", "")), hay)
+                data["script"] = _drop_sentences_with(str(data.get("script", "")), left)
+                note(f"대본: 위조 인용 {len(bad)}건 → 해당 문장 삭제 ({bad[0][:30]})")
+                log.info(f"  재요청도 실패 → 문장 {len(left)}건 삭제")
+        if not str(data.get("script", "")).strip():
+            log.info("대본: 인용 삭제 후 남은 문장이 없다 → 폴백")
+            return _fallback_plan(art)
+        tbad = _fake_quotes(str(data.get("youtube_title", "")), hay)
+        if tbad:
+            data["youtube_title"] = getattr(art, "title", "")[:38]
+            note(f"제목: 기사에 없는 인용 → 기사 헤드라인으로 교체 ({tbad[0][:30]})")
 
     script = _trim_incomplete_tail(
         _cap_length(_clean_script(normalize_caption(str(data["script"]).strip()))))
