@@ -362,5 +362,17 @@
     "age_days": 0.6246035037731481,
     "topic_score": 8,
     "recency_score": 4
+  },
+  {
+    "title": "\"공공임대 체질개선은 긍정적 … 당장 전월세난 잡기엔 한계\"",
+    "video_id": "LEhGCgXmTsk",
+    "date": "2026-09-22T02:19:41.406107",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 357,
+    "source": "매일경제",
+    "age_days": 0.3569580871296296,
+    "topic_score": 7,
+    "recency_score": 4
   }
 ]
