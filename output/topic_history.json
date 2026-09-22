@@ -398,5 +398,17 @@
     "age_days": 0.7111844667476852,
     "topic_score": 6,
     "recency_score": 4
+  },
+  {
+    "title": "“서울 집값·전월세 내년엔 더 오른다”…부동산전문가 50명 만장일치",
+    "video_id": "Y6o_yt6LQ18",
+    "date": "2026-09-22T20:00:14.433664",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 350,
+    "source": "매일경제",
+    "age_days": -0.054038893831018515,
+    "topic_score": 6,
+    "recency_score": 4
   }
 ]
