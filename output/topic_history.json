@@ -410,5 +410,17 @@
     "age_days": -0.054038893831018515,
     "topic_score": 6,
     "recency_score": 4
+  },
+  {
+    "title": "전세난 파고든 편법들…\"2년 계약이지만 1년 뒤 증액해달라\"",
+    "video_id": "ToaPY1MVeJQ",
+    "date": "2026-09-23T02:12:17.966710",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 376,
+    "source": "한국경제",
+    "age_days": 0.007498137777777778,
+    "topic_score": 7,
+    "recency_score": 4
   }
 ]
