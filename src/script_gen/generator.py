@@ -559,6 +559,41 @@ def _mags_near(text: str, start: int, end: int, pad: int) -> set[float]:
     return out
 
 
+# 퍼센트가 기사에 있고 옆 규모도 맞는데, '무엇에 대한 퍼센트인지'가 틀리는
+# 경우가 남는다.
+#
+# 2026-09-23 실측: 기사는 "월세 역시 5% 이상 상승이 48%(24명)"라고 썼다.
+# 대본은 "설문 응답자의 48%는 전세시장 불안이 매매 수요를 자극할 것으로
+# 내다봤습니다"라고 했다. 48%는 기사에 있고 옆에 규모도 없으니 앞의 두
+# 검사를 다 통과한다. 숫자만 진짜고 그 숫자가 가리키는 사실이 다르다.
+#
+# 그래서 문맥을 본다. 대본이 그 퍼센트 주변에 쓴 낱말이 기사의 같은 퍼센트
+# 주변에도 나와야 한다. 조사가 붙어 문자열이 어긋나므로 어간 2~4글자로
+# 비교하고, 어디에나 나오는 낱말(상승·응답자·기준 등)은 빼고 센다.
+_CTX_STOP = {
+    # 어느 기사에나 나오는 말. 이것만 겹쳐서는 같은 사실이라고 볼 수 없다.
+    "상승", "증가", "감소", "하락", "기록", "전망", "예상", "응답", "조사", "설문",
+    "이상", "이하", "가운", "기준", "전체", "비율", "수준", "대비", "정도", "올해",
+    "내년", "지난", "최근", "것으", "것이", "것은", "것도", "하는", "하고", "이라",
+    "라고", "대해", "보다", "통해", "위해", "따르", "이번", "나타", "밝혔", "했다",
+    "있다", "된다", "됐다", "이다", "이며", "으로", "에서", "에게", "이나", "만큼",
+    "때문", "다는", "다고", "내다", "봤다", "꼽았", "답했", "말했", "예측", "분석",
+    "지적", "관측", "평가", "달했", "넘었", "높았", "낮았", "이어", "실제", "각각",
+    "모두",
+}
+# 실측 10건으로 문턱을 정했다. 오귀속 1건이 0개, 정상 9건이 1~9개였다.
+# 최소가 1개라 '하나도 안 겹칠 때만' 잡는다. 이 문턱을 2로 올리면
+# 정상인 기부채납 인용(공통어 1개)이 걸린다.
+CTX_MIN_SHARED = 1
+CTX_PAD_SCRIPT = 40
+CTX_PAD_SOURCE = 60
+
+
+def _stems(text: str) -> set[str]:
+    """한글 낱말의 앞 2글자. 조사·어미가 달라도 같은 말로 본다."""
+    return {w[:2] for w in re.findall(r"[가-힣]{2,}", text or "")} - _CTX_STOP
+
+
 def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     """(대본에 있는 퍼센트 표기, 문제 사유). 표기는 문장 삭제용 바늘로도 쓴다."""
     src = re.sub(r"\s+", " ", source_text or "")
@@ -570,6 +605,15 @@ def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         if not hits:
             out.append((raw, f"{pct}는 기사에 없는 수치다"))
             continue
+        # 문맥: 대본이 이 퍼센트 옆에 쓴 낱말이 기사의 같은 자리에도 있는가
+        src_stems: set[str] = set()
+        for h in hits:
+            src_stems |= _stems(src[max(0, h.start() - CTX_PAD_SOURCE):h.end() + CTX_PAD_SOURCE])
+        my_stems = _stems(script[max(0, m.start() - CTX_PAD_SCRIPT):m.end() + CTX_PAD_SCRIPT])
+        if my_stems and len(my_stems & src_stems) < CTX_MIN_SHARED:
+            out.append((raw, f"{pct}가 기사에서 가리키는 사실과 대본의 설명이 다르다"))
+            continue
+
         mine = _mags_near(script, m.start(), m.end(), 60)
         if not mine:
             continue                  # 규모를 안 붙였으면 관계 주장도 없다
