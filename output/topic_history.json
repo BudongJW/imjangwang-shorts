@@ -422,5 +422,17 @@
     "age_days": 0.007498137777777778,
     "topic_score": 7,
     "recency_score": 4
+  },
+  {
+    "title": "[특징주] 포스코퓨처엠, 대규모 수주에 급등했다 하락 마감(종합)",
+    "video_id": "aSgM-XRJU-4",
+    "date": "2026-09-23T19:53:57.720481",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 349,
+    "source": "연합뉴스",
+    "age_days": 0.5428873479282408,
+    "topic_score": 7,
+    "recency_score": 4
   }
 ]
