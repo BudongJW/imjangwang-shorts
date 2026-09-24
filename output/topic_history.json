@@ -446,5 +446,17 @@
     "age_days": 0.7700596151967591,
     "topic_score": 8,
     "recency_score": 4
+  },
+  {
+    "title": "서울 아파트 임대차 절반이 월세…평균 164만원[벼랑 끝 세입자②]",
+    "video_id": "T80zZwvLHIg",
+    "date": "2026-09-24T20:14:26.674328",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 377,
+    "source": "뉴시스",
+    "age_days": 0.007192771030092593,
+    "topic_score": 10,
+    "recency_score": 4
   }
 ]
