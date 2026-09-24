@@ -128,18 +128,32 @@ def fetch_analytics(creds, video_ids: list[str], start: str, end: str) -> dict:
     """Analytics API로 영상별 시청 지표를 가져온다. 실패 시 {'error': ...}."""
     if not video_ids:
         return {"error": "대상 영상 없음"}
+    base = ("views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,"
+            "subscribersGained,likes,shares")
     try:
         ya = build("youtubeAnalytics", "v2", credentials=creds)
-        res = ya.reports().query(
-            ids="channel==MINE",
-            startDate=start,
-            endDate=end,
-            metrics="views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,likes,shares",
-            dimensions="video",
-            filters="video==" + ",".join(video_ids[:200]),
-            maxResults=200,
-            sort="-views",
-        ).execute()
+
+        def _query(metrics: str):
+            return ya.reports().query(
+                ids="channel==MINE",
+                startDate=start,
+                endDate=end,
+                metrics=metrics,
+                dimensions="video",
+                filters="video==" + ",".join(video_ids[:200]),
+                maxResults=200,
+                sort="-views",
+            ).execute()
+
+        # engagedViews를 먼저 붙여 본다. 이 조합을 API가 거부하면 빼고 다시
+        # 묻는다. 새 지표 하나 때문에 리포트 전체가 비면 안 된다.
+        try:
+            res = _query(base + ",engagedViews")
+        except HttpError as e:
+            if getattr(e.resp, "status", None) != 400:
+                raise
+            print("[analyze] engagedViews 조합 거부 → 빼고 재조회", file=sys.stderr)
+            res = _query(base)
     except HttpError as e:
         content = e.content.decode("utf-8", errors="replace") if e.content else ""
         return {"error": f"status={getattr(e.resp, 'status', '?')} {content[:400]}"}
@@ -339,6 +353,67 @@ def _bar(value: float, peak: float, width: int = 18) -> str:
     return "█" * max(1, round(value / peak * width)) if value > 0 else ""
 
 
+# 쇼츠에서 알고리즘이 가장 먼저 보는 것은 '보고 넘겼나, 넘겨 버렸나'다
+# (Studio의 viewed vs swiped away). 이 채널은 지금까지 그걸 못 보고 있었다.
+#
+# 2025년 3월부터 쇼츠의 views는 재생이 시작되거나 다시 시작될 때마다 센다.
+# 대신 engagedViews가 예전 방식(첫 프레임을 넘겨 본 횟수)을 이어받았다.
+# 그래서 engagedViews ÷ views가 API로 볼 수 있는 '넘겨짐'의 가장 가까운
+# 대리 지표다. Studio 수치와 같은 값은 아니다(정의와 문턱이 공개돼 있지
+# 않다). 방향을 보는 용도로 쓴다.
+#
+# 지속률↔조회수 상관이 표본 42개에서 세 번 연속 0 근처였다. 오래 붙잡는
+# 것과 배포가 늘어나는 것이 따로 논다는 뜻이고, 배포를 가르는 신호가 따로
+# 있다는 뜻일 수 있다. 이걸 재야 오프닝을 고칠지 말지 판단할 수 있다.
+PASS_MIN_VIEWS = 50       # 이보다 적으면 비율이 한두 명에 휘둘린다
+
+
+def _pass_rate(m: dict) -> float | None:
+    v = m.get("views", 0) or 0
+    e = m.get("engagedViews")
+    if e is None or v <= 0:
+        return None
+    return e / v
+
+
+def _pass_rate_section(analytics: dict, videos: list[dict]) -> list[str]:
+    rated = {vid: _pass_rate(m) for vid, m in analytics.items()}
+    if not any(r is not None for r in rated.values()):
+        return []
+    out = ["## 첫 화면 통과율 (engagedViews ÷ views)", ""]
+    out.append("재생이 시작된 횟수 중 첫 프레임을 넘겨 본 비율이다. '넘겨짐'의 대리 "
+               "지표이고 Studio의 viewed vs swiped away와 같은 값은 아니다.")
+    out.append("")
+    out.append("| 게시 | 조회 | 통과 | 통과율 | 제목 |")
+    out.append("|------|----:|----:|------:|------|")
+    public = [v for v in videos if v["privacy"] == "public"]
+    for v in public[:10]:
+        m = analytics.get(v["video_id"]) or {}
+        r = rated.get(v["video_id"])
+        if r is None:
+            continue
+        out.append(f"| {v['published_kst'][5:16]} | {m.get('views', 0):,} | "
+                   f"{m.get('engagedViews', 0):,} | {r * 100:.0f}% | "
+                   f"{v['title'].split(' #')[0][:30]} |")
+    out.append("")
+
+    pool = [(vid, r) for vid, r in rated.items()
+            if r is not None and (analytics[vid].get("views", 0) or 0) >= PASS_MIN_VIEWS]
+    if pool:
+        rs = sorted(r for _, r in pool)
+        med = rs[len(rs) // 2]
+        out.append(f"조회 {PASS_MIN_VIEWS}회 이상 {len(pool)}편의 통과율 중앙값 **{med * 100:.0f}%**")
+        vpd = {v["video_id"]: v.get("views_per_day", 0) for v in public}
+        pairs = [(r, vpd[vid]) for vid, r in pool if vid in vpd]
+        if len(pairs) >= 8:
+            c = _corr([p[0] for p in pairs], [p[1] for p in pairs])
+            out.append(f"상관계수: 통과율↔하루당 조회수 {c:+.2f} (표본 {len(pairs)}편). "
+                       "지속률↔조회수는 같은 표본 크기에서 세 번 연속 0 근처였다. "
+                       "이 값도 표본이 쌓이기 전에는 방향만 본다.")
+        out.append("")
+    return out
+
+
 def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None, tbv=None) -> str:
     now = datetime.now(KST)
     lines: list[str] = []
@@ -462,6 +537,8 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
             avg = sum(pcts) / len(pcts)
             lines.append(f"채널 평균 시청지속률 **{avg:.1f}%**")
             lines.append("")
+
+        lines.extend(_pass_rate_section(analytics, videos))
 
     # 배포를 막는 플래그. 이상한 것만 찍는다 — 전부 정상이면 한 줄로 끝난다.
     # 아동용으로 잡히면 추천·Shorts 피드가 통째로 막히고, 지역 제한이나
