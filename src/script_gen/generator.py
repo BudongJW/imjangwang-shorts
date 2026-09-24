@@ -624,6 +624,25 @@ def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             out.append((raw, f"{pct} 옆에 붙인 규모가 기사의 분모와 다르다"))
     return out
 
+# 대본이 부른 정치 주체가 기사에 있어야 한다.
+#
+# 2026-09-24 실측: 기사는 서울시가 추진하는 재건축·재개발 공공임대 계획이었다
+# ("서울시는 서민 주거복지의 핵심 수단으로 정비사업 속도를 높인다"). 대본은
+# 마지막에 "이재명 정부 정책이 의도와 달리 시장 왜곡을 낳는 건 아닌지"라고
+# 맺었다. 시 정책을 중앙정부 책임으로 돌린 것이다.
+#
+# 원인은 프롬프트다. 규칙 8·9가 정부 정책 비판을 기조로 못 박아 두니, 기사
+# 주체가 지자체여도 모델이 중앙정부를 끌어온다. 규칙 11(귀속 정확성)이
+# 있었지만 막지 못했다. 그래서 검사로 막는다. 사람 이름이 들어간 주체는
+# 기사에 그 이름이 있을 때만 쓸 수 있다.
+_ACTORS = ["이재명", "윤석열", "문재인", "박근혜", "이명박", "오세훈", "김동연",
+           "유정복", "박형준", "김문수", "한덕수", "이낙연"]
+
+
+def _unsourced_actors(text: str, source_text: str) -> list[str]:
+    """대본에는 있는데 기사에는 없는 정치인 이름."""
+    return [a for a in _ACTORS if a in (text or "") and a not in (source_text or "")]
+
 def _drop_sentences_with(script: str, quotes: list[str]) -> str:
     """위조 인용이 들어간 문장만 버린다. 파이프라인은 멈추지 않는다."""
     if not quotes:
@@ -692,7 +711,10 @@ def generate(art) -> ShortPlan:
             """(문장 삭제에 쓸 바늘, 사람이 읽을 사유)."""
             q = _fake_quotes(text, hay)
             p = _pct_problems(text, hay)
-            return q + [n for n, _ in p], [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
+            a = _unsourced_actors(text, hay)
+            return (q + [n for n, _ in p] + a,
+                    [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
+                    + [f"기사에 없는 주체: {x}" for x in a])
 
         bad, why = _defects(str(data.get("script", "")))
         if bad:
@@ -703,6 +725,8 @@ def generate(art) -> ShortPlan:
                 "따옴표 안에는 기사 본문에 그대로 있는 말만 옮긴다. 기사에 없으면 따옴표를 "
                 "쓰지 말고 네 해석으로 풀어 써라. 실명 인물의 발언은 기사에 있는 취지를 "
                 "바꾸지 말 것 — 긍정 평가를 우려로 뒤집는 것은 허위 인용이다.\n"
+                "기사에 나오지 않는 정치인·정부를 책임 주체로 끌어오지 말 것 — 기사가 "
+                "서울시 정책을 다루면 비판 대상도 서울시다.\n"
                 "퍼센트는 기사가 쓴 분모를 그대로 따른다. 기사가 'A는 B의 N%'라고 썼으면 "
                 "'A 중 N%가 B'로 뒤집지 말 것 — 부분과 전체를 맞바꾸는 것이다.")
             data3 = _parse_json(raw3) if raw3 else None
