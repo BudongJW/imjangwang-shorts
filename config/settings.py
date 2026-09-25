@@ -78,8 +78,9 @@ TITLE_CARD_MAX_SEC = 1.5
 TITLE_CARD_IN_VIDEO = False
 
 # 배경에 섞을 실사 b-roll 영상 개수(Pexels). 0이면 사진만 쓴다.
-# 사진과 번갈아 배치되므로 2면 12컷짜리 영상에서 2컷이 실사 영상이 된다.
-BROLL_VIDEO_N = 2
+# 사진과 번갈아 배치된다. 2일 때는 사진 4장 + 영상 2개가 50초 동안
+# 2~3바퀴 돌아 같은 화면이 반복되는 게 눈에 띄었다(09-25 점검).
+BROLL_VIDEO_N = 3
 
 # 목표 게시 시각(KST, HH:MM). 워크플로가 몇 시에 돌든 이 시각에 공개되도록
 # YouTube 예약 공개(status.publishAt)로 올린다.

@@ -96,14 +96,15 @@ def _gradient(idx: int) -> Image.Image:
     return base
 
 
-def _pexels(query: str, n: int) -> list[Image.Image]:
+def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
     if not PEXELS_API_KEY:
         return []
     try:
         r = requests.get(
             "https://api.pexels.com/v1/search",
             headers={"Authorization": PEXELS_API_KEY},
-            params={"query": query, "per_page": n, "orientation": "portrait", "locale": "ko-KR"},
+            params={"query": query, "per_page": n, "page": page,
+                    "orientation": "portrait", "locale": "ko-KR"},
             timeout=12,
         )
         r.raise_for_status()
@@ -132,10 +133,30 @@ PEXELS_QUERIES = (
 )
 
 
-def _today_query() -> str:
+def _today_ordinal() -> int:
     from datetime import datetime, timezone, timedelta
-    d = datetime.now(timezone(timedelta(hours=9))).date().toordinal()
-    return PEXELS_QUERIES[d % len(PEXELS_QUERIES)]
+    return datetime.now(timezone(timedelta(hours=9))).date().toordinal()
+
+
+def _today_query(offset: int = 0) -> str:
+    return PEXELS_QUERIES[(_today_ordinal() + offset) % len(PEXELS_QUERIES)]
+
+
+def _today_page() -> int:
+    """검색어가 한 바퀴(8일) 돌 때마다 결과 페이지를 넘긴다.
+
+    페이지를 고정하면 8일마다 똑같은 사진이 똑같은 순서로 다시 나온다.
+    """
+    return (_today_ordinal() // len(PEXELS_QUERIES)) % 5 + 1
+
+
+def _luma(im: Image.Image) -> float:
+    return sum(im.convert("L").resize((64, 114)).getdata()) / (64 * 114)
+
+
+# 첫 컷이 이보다 어두우면 가장 밝은 사진과 바꾼다. 첫 프레임은 넘길지
+# 말지를 정하는 화면인데, 09-25분은 화면 절반이 검은 창틀로 시작했다.
+DARK_OPEN_LUMA = 80
 
 
 def collect_backgrounds(article_image_url: str = "", need: int = 3,
@@ -153,8 +174,14 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
         if im and min(im.size) >= 400:
             pool.append(im)
 
+    # 한 검색어에서 다 받으면 같은 촬영자의 비슷한 사진이 연달아 나온다.
+    # 오늘 검색어와 다음 검색어에서 반씩 받는다.
     if len(pool) < need:
-        pool += _pexels(query, need - len(pool))
+        page = _today_page()
+        first = (need - len(pool) + 1) // 2
+        pool += _pexels(query, first, page)
+        if len(pool) < need:
+            pool += _pexels(_today_query(1), need - len(pool), page)
 
     # 폴백 그라디언트도 날짜를 시작점으로 — 소스가 전부 실패한 날에도
     # 최소한 어제와 같은 색은 피한다.
@@ -164,10 +191,14 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
         pool.append(_gradient(idx))
         idx += 1
 
+    frames = [_to_portrait(im) for im in pool[:need]]
+    if len(frames) > 1 and _luma(frames[0]) < DARK_OPEN_LUMA:
+        j = max(range(len(frames)), key=lambda k: _luma(frames[k]))
+        frames[0], frames[j] = frames[j], frames[0]
     paths = []
-    for i, im in enumerate(pool[:need]):
+    for i, im in enumerate(frames):
         p = VIDEO_DIR / f"bg_{i:02d}.png"
-        _to_portrait(im).save(p)
+        im.save(p)
         paths.append(p)
     log.info(f"  배경 이미지 {len(paths)}개 확보")
     return paths
@@ -222,7 +253,8 @@ def _pexels_videos(query: str, n: int) -> list[str]:
 
 def collect_video_broll(query: str = "", need: int = 2) -> list[Path]:
     """세로 b-roll 영상 need개를 내려받아 경로 리스트 반환. 실패 시 []."""
-    query = query or _today_query()
+    # 사진(오늘·다음 검색어)과 겹치지 않게 그다음 검색어를 쓴다.
+    query = query or _today_query(2)
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     out: list[Path] = []
     for i, link in enumerate(_pexels_videos(query, need)):

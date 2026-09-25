@@ -80,6 +80,8 @@ def _ass_time(t: float) -> str:
 CAPTION_MAX_CHARS = 14
 
 
+# 자막 세로 위치(MarginV, 아래에서 px). 쇼츠 하단 약 400px은 제목·채널명
+# 오버레이가 덮는다. 330이면 자막 박스가 1500~1590에 걸려 그 밑에 깔렸다.
 ASS_HEADER = """[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -89,7 +91,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,NanumGothic,72,&H00FFFFFF,&H000000FF,&H80101010,&H00000000,-1,0,0,0,100,100,0,0,3,12,0,2,60,60,330,1
+Style: Cap,NanumGothic,72,&H00FFFFFF,&H000000FF,&H80101010,&H00000000,-1,0,0,0,100,100,0,0,3,12,0,2,60,60,480,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -662,22 +664,34 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         cur = f"vs{i}"
     graph += f";[{cur}]{_sub_filter(ass, asset_dir)}[vout]"
 
-    # 오디오: 나레이션 + (BGM 저음량, 끝 페이드아웃) 믹스
+    # 오디오: 나레이션 + (BGM 저음량, 끝 페이드아웃) 믹스 → 음량 정규화
+    #
+    # 유튜브 기준 음량은 약 -14 LUFS다. 큰 소리는 줄여 주지만 작은 소리를
+    # 키워 주지는 않는다. 정규화 전 09-25분은 -19.8 LUFS로, 다른 쇼츠를
+    # 보다 넘어오면 6dB쯤 작게 들렸다. 나레이션(TTS 24kHz 모노)도 48kHz
+    # 스테레오로 올려 BGM이 모노로 뭉개지지 않게 한다.
+    fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
+    norm = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
     if bgm_idx is not None:
         graph += (
-            f";[{bgm_idx}:a]volume={BGM_VOLUME},afade=t=out:st={max(0.0, dur - 2):.2f}:d=2[bgm]"
-            f";[{audio_idx}:a][bgm]amix=inputs=2:duration=first:normalize=0[aout]"
+            f";[{audio_idx}:a]{fmt}[nar]"
+            f";[{bgm_idx}:a]{fmt},volume={BGM_VOLUME},afade=t=out:st={max(0.0, dur - 2):.2f}:d=2[bgm]"
+            f";[nar][bgm]amix=inputs=2:duration=first:normalize=0,{norm}[aout]"
         )
-        amap = "[aout]"
     else:
-        amap = f"{audio_idx}:a"
+        graph += f";[{audio_idx}:a]{fmt},{norm}[aout]"
+    amap = "[aout]"
 
     cmd = [
         _ffmpeg(), "-y", *inputs,
         "-filter_complex", graph,
         "-map", "[vout]", "-map", amap,
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
-        "-r", str(FPS), "-c:a", "aac", "-b:a", "192k", "-shortest", str(out_path),
+        # crf 23은 1.3Mbps가 나왔다. 유튜브가 한 번 더 압축하므로 원본이
+        # 깨끗해야 사진 결이 남는다(권장 업로드 비트레이트 1080p30 8Mbps).
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-profile:v", "high",
+        "-pix_fmt", "yuv420p", "-r", str(FPS),
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-movflags", "+faststart", "-shortest", str(out_path),
     ]
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:

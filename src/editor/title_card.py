@@ -421,7 +421,9 @@ def render_headline_banner(headline: list[str], hook_word: str,
         # 최소 크기로도 안 되면(끊을 공백이 없는 긴 어절) 글자 단위로 끊는다.
         lines = _hard_wrap(lines, draw, font, usable)[:BANNER_MAX_LINES]
     line_h = int(size * 1.24)
-    top = 60
+    # 쇼츠 상단 오른쪽에는 검색·메뉴 아이콘이 떠 있다(약 50~150px).
+    # 60에서 시작하면 줄 끝 강조어가 아이콘 밑에 깔린다.
+    top = 150
     band_h = len(lines) * line_h + 44
     # 반투명 검정 밴드 + 빨강 좌측 액센트
     draw.rectangle([0, top, SHORTS_WIDTH, top + band_h], fill=(10, 10, 12, 210))

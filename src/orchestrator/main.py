@@ -347,7 +347,9 @@ def run(skip_upload: bool = False) -> int:
     audio, srt = narrate(plan.speech_script)
 
     # 4) 배경 이미지 + 기사 캡처
-    bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=4)
+    # 사진 4장일 때는 50초 영상에서 같은 사진이 2~3번씩 돌았다. 6장 + 영상
+    # 3개면 한 바퀴 반 안쪽으로 끝난다.
+    bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=6)
     # 실사 b-roll을 섞는다. "정적 이미지 루프"는 유튜브가 AI 양산 채널을
     # 가려내는 지표로 직접 지목한 형태고, 지금 배경은 사진에 켄번즈만 건
     # 것이라 정확히 그 모양이다. Pexels 영상은 사진과 같은 라이선스라
@@ -388,7 +390,9 @@ def run(skip_upload: bool = False) -> int:
                                    background=title_bg, accent=accent, face=face,
                                    layout=lay)
     if face:
-        bg_paths = bg_paths + [face]   # 영상 중간에도 얼굴 등장
+        # 영상 중간에도 얼굴 등장. 끝에 붙이면 배경이 늘어난 만큼 뒤로
+        # 밀려 짧은 영상에서는 아예 안 나온다. 약 20초 지점에 고정한다.
+        bg_paths.insert(min(len(bg_paths), 5), face)
     # 상단 헤드라인 배너(타이틀카드 이후 전 구간) — 자동 프레임 썸네일 품질 개선
     banner = render_headline_banner(plan.headline, plan.hook_word, accent=accent)
     try:
