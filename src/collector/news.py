@@ -503,6 +503,23 @@ def _enrich_order(candidates: list[Article]) -> list[Article]:
 PICK_TOP_N = 14
 
 
+# 칼럼·기고는 쓰지 않는다. 이 채널은 뉴스 브리핑이다.
+#
+# 2026-09-25 실측: 재생성본이 매일경제에 실린 박합수 건국대 겸임교수의 글
+# ("다음은 박합수 교수의 글이다")을 골랐다. 대본은 교수 한 사람의 전망과
+# 주장("임대 시장 전반에 악영향", "신뢰 보호 원칙에 어긋나는 소급 적용")을
+# 진행자가 전하는 사실처럼 읽었고, 조건이 붙은 양도 기한을 단정으로 뭉갰다.
+# 남의 글을 AI 음성으로 다시 읽는 것은 비진정성 정책상으로도 약점이다.
+# 제목에는 표시가 없어서 본문을 받은 뒤에 거른다.
+_OPINION_TITLE_RE = re.compile(r"\[(?:기고|칼럼|시론|사설|기자수첩|데스크|오피니언|특별기고|전문가\s*칼럼)[^\]]*\]")
+_OPINION_BODY_RE = re.compile(r"다음은\s*\S{1,20}(?:\s\S{1,20}){0,2}의\s*글이다|필자는|\(필자")
+
+
+def _is_opinion(art) -> bool:
+    return bool(_OPINION_TITLE_RE.search(getattr(art, "title", "") or "")
+                or _OPINION_BODY_RE.search(getattr(art, "summary", "") or ""))
+
+
 def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Article | None:
     """관련성 높은 순으로 원문 해소하여 본문 확보된 첫 기사를 반환한다.
 
@@ -520,6 +537,10 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
     best: Article | None = None
     for art in _enrich_order(candidates)[:top_n]:
         _resolve_and_enrich(art, session)
+        if _is_opinion(art):
+            log.info(f"칼럼·기고라 건너뜀: {art.title[:40]} ({art.source})")
+            time.sleep(0.5)
+            continue
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
             age = _age_days(art.published)
             log.info(f"선정({candidate_score(art)}점 = 소재 {topic_score(art.title)} + "
