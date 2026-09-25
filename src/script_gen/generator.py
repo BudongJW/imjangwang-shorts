@@ -639,6 +639,88 @@ _ACTORS = ["이재명", "윤석열", "문재인", "박근혜", "이명박", "오
            "유정복", "박형준", "김문수", "한덕수", "이낙연"]
 
 
+# 퍼센트가 아닌 수치(원·가구·개월)의 관계.
+#
+# 2026-09-25 실측: 기사는 "1년 전(144만원)보다는 약 14% 상승했다"와 "10만원
+# 오르는 데 소요되는 기간도 9개월에서 6개월로 짧아졌다"를 썼고, 부제에
+# "7개월 만 14만원↑"이 있었다. 대본은 "1년 전보다 14만원 넘게 올랐다",
+# "7개월 만에 10만원 이상 오르던 속도가 빨라졌다"고 했다. 숫자는 전부 기사에
+# 있다. 서로 다른 문장의 숫자를 한 문장에 섞었을 뿐이다. 따옴표도 퍼센트도
+# 아니라 앞의 검사들을 다 통과한다.
+#
+# 그래서 짝을 본다. 대본의 한 문장에 수량 둘이 같이 나오면, 기사에서도 두
+# 수량이 같은 문장이나 바로 옆 문장에 같이 나와야 한다. "1년 전·전년·지난해·작년"은
+# 같은 말로 본다. 기사에 없는 수량은 이 검사가 따지지 않는다(퍼센트 검사 몫).
+# 실측 확인: 오늘 오류 2건을 잡고, 승인됐던 대본 4편(광명·전세 편법·9/23·
+# 한국경제)의 정상 수치 짝은 모두 통과했다.
+_QTY_UNIT = {"%p": "pp", "%포인트": "pp", "퍼센트포인트": "pp", "%": "pct", "퍼센트": "pct",
+             "원": "won", "가구": "cnt", "세대": "cnt", "호": "cnt", "건": "cnt", "명": "cnt",
+             "개월": "mon", "주": "wk", "배": "x"}
+_QTY_RE = re.compile(
+    r"(\d[\d,\.]*(?:\s?(?:억|만|천)\s?\d*(?:천)?)*)\s?"
+    r"(%p|%포인트|퍼센트포인트|%|퍼센트|원|가구|세대|호(?!선)|건|명|개월|주(?!택|년|간)|배)")
+_YOY_RE = re.compile(r"1년\s?(?:전|새|만에)|전년|지난해|작년")
+# 기사를 문장 단위로 자른다. 부제는 말줄임표·화살표로 이어 붙어 있는 경우가 많다.
+_SEG_SPLIT_RE = re.compile(r"(?<=다)\.\s*|[…↑↓\n]+|(?<=[.?!])\s+(?=\S)")
+
+
+def _qtys(text: str) -> list[tuple[tuple, int, int, str]]:
+    """(정규화 키, 시작, 끝, 원문). 키는 (값, 단위군) 또는 ('YOY', 't')."""
+    out = []
+    for m in _QTY_RE.finditer(text or ""):
+        v = _kor_num(m.group(1))
+        if v is None:
+            continue
+        out.append(((round(v, 4), _QTY_UNIT[m.group(2)]), m.start(), m.end(), m.group(0)))
+    for m in _YOY_RE.finditer(text or ""):
+        out.append((("YOY", "t"), m.start(), m.end(), m.group(0)))
+    return out
+
+
+def _pair_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    """(문장 삭제용 바늘, 사유). 한 문장의 수량 짝이 기사에서 떨어져 있으면 잡는다.
+
+    '가까이'는 글자 수가 아니라 문장으로 잰다. 기사의 같은 문장이나 바로 옆
+    문장에 둘이 같이 있어야 한다. 글자 수 창(150자)으로 재 봤더니 부제 묶음처럼
+    짧은 줄이 몰린 곳에서 서로 무관한 숫자가 창 안에 같이 들어와 짝으로
+    인정됐다. 바로 옆 문장까지는 허용한다. "지난달 164만1000원으로 0.91%
+    올랐다. 1년 전(144만원)보다는 약 14% 상승했다"를 한 문장으로 요약하는
+    것은 정상이기 때문이다.
+    """
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if x.strip()]
+    seg_keys = [{k for k, _, _, _ in _qtys(sg)} for sg in segs]
+    known = set().union(*seg_keys) if seg_keys else set()
+
+    def together(a, b) -> bool:
+        for i, ks in enumerate(seg_keys):
+            if a not in ks:
+                continue
+            for j in range(max(0, i - 1), min(len(segs), i + 2)):
+                if b in seg_keys[j]:
+                    return True
+        return False
+
+    out: list[tuple[str, str]] = []
+    for sent in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or ""):
+        sent = sent.strip()
+        toks: dict = {}
+        for key, _, _, raw in _qtys(sent):
+            if key in known:
+                toks.setdefault(key, raw)
+        keys = list(toks)
+        hit = None
+        for i, a in enumerate(keys):
+            for b in keys[i + 1:]:
+                if not together(a, b):
+                    hit = f"'{toks[a]}'와 '{toks[b]}'는 기사에서 서로 다른 문장의 수치다"
+                    break
+            if hit:
+                break
+        if hit:
+            out.append((sent[:40], hit))
+    return out
+
+
 def _unsourced_actors(text: str, source_text: str) -> list[str]:
     """대본에는 있는데 기사에는 없는 정치인 이름."""
     return [a for a in _ACTORS if a in (text or "") and a not in (source_text or "")]
@@ -712,9 +794,10 @@ def generate(art) -> ShortPlan:
             q = _fake_quotes(text, hay)
             p = _pct_problems(text, hay)
             a = _unsourced_actors(text, hay)
-            return (q + [n for n, _ in p] + a,
+            pr = _pair_problems(text, hay)
+            return (q + [n for n, _ in p] + a + [n for n, _ in pr],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
-                    + [f"기사에 없는 주체: {x}" for x in a])
+                    + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr])
 
         bad, why = _defects(str(data.get("script", "")))
         if bad:
@@ -727,6 +810,9 @@ def generate(art) -> ShortPlan:
                 "바꾸지 말 것 — 긍정 평가를 우려로 뒤집는 것은 허위 인용이다.\n"
                 "기사에 나오지 않는 정치인·정부를 책임 주체로 끌어오지 말 것 — 기사가 "
                 "서울시 정책을 다루면 비판 대상도 서울시다.\n"
+                "한 문장에 넣는 숫자들은 기사의 같은 문장에서 가져온다. 서로 다른 문장의 "
+                "숫자를 섞어 새 관계를 만들지 말 것 — '1년 전보다 14% 상승'과 '7개월 만에 "
+                "14만원 상승'을 '1년 전보다 14만원 상승'으로 합치는 식이다.\n"
                 "퍼센트는 기사가 쓴 분모를 그대로 따른다. 기사가 'A는 B의 N%'라고 썼으면 "
                 "'A 중 N%가 B'로 뒤집지 말 것 — 부분과 전체를 맞바꾸는 것이다.")
             data3 = _parse_json(raw3) if raw3 else None
