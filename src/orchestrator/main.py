@@ -51,6 +51,19 @@ _GOV_RE = re.compile(
     rf"|(?<![가-힣])정부(?=(?:{_GOV_PARTICLES})(?![가-힣]))")
 
 
+def _article_names_central_gov(article_text: str) -> bool:
+    """기사가 중앙정부를 주체로 다루는가. '정부'를 낱말로 쓰거나 대통령 이름을 쓴다.
+
+    2026-09-24 실측: 서울시 재건축·재개발 공공임대 기사로 만든 대본이
+    "이재명 정부 정책이 의도와 달리…"로 끝났다. 아래 _name_government는
+    대본의 첫 '정부'를 무조건 '이재명 정부'로 바꾸는데, 대본 사실 검사
+    (generate 안)보다 뒤에 돌아서 검사를 우회한다. 기사가 중앙정부를
+    다루지 않으면 이름을 박지 않는다.
+    """
+    t = article_text or ""
+    return GOV_NAME.split()[0] in t or bool(_GOV_RE.search(t))
+
+
 def _name_government(plan):
     """대본·제목·헤드라인의 '정부'를 정책 비판 대상(이재명 정부)으로 명시한다.
 
@@ -324,7 +337,11 @@ def run(skip_upload: bool = False) -> int:
         # 2) 대본
         plan = generate(art)
         if POLITICIAN_FACE_ENABLED:          # 정책 비판 대상(이재명 정부) 명시
-            plan = _name_government(plan)
+            src_text = f"{getattr(art, 'title', '')} {getattr(art, 'summary', '')}"
+            if _article_names_central_gov(src_text):
+                plan = _name_government(plan)
+            else:
+                buildnotes.note("정부명 표기 생략: 기사가 중앙정부를 주체로 다루지 않는다")
 
     # 3) TTS
     audio, srt = narrate(plan.speech_script)

@@ -293,6 +293,10 @@ _DOMAIN_KW = [
     "전세난", "역전세", "입주", "갭투자", "깡통전세", "분양가", "미분양", "집주인", "세입자",
     "주택", "부동산", "오피스텔", "빌라", "단지", "상가", "토지", "임대", "공시가", "매물",
     "정비사업", "분담금", "기부채납", "용적률", "실거래",
+    # 2026-09-25 추가: 실제 피드에서 부동산 기사인데 빠지던 것들.
+    # "HUG, PF 보증료 최대 40% 인하", "李 분당집 '17억 근저당'" 등.
+    # '착공'은 넣지 않는다. 같은 날 "반도체 팹 2기 2028년 착공"이 있었다.
+    "주거", "근저당", "PF", "HUG", "주택도시보증공사", "LH", "등기", "전입",
 ]
 # 어느 자산에나 붙는 말. 가점은 주되 이것만으로 부동산 소재라고 보지 않는다.
 _GENERIC_KW = [
@@ -305,14 +309,32 @@ _CORE_KW = _DOMAIN_KW + _GENERIC_KW
 # 세지 않는다.
 _BARE_HOUSE_RE = re.compile(r"(?<![가-힣])집(?![가-힣])")
 
-# 고유어가 하나도 없으면 부동산 기사가 아닐 가능성이 크다. 배제가 아니라
-# 감점이라 소재가 없는 날에는 여전히 쓸 수 있다(BRIEF_PENALTY와 같은 방식).
+# 고유어가 하나도 없으면 부동산 기사가 아닐 가능성이 크다. 점수에서도 깎지만
+# 선정 단계에서는 아예 빼 버린다(is_real_estate). 감점만 두면 소재가 얇은 날
+# 다시 올라온다.
 NO_DOMAIN_PENALTY = 6
+
+# 증시 기사 표지. 제목에 부동산 낱말이 있어도 이게 붙으면 주식 기사다.
+#   "[특징주] 현대건설, 재건축 수주에 급등" → 건설주 시세 기사
+# '주가'는 앞에 한글이 붙으면 세지 않는다("민주가 추진" 같은 오탐 방지).
+_STOCK_RE = re.compile(
+    r"특징주|종목|상한가|하한가|공모주|시가총액|시총|장중|증시|코스피|코스닥|증권가|"
+    r"목표주가|순매수|순매도|(?<![가-힣])주가")
 
 
 def _has_domain(title: str) -> bool:
     t = title or ""
     return any(k in t for k in _DOMAIN_KW) or bool(_BARE_HOUSE_RE.search(t))
+
+
+def is_real_estate(title: str) -> bool:
+    """이 채널이 다룰 수 있는 기사인가. 부동산 채널이지 주식 채널이 아니다.
+
+    2026-09-25 사용자 지시: 부동산 관련 내용만 사용한다. 전날 파이프라인이
+    이차전지 종목 기사("[특징주] 포스코퓨처엠…")를 골랐다.
+    """
+    t = title or ""
+    return _has_domain(t) and not _STOCK_RE.search(t)
 
 _NICHE_KW = [
     "글로벌", "해외", "도쿄", "일본", "미국", "중국", "유럽", "성과급", "반도체", "삼성전자",
@@ -410,6 +432,7 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
     """부동산 뉴스 후보를 수집한다(중복·차단 제외, 관련성순 정렬)."""
     seen_titles: set[str] = set()
     candidates: list[Article] = []
+    dropped = 0                # 부동산 기사가 아니라서 뺀 수
     history = load_history()   # 후보마다 재파싱하지 않도록 1회만 읽는다
     # 질의를 전부 돈다. 예전에는 후보가 max_candidates를 넘으면 break 했는데,
     # 첫 질의 하나만으로 70건이 넘어 나머지 9개 질의가 한 번도 쓰이지 않았다.
@@ -426,6 +449,9 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
             seen_titles.add(key)
             if is_duplicate(art.title, history=history) or _blocked(art.google_url):
                 continue
+            if not is_real_estate(art.title):
+                dropped += 1
+                continue
             candidates.append(art)
 
     for q in NEWS_QUERIES:
@@ -438,7 +464,12 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
             if is_duplicate(art.title, history=history):
                 continue
             seen_titles.add(key)
+            if not is_real_estate(art.title):
+                dropped += 1
+                continue
             candidates.append(art)
+    if dropped:
+        log.info(f"부동산 외 기사 {dropped}건 제외(고유어 없음 또는 증시 기사)")
     # 관련성 + 정책 비판 신호 + 신선도로 정렬(좋은 소재 자동 선별)
     candidates.sort(key=candidate_score, reverse=True)
     if candidates:
