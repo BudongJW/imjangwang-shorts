@@ -147,14 +147,14 @@ jobs:
           # 일쑤라 판정이 안 됐다. build_notes에 적힌 구간의 중간 시점을
           # 따로 뽑는다.
           if [ -f output/video/build_notes.txt ]; then
-            MID=$(grep '^콜아웃 ' output/video/build_notes.txt \
+            MID=$(grep -E '^콜아웃 +[0-9]' output/video/build_notes.txt \
                   | sed 's/^콜아웃 *//; s/s .*//; s/~/ /' \
                   | awk '{printf "%.1f ", ($1+$2)/2}')
             echo "콜아웃 중간 시점: $MID"
             TIMES="$TIMES $MID"
           fi
           for T in $TIMES; do
-            ffmpeg -v error -ss "$T" -i "$V" -frames:v 1 \
+            ffmpeg -y -v error -ss "$T" -i "$V" -frames:v 1 \
               -vf scale=432:-2 "output/frames/t$(printf '%05.1f' "$T").png"
           done
           ls output/frames | wc -l

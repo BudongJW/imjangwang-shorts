@@ -37,3 +37,14 @@ def font_bold() -> str:
 
 def font_regular() -> str:
     return _first(_REGULAR)
+
+
+# 번들 나눔고딕에 없는 글자. 그리면 빈칸이 된다. 09-25 검증에서 "60㎡"
+# 콜아웃이 폭은 60㎡만큼 잡힌 채 "60"만 찍혔다. 뜻이 같은 글자로 바꾼다.
+_MISSING_GLYPHS = {"㎡": "m²", "㎢": "km²"}
+
+
+def fix_glyphs(text: str) -> str:
+    for a, b in _MISSING_GLYPHS.items():
+        text = text.replace(a, b)
+    return text

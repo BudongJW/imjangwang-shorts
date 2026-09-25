@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from config.settings import SHORTS_WIDTH, SHORTS_HEIGHT, VIDEO_DIR
-from src.editor.fonts import font_bold
+from src.editor.fonts import font_bold, fix_glyphs
 
 RED = (232, 50, 50)      # 상승
 BLUE = (46, 130, 235)    # 하락
@@ -32,7 +32,9 @@ _YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
 # 같은 구절에 여러 수치가 있으면 '센' 쪽을 띄운다. 기간(5년·2주·3개월)은
 # 대개 기준일 뿐 임팩트가 아니다 — "지난 5년 평균 대비"의 5년을 화면
 # 한복판에 띄워 봐야 시청자에게 남는 게 없다(2026-09-14 실측).
-_WEAK_UNITS = ("년", "주", "개월", "일", "개")
+# 면적(84㎡·30평)도 같다. 기사의 주인공이 아니라 대상 설명이다. 같은
+# 구절에 "12억"이 있으면 그쪽을 띄운다(09-25 검증: "60" 콜아웃).
+_WEAK_UNITS = ("년", "주", "개월", "일", "개", "제곱미터", "㎡", "m²", "평")
 _UP = ["오르", "상승", "폭등", "급등", "최고", "신고가", "뛰", "올라", "증가", "늘"]
 _DOWN = ["하락", "급락", "폭락", "내리", "줄", "감소", "떨어", "최저", "급감"]
 
@@ -123,7 +125,7 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
     cand = best or weak
     if not cand:
         return None
-    big = cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡")
+    big = fix_glyphs(cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡"))
     direction = "flat"
     if any(k in phrase for k in _UP):
         direction = "up"

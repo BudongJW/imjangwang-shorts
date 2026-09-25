@@ -22,7 +22,7 @@ from pathlib import Path
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
     TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO)
-from src.editor.fonts import font_bold
+from src.editor.fonts import font_bold, fix_glyphs
 from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
@@ -295,7 +295,7 @@ def build_caption_ass(caption_script: str, total_sec: float, out: Path,
     out.parent.mkdir(parents=True, exist_ok=True)
     body = []
     for ph, start, end in _phrase_timings(caption_script, total_sec, cues):
-        text = _highlight(ph.replace("\n", " ").strip())
+        text = fix_glyphs(_highlight(ph.replace("\n", " ").strip()))
         body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
     out.write_text(ASS_HEADER + "\n".join(body) + "\n", encoding="utf-8")
     return out

@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
 from src.utils.logger import setup_logger
 from config.settings import SHORTS_WIDTH, SHORTS_HEIGHT, VIDEO_DIR
-from src.editor.fonts import font_bold
+from src.editor.fonts import font_bold, fix_glyphs
 
 log = setup_logger("title_card")
 
@@ -284,6 +284,8 @@ def render_title_card(headline: list[str], hook_word: str,
                       layout: "_Layout | None" = None) -> Path:
     """썸네일 겸 도입 훅 카드. layout 미지정 시 날짜 기반으로 구도가 회전한다."""
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    headline = [fix_glyphs(h) if h else h for h in headline]
+    hook_word = fix_glyphs(hook_word or "")
     lay = layout or pick_layout()
     has_face = bool(face and Path(face).exists())
 
@@ -384,6 +386,8 @@ def render_headline_banner(headline: list[str], hook_word: str,
     Shorts 그리드 썸네일로 자동 선택하든 '헤드라인이 박힌 썸네일'처럼 보이게 한다.
     """
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    headline = [fix_glyphs(h) if h else h for h in headline]
+    hook_word = fix_glyphs(hook_word or "")
     img = Image.new("RGBA", (SHORTS_WIDTH, SHORTS_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
