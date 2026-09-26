@@ -511,6 +511,45 @@ def _fake_quotes(text: str, source_text: str) -> list[str]:
     return bad
 
 
+
+def _fix_quoted_names(text: str, source_text: str) -> tuple[str, list[str]]:
+    """짧은 따옴표 속 고유명이 기사 표기와 다르면 기사 표기로 되돌린다.
+
+    2026-09-26 실측: 기사는 '힐스테이트 과천 중앙', 대본은 과천 '힐스테이트
+    중앙'. 지역명을 따옴표 밖으로 빼면서 단지명이 바뀌었다. 짧은 따옴표는
+    강조로 보고 인용 검사를 안 하므로(QUOTE_CHECK_MIN) 그대로 나갔다.
+    대본 쪽 낱말이 전부 기사의 어느 따옴표 안에 들어 있을 때만 바꾼다.
+    """
+    hay = _norm_quote(source_text)
+    src_spans = []
+    for m in _QUOTE_SPAN_RE.finditer(source_text or ""):
+        sp = next((g for g in m.groups() if g), "")
+        if sp.strip() and len(sp) <= 40:
+            src_spans.append(sp.strip())
+    fixes: list[str] = []
+
+    def repl(m):
+        span = next((g for g in m.groups() if g), "")
+        n = _norm_quote(span)
+        words = span.split()
+        if not n or len(n) >= QUOTE_CHECK_MIN or n in hay or len(words) < 2:
+            return m.group(0)
+        for sp in src_spans:
+            sw = sp.split()
+            if len(sw) > len(words) and all(w in sw for w in words):
+                fixes.append(f"{span} 대신 {sp}")
+                return m.group(0).replace(span, sp)
+        return m.group(0)
+
+    out = _QUOTE_SPAN_RE.sub(repl, text or "")
+    # 따옴표 밖으로 뺐던 지역명이 이제 따옴표 안에도 있으면 밖의 것을 지운다.
+    for f in fixes:
+        sp = f.split(" 대신 ", 1)[1]
+        out = re.sub(r"(\S+)\s+(['\"“‘])" + re.escape(sp),
+                     lambda mm: (mm.group(2) + sp) if mm.group(1) in sp.split() else mm.group(0),
+                     out)
+    return out, fixes
+
 # 퍼센트는 분모가 있어야 뜻이 생긴다. 모델은 개별 수치는 잘 옮기고
 # 수치 사이의 '관계'를 자주 뒤집는다.
 #
@@ -725,6 +764,64 @@ def _unsourced_actors(text: str, source_text: str) -> list[str]:
     """대본에는 있는데 기사에는 없는 정치인 이름."""
     return [a for a in _ACTORS if a in (text or "") and a not in (source_text or "")]
 
+# 정책을 원인으로 못 박는 문장.
+#
+# 2026-09-26 실측: 기사는 "대출 한도가 줄어든 가운데 서울 아파트값은 최장기간
+# 오름세"라고 두 사실을 나란히 썼다. 대본은 "대출 규제가 아파트값 폭등을
+# 낳고"라고 인과로 묶었다. 규칙 8의 나쁜 예("임대차법이 전세난을 부른 역설적
+# 결과입니다")와 같은 꼴인데 프롬프트로는 안 막혔다. 숫자가 없어서 앞의 검사도
+# 다 통과한다.
+#
+# 규칙 16이 허용하는 두 형식은 그대로 둔다. 진행자 본인의 읽기("저는 ~로
+# 봅니다", "~로 읽힙니다")는 통과시키고, 남의 말("~라는 지적이 나옵니다")은
+# 기사에 그 말(지적·분석·전문가 …)이 있을 때만 통과시킨다. 단정형은 기사의
+# 한 문장(또는 옆 문장)에 같은 정책어가 있고 대본 문장과 낱말이 둘 이상
+# 겹칠 때만 통과시킨다. "대출 규제 때문에 자금 부담이 커졌다"처럼 기사를
+# 그대로 요약한 인과는 그렇게 살아남는다.
+_POLICY_RE = re.compile(
+    r"규제|정책|대책|임대차\s?[3삼]?\s?법|토허제|토지거래허가|중과|세금|보유세|"
+    r"양도세|종부세|취득세|대출\s?(?:한도|문턱|제한)|DSR|LTV|분양가\s?상한제|"
+    r"공급\s?억제|정부")
+_CAUSE_RE = re.compile(
+    r"낳|부른|불러|초래|촉발|부추|밀어\s?올|끌어\s?올|밀어낸|내몰|역설|역효과|역풍|"
+    r"부작용|탓|때문|결과입니다|여파")
+_HOST_READ_RE = re.compile(
+    r"저는|제\s?눈에|봅니다|보입니다|읽힙니다|가능성|아닐까|아닌지|듯합니다|수 있습니다")
+_ATTRIB_RE = re.compile(
+    r"(지적|분석|시각|목소리|비판|전문가|업계|평가|관측)(?:이|가|은|는|도|들|에서는)")
+_POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
+CAUSE_MIN_SHARED = 2
+
+
+def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    """(문장 삭제용 바늘, 사유). 기사에 없는 정책 인과 단정과 없는 지적을 잡는다."""
+    src = source_text or ""
+    segs = [x for x in _SEG_SPLIT_RE.split(src) if x.strip()]
+    windows = [" ".join(segs[i:i + 2]) for i in range(len(segs))]
+    out: list[tuple[str, str]] = []
+    for sent in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or ""):
+        sent = sent.strip()
+        if not sent:
+            continue
+        needle = sent[:40]
+        am = _ATTRIB_RE.search(sent)
+        if am and am.group(1) not in src:
+            out.append((needle, f"남의 말로 옮겼는데 기사에 '{am.group(1)}' 표현이 없다"))
+            continue
+        if am or _HOST_READ_RE.search(sent):
+            continue
+        pm, cm = _POLICY_RE.search(sent), _CAUSE_RE.search(sent)
+        if not (pm and cm):
+            continue
+        mine = _stems(sent) - _POLICY_STEMS
+        backed = any(
+            _POLICY_RE.search(w) and len(mine & (_stems(w) - _POLICY_STEMS)) >= CAUSE_MIN_SHARED
+            for w in windows)
+        if not backed:
+            out.append((needle, f"'{pm.group(0)}' 인과 단정: 기사는 그렇게 묶지 않았다"))
+    return out
+
+
 def _drop_sentences_with(script: str, quotes: list[str]) -> str:
     """위조 인용이 들어간 문장만 버린다. 파이프라인은 멈추지 않는다."""
     if not quotes:
@@ -795,9 +892,11 @@ def generate(art) -> ShortPlan:
             p = _pct_problems(text, hay)
             a = _unsourced_actors(text, hay)
             pr = _pair_problems(text, hay)
-            return (q + [n for n, _ in p] + a + [n for n, _ in pr],
+            c = _causal_problems(text, hay)
+            return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
-                    + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr])
+                    + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]
+                    + [r for _, r in c])
 
         bad, why = _defects(str(data.get("script", "")))
         if bad:
@@ -814,7 +913,11 @@ def generate(art) -> ShortPlan:
                 "숫자를 섞어 새 관계를 만들지 말 것 — '1년 전보다 14% 상승'과 '7개월 만에 "
                 "14만원 상승'을 '1년 전보다 14만원 상승'으로 합치는 식이다.\n"
                 "퍼센트는 기사가 쓴 분모를 그대로 따른다. 기사가 'A는 B의 N%'라고 썼으면 "
-                "'A 중 N%가 B'로 뒤집지 말 것 — 부분과 전체를 맞바꾸는 것이다.")
+                "'A 중 N%가 B'로 뒤집지 말 것 — 부분과 전체를 맞바꾸는 것이다.\n"
+                "기사가 나란히 쓴 두 사실을 인과로 묶지 말 것 — '대출 한도가 줄어든 가운데 "
+                "아파트값이 올랐다'를 '대출 규제가 아파트값 폭등을 낳았다'로 바꾸는 식이다. "
+                "해석을 하고 싶으면 '저는 ~로 봅니다'처럼 진행자 말로 쓴다. '~라는 지적이 "
+                "나옵니다', '전문가들은'은 기사에 그 지적·전문가가 있을 때만 쓴다.")
             data3 = _parse_json(raw3) if raw3 else None
             if data3 and data3.get("script") and not _defects(str(data3["script"]))[0]:
                 data = data3
@@ -827,6 +930,10 @@ def generate(art) -> ShortPlan:
         if not str(data.get("script", "")).strip():
             log.info("대본: 인용 삭제 후 남은 문장이 없다 → 폴백")
             return _fallback_plan(art)
+        fixed, nfix = _fix_quoted_names(str(data.get("script", "")), hay)
+        if nfix:
+            data["script"] = fixed
+            note(f"대본: 따옴표 속 이름을 기사 표기로 교정 ({'; '.join(nfix)[:60]})")
         tbad = _fake_quotes(str(data.get("youtube_title", "")), hay)
         if tbad:
             data["youtube_title"] = getattr(art, "title", "")[:38]
