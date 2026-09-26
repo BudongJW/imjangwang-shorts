@@ -805,10 +805,14 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             continue
         needle = sent[:40]
         am = _ATTRIB_RE.search(sent)
-        if am and am.group(1) not in src:
+        # 낱말 앞머리로만 찾는다. 09-26 재생성본에서 기사의 '국지적'이
+        # '지적'으로 잡혀, 기사에 없는 "임대차법 … 결과라는 지적"이 통과했다.
+        if am and not re.search(r"(?<![가-힣])" + am.group(1), src):
             out.append((needle, f"남의 말로 옮겼는데 기사에 '{am.group(1)}' 표현이 없다"))
             continue
-        if am or _HOST_READ_RE.search(sent):
+        # 진행자 본인의 읽기만 인과 검사를 면한다. 남의 말로 옮긴 인과는
+        # 기사에 그 말이 있더라도 내용까지 기사에 있어야 한다.
+        if not am and _HOST_READ_RE.search(sent):
             continue
         pm, cm = _POLICY_RE.search(sent), _CAUSE_RE.search(sent)
         if not (pm and cm):
@@ -822,12 +826,29 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 앞 문장을 받는 말로 시작하는 문장. 앞 문장을 버리면 이 문장은 가리킬
+# 것이 없어진다. 09-26 재생성본: 서초구 4.53% 문장을 버리자 바로 뒤의
+# "이는 전국 평균 3.64%를 웃도는 수치입니다"만 남았다.
+_BACKREF_RE = re.compile(
+    r"^(?:이는|이건|이것은|이것이|이게|이처럼|이같은|이 같은|이에 따라|이 때문에|"
+    r"이 수치|이 기록|그 결과|그만큼)")
+
+
 def _drop_sentences_with(script: str, quotes: list[str]) -> str:
-    """위조 인용이 들어간 문장만 버린다. 파이프라인은 멈추지 않는다."""
+    """위조 인용이 들어간 문장만 버린다. 파이프라인은 멈추지 않는다.
+
+    버린 문장을 받는 바로 다음 문장("이는 …")도 같이 버린다.
+    """
     if not quotes:
         return script
     parts = [p.strip() for p in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or "")]
-    keep = [p for p in parts if p and not any(q in p for q in quotes)]
+    parts = [p for p in parts if p]
+    keep, dropped_prev = [], False
+    for p in parts:
+        drop = any(q in p for q in quotes) or (dropped_prev and _BACKREF_RE.match(p))
+        if not drop:
+            keep.append(p)
+        dropped_prev = bool(drop)
     return (". ".join(keep) + ".") if keep else ""
 
 
@@ -923,6 +944,10 @@ def generate(art) -> ShortPlan:
                 data = data3
                 note(f"대본: 사실 대조 실패 {len(bad)}건 → 재요청으로 교체")
             else:
+                # 재요청본이 덜 틀렸으면 그쪽에서 문장을 버린다.
+                if (data3 and data3.get("script")
+                        and len(_defects(str(data3["script"]))[0]) < len(bad)):
+                    data = data3
                 left, lwhy = _defects(str(data.get("script", "")))
                 data["script"] = _drop_sentences_with(str(data.get("script", "")), left)
                 note(f"대본: 사실 대조 실패 {len(left)}건 → 해당 문장 삭제 ({lwhy[0][:40]})")
