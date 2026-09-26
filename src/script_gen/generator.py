@@ -346,7 +346,7 @@ def _fallback_plan(art) -> ShortPlan:
         highlight_sentence=title[:24],
         caption_script=script,
         speech_script=to_speech(script),
-        youtube_title=title[:38],
+        youtube_title=_headline_title(title),
         hashtags=DEFAULT_HASHTAGS,
     )
 
@@ -495,6 +495,22 @@ QUOTE_CHECK_MIN = 12
 
 def _norm_quote(s: str) -> str:
     return _QUOTE_NORM_RE.sub("", s or "")
+
+
+def _headline_title(t: str, limit: int = 38) -> str:
+    """기사 헤드라인을 영상 제목으로 쓸 때 다듬는다.
+
+    09-26 실측: "…생애최초 매수 43% 급증[벼랑 끝 세입자③]"을 38자에서 잘라
+    "…급증[벼랑 끝 세입자"로 올라갔다. 연재 꼬리표는 떼고, 그래도 길면
+    낱말 경계에서 자른다.
+    """
+    t = re.sub(r"\[[^\]]*\]|【[^】]*】", " ", t or "")
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) <= limit:
+        return t
+    cut = t[:limit]
+    sp = cut.rfind(" ")
+    return (cut[:sp] if sp >= limit * 0.6 else cut).rstrip(" …·,")
 
 
 def _fake_quotes(text: str, source_text: str) -> list[str]:
@@ -961,7 +977,7 @@ def generate(art) -> ShortPlan:
             note(f"대본: 따옴표 속 이름을 기사 표기로 교정 ({'; '.join(nfix)[:60]})")
         tbad = _fake_quotes(str(data.get("youtube_title", "")), hay)
         if tbad:
-            data["youtube_title"] = getattr(art, "title", "")[:38]
+            data["youtube_title"] = _headline_title(getattr(art, "title", ""))
             note(f"제목: 기사에 없는 인용 → 기사 헤드라인으로 교체 ({tbad[0][:30]})")
 
     script = _trim_incomplete_tail(
