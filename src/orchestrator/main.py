@@ -111,7 +111,9 @@ def _load_pinned_plan():
             hook_word=p.get("hook_word", ""),
             highlight_sentence=p.get("highlight_sentence", ""),
             caption_script=cap,
-            speech_script=to_speech(cap),
+            # 화면 글자와 읽는 말이 달라야 할 때(예: 민감어를 자막에서만 가림) 쓴다.
+            # 글자 수를 같게 맞춰야 자막 타이밍이 어긋나지 않는다.
+            speech_script=to_speech(str(p.get("speech_script") or cap).strip()),
             youtube_title=str(p.get("youtube_title", ""))[:40],
             hashtags=list(p.get("hashtags", []) or DEFAULT_HASHTAGS),
             layout=str(p.get("layout", "")).strip(),

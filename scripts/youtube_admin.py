@@ -147,6 +147,34 @@ def approve(video_id: str) -> int:
     return 0
 
 
+def unschedule(video_id: str) -> int:
+    """예약 공개를 취소하고 비공개로 둔다. 영상은 지우지 않는다.
+
+    예약 영상을 다시 만들어 교체할 때, 옛 영상이 예약 시각에 공개되는 것을
+    막는다. 삭제는 사용자 승인이 필요해서 따로 한다.
+    """
+    yt = get_youtube_service()
+    res = yt.videos().list(part="status,snippet", id=video_id).execute()
+    items = res.get("items", [])
+    if not items:
+        _summary(f"## 영상을 찾을 수 없습니다: `{video_id}`")
+        return 1
+    st = items[0]["status"]
+    title = items[0]["snippet"].get("title", "")
+    st["privacyStatus"] = "private"
+    st.pop("publishAt", None)
+    try:
+        yt.videos().update(part="status", body={"id": video_id, "status": st}).execute()
+    except HttpError as e:
+        status = getattr(e.resp, "status", "?")
+        _summary(f"## 예약 취소 실패 (status={status})\n```\n"
+                 f"{(e.content or b'').decode('utf-8', 'replace')[:300]}\n```")
+        return 1
+    _summary(f"## 예약 취소, 비공개 유지 — {title}")
+    _summary(f"- https://youtube.com/shorts/{video_id}")
+    return 0
+
+
 def delete_below(max_views: int, min_age_h: float, dry_run: bool = True) -> int:
     """조회수가 기준 이하인 영상을 일괄 삭제한다. 되돌릴 수 없다.
 
@@ -334,6 +362,8 @@ if __name__ == "__main__":
         raise SystemExit(show(vid))
     if action == "approve":
         raise SystemExit(approve(vid))
+    if action == "unschedule":
+        raise SystemExit(unschedule(vid))
     if action == "edit":
         raise SystemExit(edit(vid, os.getenv("TITLE", "").strip(),
                              os.getenv("DESCRIPTION", "")))
@@ -344,5 +374,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | delete_below)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | unschedule | delete_below)")
     raise SystemExit(1)
