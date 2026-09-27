@@ -270,7 +270,8 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                 user_agent=MOBILE_UA,
             )
             page = ctx.new_page()
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            # 아시아경제는 15초 안에 DOM이 안 올 때가 있다(09-27 카드 폴백).
+            page.goto(url, wait_until="domcontentloaded", timeout=25000)
             page.wait_for_timeout(1600)
             # 쿠키/구독/모달 배너 best-effort 제거
             page.evaluate(_STRIP_JS)

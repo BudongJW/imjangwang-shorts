@@ -52,6 +52,9 @@ _TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개
 def _extend(phrase: str, m: re.Match) -> str:
     """이어지는 수 조각을 흡수해 온전한 수치로 만든다."""
     out, pos = m.group(0), m.end()
+    # 연도에서 시작하면 잇지 않는다. "2021년 3130만"이 한 덩어리로 떴다(09-27).
+    if _YEAR_RE.match(out.replace(",", "").strip()):
+        return out.strip()
     while True:
         nxt = _CONT_RE.match(phrase, pos)
         if not nxt:

@@ -604,6 +604,22 @@ def _kor_num(tok: str) -> float | None:
     return total if seen else None
 
 
+_SENT_END_RE = re.compile(r"(?<=[다요])[.!?]+(?!\d)")
+# 앞 문장의 규모를 받는 말. "94만 가구를 공급합니다. 이 중 79.5%가 …"
+_TAKE_PREV_RE = re.compile(r"\s*(?:이 중|이중|이 가운데|그중|그 중|이 가구|이 물량)")
+
+
+def _sentence_bounds(text: str, start: int, end: int) -> tuple[int, int]:
+    """start~end가 들어 있는 문장의 범위. '이 중'으로 시작하면 앞 문장까지."""
+    bounds = [0] + [b.end() for b in _SENT_END_RE.finditer(text)] + [len(text)]
+    lo = max(b for b in bounds if b <= start)
+    hi = min((b for b in bounds if b >= end), default=len(text))
+    if _TAKE_PREV_RE.match(text, lo):
+        prev = [b for b in bounds if b < lo]
+        lo = prev[-1] if prev else 0
+    return lo, hi
+
+
 def _mags_near(text: str, start: int, end: int, pad: int) -> set[float]:
     win = text[max(0, start - pad):end + pad]
     out = set()
@@ -669,7 +685,10 @@ def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             out.append((raw, f"{pct}가 기사에서 가리키는 사실과 대본의 설명이 다르다"))
             continue
 
-        mine = _mags_near(script, m.start(), m.end(), 60)
+        # 대본 쪽은 같은 문장 안에서만 본다. 09-27 지정 대본에서 앞 문장의
+        # "5050만원"이 "일반분양 비중은 2023년 38%"의 분모로 잡혔다.
+        lo, hi = _sentence_bounds(script, m.start(), m.end())
+        mine = _mags_near(script[lo:hi], m.start() - lo, m.end() - lo, 60)
         if not mine:
             continue                  # 규모를 안 붙였으면 관계 주장도 없다
         theirs: set[float] = set()
