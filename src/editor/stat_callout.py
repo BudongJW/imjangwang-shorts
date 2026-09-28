@@ -47,6 +47,9 @@ _CONT_RE = re.compile(
 
 
 _TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개)")
+# "3년 3개월"은 한 기간이다. 앞 토막만 띄우면 "3년"이 돼 사실과 달라진다
+# (09-28 검증: 최장 3년 3개월 유예가 "3년"으로 떴다).
+_MONTH_TAIL_RE = re.compile(r"\s?\d+\s?개월")
 
 
 def _extend(phrase: str, m: re.Match) -> str:
@@ -55,6 +58,9 @@ def _extend(phrase: str, m: re.Match) -> str:
     # 연도에서 시작하면 잇지 않는다. "2021년 3130만"이 한 덩어리로 떴다(09-27).
     if _YEAR_RE.match(out.replace(",", "").strip()):
         return out.strip()
+    if out.rstrip().endswith("년"):
+        mo = _MONTH_TAIL_RE.match(phrase, pos)
+        return (out + mo.group(0)).strip() if mo else out.strip()
     while True:
         nxt = _CONT_RE.match(phrase, pos)
         if not nxt:

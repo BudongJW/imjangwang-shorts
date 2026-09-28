@@ -497,6 +497,30 @@ def _norm_quote(s: str) -> str:
     return _QUOTE_NORM_RE.sub("", s or "")
 
 
+# 배너·제목의 단정 판정. 기사가 "효과가 제한적일 수 있다"고 썼는데 배너가
+# "전세난 못 막는다"로 못 박았다(09-28 초안). 기사에 그 판정이 없으면 물음으로
+# 바꾸고, 바꿀 수 없는 판정은 그 줄을 뺀다.
+_VERDICT_Q = [
+    (re.compile(r"못\s?막(?:는다|아|는)?"), "막을까"),
+    (re.compile(r"못\s?잡(?:는다|아|는)?"), "잡을까"),
+    (re.compile(r"못\s?푼다|못\s?풀(?:어|고)?"), "풀까"),
+]
+_VERDICT_DROP_RE = re.compile(r"소용\s?없|무용지물|물거품|헛수고|실패했|효과\s?없")
+
+
+def _soften_verdict(line: str, source: str) -> str | None:
+    """기사에 없는 단정 판정을 물음으로 바꾼다. 못 바꾸면 None."""
+    src = re.sub(r"\s+", "", source or "")
+    for rx, q in _VERDICT_Q:
+        m = rx.search(line)
+        if m and re.sub(r"\s+", "", m.group(0))[:2] not in src:
+            return (line[:m.start()] + q).strip()
+    m = _VERDICT_DROP_RE.search(line)
+    if m and re.sub(r"\s+", "", m.group(0)) not in src:
+        return None
+    return line
+
+
 def _headline_title(t: str, limit: int = 38) -> str:
     """기사 헤드라인을 영상 제목으로 쓸 때 다듬는다.
 
@@ -826,6 +850,12 @@ _ATTRIB_RE = re.compile(
     r"(지적|분석|시각|목소리|비판|전문가|업계|평가|관측)(?:이|가|은|는|도|들|에서는)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 CAUSE_MIN_SHARED = 2
+# 깎아내리는 평가어. 진행자 말로는 쓸 수 있지만, 남의 지적·분석으로 옮길
+# 때는 기사에 그 말이 있어야 한다. 09-28 초안: 기사의 "수급 불안 해소에
+# 한계가 있다는 지적"을 "찔끔 풀어주는 방식으로는 … 어렵다는 지적"으로 옮겼다.
+_LOADED_RE = re.compile(
+    r"찔끔|땜질|졸속|무리수|헛발질|뒷북|탁상|반쪽|생색|꼼수|무용지물|헛구호|"
+    r"말뿐|보여주기|미봉책|속\s?빈|엉터리|주먹구구|오락가락")
 
 
 def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -844,6 +874,10 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         # '지적'으로 잡혀, 기사에 없는 "임대차법 … 결과라는 지적"이 통과했다.
         if am and not re.search(r"(?<![가-힣])" + am.group(1), src):
             out.append((needle, f"남의 말로 옮겼는데 기사에 '{am.group(1)}' 표현이 없다"))
+            continue
+        lm = _LOADED_RE.search(sent) if am else None
+        if lm and lm.group(0) not in src:
+            out.append((needle, f"남의 말에 기사에 없는 평가어 '{lm.group(0)}'"))
             continue
         # 진행자 본인의 읽기만 인과 검사를 면한다. 남의 말로 옮긴 인과는
         # 기사에 그 말이 있더라도 내용까지 기사에 있어야 한다.
@@ -1003,8 +1037,16 @@ def generate(art) -> ShortPlan:
         _cap_length(_clean_script(normalize_caption(str(data["script"]).strip()))))
     headline = [_clean_script(normalize_caption(h)) for h in (data.get("headline") or [])][:3]
     headline = [h for h in headline if h]
+    if has_body:
+        soft = [_soften_verdict(h, f"{getattr(art, 'title', '')} {body}") for h in headline]
+        if soft != headline:
+            note(f"배너: 기사에 없는 단정 → 물음으로 ({' / '.join(headline)[:40]})")
+        headline = [h for h in soft if h]
     if not headline:
         headline = _split_headline(getattr(art, "title", "부동산 뉴스"))
+    if has_body and data.get("youtube_title"):
+        t = _soften_verdict(str(data["youtube_title"]), f"{getattr(art, 'title', '')} {body}")
+        data["youtube_title"] = t or _headline_title(getattr(art, "title", ""))
     plan = ShortPlan(
         headline=headline,
         hook_word=_clean_script(normalize_caption(str(data.get("hook_word", headline[0].split()[0] if headline else "")))),
