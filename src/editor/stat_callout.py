@@ -51,6 +51,7 @@ _TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개
 # (09-28 검증: 최장 3년 3개월 유예가 "3년"으로 떴다).
 _MONTH_TAIL_RE = re.compile(r"\s?\d+\s?개월")
 _MONTH_BEFORE_RE = re.compile(r"\d{1,2}\s?월\s?$")
+_FROM_RE = re.compile(r"\s*(?:이하|이상|미만|초과)?\s*에서")
 
 
 def _extend(phrase: str, m: re.Match) -> str:
@@ -147,6 +148,10 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
             best, best_end = cand, m.end()
     cand = best or weak
     if not cand:
+        return None
+    # 구절이 "3개 층에서"처럼 바뀌기 전 값에서 끝나면 새 값은 다음 줄에 있다.
+    # 옛 값만 크게 띄우면 그게 새 기준처럼 보인다.
+    if _FROM_RE.match(phrase[best_end if best else weak_end:]):
         return None
     big = fix_glyphs(cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡"))
     direction = "flat"

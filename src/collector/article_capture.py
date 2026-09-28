@@ -67,8 +67,16 @@ _STRIP_JS = """() => {
     '[class*=subscribe]','[class*=modal]','[class*=popup]','[class*=layer]',
     '[class*=banner]','header[class*=fixed]','[class*=sticky]'
   ];
+  // 글이 긴 칸은 광고가 아니라 본문을 감싼 틀이다. 09-28 건축사신문은
+  // 본문을 <div class="sticky-article"> 안에 두어 [class*=sticky]에 걸렸고,
+  // 캡처에 제목 바로 밑으로 댓글란만 남았다. 같은 CMS(ndsoft)를 쓰는
+  // 매체가 많다. 스크립트·프레임은 글자 수와 상관없이 지운다.
+  const RAW = /^(iframe|ins|script|noscript|object|embed)$/;
   sels.forEach(s => {
-    try { document.querySelectorAll(s).forEach(e => { try { e.remove(); } catch(_){} }); }
+    try { document.querySelectorAll(s).forEach(e => { try {
+      if (!RAW.test(s) && (e.innerText || '').length > 1500) return;
+      e.remove();
+    } catch(_){} }); }
     catch(_){}
   });
   // 클래스명이 무작위인 네트워크 주입 위젯은 위 선택자로 안 걸린다.
