@@ -50,6 +50,34 @@ def delete(video_id: str) -> int:
     return 0
 
 
+def delete_private(video_ids: list[str]) -> int:
+    """여러 영상을 한 번에 지운다. 비공개 초안만 지우고 공개·예약 영상은 건너뛴다.
+
+    admin 워크플로는 한 번에 하나씩 70초 간격으로 돌려야 해서, 초안 여러 개를
+    하나씩 지우면 10분이 넘게 걸린다. 한꺼번에 지우는 만큼 ID를 잘못 적었을
+    때 공개 영상이 지워지지 않게 비공개인지 먼저 본다.
+    """
+    yt = get_youtube_service()
+    res = yt.videos().list(part="status,snippet", id=",".join(video_ids)).execute()
+    found = {it["id"]: it for it in res.get("items", [])}
+    fails = 0
+    for vid in video_ids:
+        it = found.get(vid)
+        if not it:
+            _summary(f"- 이미 없는 영상: `{vid}`")
+            continue
+        st = it["status"]
+        title = it["snippet"].get("title", "")[:40]
+        if st.get("privacyStatus") != "private" or st.get("publishAt"):
+            _summary(f"- 건너뜀(공개 또는 예약): `{vid}` {title}")
+            continue
+        if delete(vid):
+            fails += 1
+        else:
+            _summary(f"  {title}")
+    return 1 if fails else 0
+
+
 def retitle(video_id: str, title: str) -> int:
     """제목만 바꾼다. snippet은 부분 수정이 안 되므로 기존 값을 읽어 유지한다."""
     yt = get_youtube_service()
@@ -368,7 +396,8 @@ if __name__ == "__main__":
         raise SystemExit(edit(vid, os.getenv("TITLE", "").strip(),
                              os.getenv("DESCRIPTION", "")))
     if action == "delete":
-        raise SystemExit(delete(vid))
+        ids = [v.strip() for v in vid.split(",") if v.strip()]
+        raise SystemExit(delete(ids[0]) if len(ids) == 1 else delete_private(ids))
     if action == "retitle":
         t = os.getenv("TITLE", "").strip()
         if not t:
