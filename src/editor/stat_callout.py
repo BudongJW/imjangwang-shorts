@@ -50,6 +50,7 @@ _TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개
 # "3년 3개월"은 한 기간이다. 앞 토막만 띄우면 "3년"이 돼 사실과 달라진다
 # (09-28 검증: 최장 3년 3개월 유예가 "3년"으로 떴다).
 _MONTH_TAIL_RE = re.compile(r"\s?\d+\s?개월")
+_MONTH_BEFORE_RE = re.compile(r"\d{1,2}\s?월\s?$")
 
 
 def _extend(phrase: str, m: re.Match) -> str:
@@ -124,6 +125,9 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
     for m in _STAT_RE.finditer(phrase):
         cand = _extend(phrase, m)
         if _YEAR_RE.match(cand.replace(",", "")):
+            continue
+        # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
+        if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
             continue
         if cand.endswith(_WEAK_UNITS):
             weak = weak or cand
