@@ -25,7 +25,7 @@ DARK = (16, 16, 20)
 _STAT_RE = re.compile(
     r"(\d[\d,\.]*)\s?"
     r"(%p|%|퍼센트포인트|퍼센트|포인트|억원|억|만원|만|천|원|배|채|가구|세대|"
-    r"호|실|동|곳|명|건|위|조|평|제곱미터|㎡|개월|주|년|일|개)")
+    r"호|실|동|곳|명|건|위|조|평|제곱미터|㎡|개월|주|년|일|개\s?층|층|개)")
 # 연도는 수치가 아니라 날짜다. "2024년"을 화면 한복판에 210px로 띄우면
 # 숫자 임팩트가 아니라 잡음이 된다(2026-09-14 실측에서 2회 잡혔다).
 _YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
@@ -35,7 +35,7 @@ _YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
 # 면적(84㎡·30평)도 같다. 기사의 주인공이 아니라 대상 설명이다. 같은
 # 구절에 "12억"이 있으면 그쪽을 띄운다(09-25 검증: "60" 콜아웃).
 _WEAK_UNITS = ("년", "주", "개월", "일", "개", "제곱미터", "㎡", "m²", "평")
-_UP = ["오르", "상승", "폭등", "급등", "최고", "신고가", "뛰", "올라", "증가", "늘"]
+_UP = ["오르", "올랐", "상승", "폭등", "급등", "최고", "신고가", "뛰", "올라", "증가", "늘"]
 _DOWN = ["하락", "급락", "폭락", "내리", "줄", "감소", "떨어", "최저", "급감"]
 
 
@@ -63,6 +63,10 @@ def _extend(phrase: str, m: re.Match) -> str:
         mo = _MONTH_TAIL_RE.match(phrase, pos)
         return (out + mo.group(0)).strip() if mo else out.strip()
     while True:
+        # 자릿수(조·억·만·천)로 끝날 때만 잇는다. "84㎡ 12억"은 면적과 값이지
+        # 한 수가 아니다.
+        if not out.rstrip().endswith(("조", "억", "만", "천")):
+            break
         nxt = _CONT_RE.match(phrase, pos)
         if not nxt:
             break
@@ -122,6 +126,7 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
     연도는 제외하고, 강한 단위(%·억·가구·명 …)를 기간 단위보다 우선한다.
     """
     best, weak = None, None
+    best_end = weak_end = 0
     for m in _STAT_RE.finditer(phrase):
         cand = _extend(phrase, m)
         if _YEAR_RE.match(cand.replace(",", "")):
@@ -129,12 +134,17 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
         if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
             continue
+        # "660㎡ 이하에서 1,000㎡ 미만으로"는 바뀐 뒤 값이 뉴스다. 앞 값을
+        # 띄우면 옛 기준을 새 기준처럼 보여준다(09-28 제작 중 확인).
         if cand.endswith(_WEAK_UNITS):
-            weak = weak or cand
+            if weak is None or "에서" in phrase[weak_end:m.start()]:
+                weak, weak_end = cand, m.end()
             continue
         # %가 가장 날카롭다. 같은 구절에 %와 다른 단위가 같이 있으면 %를 쓴다.
-        if best is None or (cand.endswith("%") and not best.endswith("%")):
-            best = cand
+        if (best is None or (cand.endswith("%") and not best.endswith("%"))
+                or ("에서" in phrase[best_end:m.start()]
+                    and cand.endswith("%") == best.endswith("%"))):
+            best, best_end = cand, m.end()
     cand = best or weak
     if not cand:
         return None
