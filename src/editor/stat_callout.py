@@ -24,8 +24,8 @@ DARK = (16, 16, 20)
 # 빠졌다.
 _STAT_RE = re.compile(
     r"(\d[\d,\.]*)\s?"
-    r"(%p|%|퍼센트포인트|퍼센트|포인트|억원|억|만원|만|천|원|배|채|가구|세대|"
-    r"호|실|동|곳|명|건|위|조|평|제곱미터|㎡|개월|주|년|일|개\s?층|층|개)")
+    r"(%p|%|퍼센트포인트|퍼센트|포인트|억원|억|만원|만|천|원|배|채|가구|세대(?!\s*\d?\s*주택)|"
+    r"호|실|동|곳|명|건|위|조|평|제곱미터|㎡|개월|주(?!택)|년|일|개\s?층|층|개)")
 # 연도는 수치가 아니라 날짜다. "2024년"을 화면 한복판에 210px로 띄우면
 # 숫자 임팩트가 아니라 잡음이 된다(2026-09-14 실측에서 2회 잡혔다).
 _YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
@@ -53,6 +53,7 @@ _MONTH_TAIL_RE = re.compile(r"\s?\d+\s?개월")
 _MONTH_BEFORE_RE = re.compile(r"\d{1,2}\s?월\s?$")
 _FROM_RE = re.compile(r"\s*(?:이하|이상|미만|초과)?\s*에서")
 _BASIS_RE = re.compile(r"\s*(?:원|짜리)?\s*기준")
+_DAY_SPAN_RE = re.compile(r"\s?(?:만|동안|간|이내|안에|째|치)")
 
 
 def _extend(phrase: str, m: re.Match) -> str:
@@ -135,6 +136,14 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
             continue
         # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
         if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
+            continue
+        # "1세대 1주택"은 세제 용어지 가구 수가 아니다. 자막 줄이 "1세대"에서
+        # 끊겨도 띄우지 않는다.
+        if cand.replace(" ", "") == "1세대":
+            continue
+        # "29일 국무회의", "다음 달 1일부터"의 일은 날짜다. "30일 만에"처럼
+        # 기간일 때만 수치로 본다(09-29 일시적 2주택 영상 제작 중 확인).
+        if cand.endswith("일") and not _DAY_SPAN_RE.match(phrase[m.start() + len(cand):]):
             continue
         # "보증금 1000만원 기준"의 1000만은 조건이지 뉴스가 아니다. 크게 띄우면
         # 그게 월세처럼 보인다(09-29 대학가 원룸 영상).

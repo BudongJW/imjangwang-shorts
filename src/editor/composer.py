@@ -124,7 +124,7 @@ _UNIT_TOK = re.compile(
 _ENDS_NUM = re.compile(r"[\d]$")
 # "2억 2천"처럼 금액이 두 토큰으로 이어지는 경우. 앞이 단위로 끝나고
 # 뒤가 숫자로 시작하면 같은 수 하나다.
-_ENDS_UNIT = re.compile(r"(?:%|억|만원|만|천|원|년|배|채|가구|평|㎡|조|위|건|개월|명|주|일|개)$")
+_ENDS_UNIT = re.compile(r"(?:%|억|만원|만|천|원|년|배|채|가구|세대|평|㎡|조|위|건|개월|명|주|일|개)$")
 _STARTS_NUM = re.compile(r"^\d")
 
 
