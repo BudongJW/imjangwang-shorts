@@ -44,11 +44,24 @@ SPEECH_MAP = {
 }
 
 
+# 생성 모델이 기사의 "2023~2025년", "1~4월"을 "2023에서 2025년",
+# "1에서 4월"로 풀어 쓴다(09-29 재생성본). 앞 수에 단위가 없는 이 모양은
+# 우리말로도 어색해서 범위 표기로 되돌린다. "2023에서 2025년으로"처럼
+# 바뀐 값을 말하는 경우는 건드리지 않는다.
+_RANGE_YEAR_GARBLE = re.compile(r"(?<![\d.])(\d{4})에서 (\d{4})년(?!으로|도|까지)")
+_RANGE_MONTH_GARBLE = re.compile(r"(?<![\d.])(\d{1,2})에서 (\d{1,2})월(?!로|으로|까지)")
+# 읽을 때는 물결표 대신 말로 푼다.
+_RANGE_YEAR = re.compile(r"(\d{4})\s?[~∼～]\s?(\d{4})년")
+_RANGE_MONTH = re.compile(r"(?<![\d.])(\d{1,2})\s?[~∼～]\s?(\d{1,2})월")
+
+
 def normalize_caption(text: str) -> str:
     """화면 자막용 정확 표기로 교정."""
     for bad, good in CAPTION_FIXES.items():
         text = text.replace(bad, good)
     text = _CHAE.sub(r"\1채", text)
+    text = _RANGE_YEAR_GARBLE.sub(r"\1~\2년", text)
+    text = _RANGE_MONTH_GARBLE.sub(r"\1~\2월", text)
     # 다중 공백 정리
     text = re.sub(r"[ \t]{2,}", " ", text).strip()
     return text
@@ -57,6 +70,8 @@ def normalize_caption(text: str) -> str:
 def to_speech(text: str) -> str:
     """edge-tts 입력용 발음형으로 변환(약어·기호·억 단위)."""
     text = normalize_caption(text)
+    text = _RANGE_YEAR.sub(r"\1년부터 \2년까지", text)
+    text = _RANGE_MONTH.sub(r"\1월부터 \2월까지", text)
     for k, v in SPEECH_MAP.items():
         text = text.replace(k, v)
     # '20억' 같은 금액은 edge-tts가 잘 읽지만, 붙은 표기 안전화

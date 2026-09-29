@@ -762,7 +762,7 @@ _QTY_UNIT = {"%p": "pp", "%포인트": "pp", "퍼센트포인트": "pp", "%": "p
              "개월": "mon", "주": "wk", "배": "x"}
 _QTY_RE = re.compile(
     r"(\d[\d,\.]*(?:\s?(?:억|만|천)\s?\d*(?:천)?)*)\s?"
-    r"(%p|%포인트|퍼센트포인트|%|퍼센트|원|가구|세대|호(?!선)|건|명|개월|주(?!택|년|간)|배)")
+    r"(%\s?p(?![a-z])|%\s?포인트|퍼센트\s?포인트|%|퍼센트|원|가구|세대|호(?!선)|건|명|개월|주(?!택|년|간)|배)")
 _YOY_RE = re.compile(r"1년\s?(?:전|새|만에)|전년|지난해|작년")
 # 기사를 문장 단위로 자른다. 부제는 말줄임표·화살표로 이어 붙어 있는 경우가 많다.
 _SEG_SPLIT_RE = re.compile(r"(?<=다)\.\s*|[…↑↓\n]+|(?<=[.?!])\s+(?=\S)")
@@ -775,7 +775,11 @@ def _qtys(text: str) -> list[tuple[tuple, int, int, str]]:
         v = _kor_num(m.group(1))
         if v is None:
             continue
-        out.append(((round(v, 4), _QTY_UNIT[m.group(2)]), m.start(), m.end(), m.group(0)))
+        # 기사는 "0.25% 포인트"처럼 띄어 쓰기도 한다. 09-29 재생성본에서
+        # 대본의 "0.25%포인트"(pp)와 기사의 "0.25% 포인트"(pct로 읽힘)가
+        # 짝을 못 찾아, 기사 한 문장에 같이 있던 핵심 문장이 버려졌다.
+        unit = _QTY_UNIT[re.sub(r"\s", "", m.group(2))]
+        out.append(((round(v, 4), unit), m.start(), m.end(), m.group(0)))
     for m in _YOY_RE.finditer(text or ""):
         out.append((("YOY", "t"), m.start(), m.end(), m.group(0)))
     return out
@@ -853,7 +857,7 @@ _CAUSE_RE = re.compile(
 _HOST_READ_RE = re.compile(
     r"저는|제\s?눈에|봅니다|보입니다|읽힙니다|가능성|아닐까|아닌지|듯합니다|수 있습니다")
 _ATTRIB_RE = re.compile(
-    r"(지적|분석|시각|목소리|비판|전문가|업계|평가|관측)(?:이|가|은|는|도|들|에서는)")
+    r"(지적|분석|시각|목소리|비판|전문가|업계|평가|관측|우려)(?:이|가|은|는|도|들|에서는)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 CAUSE_MIN_SHARED = 2
 # 깎아내리는 평가어. 진행자 말로는 쓸 수 있지만, 남의 지적·분석으로 옮길
