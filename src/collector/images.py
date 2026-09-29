@@ -22,6 +22,7 @@ from config.settings import (
     VIDEO_DIR,
     PEXELS_API_KEY,
 )
+from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
 log = setup_logger("images")
@@ -100,10 +101,14 @@ def _gradient(idx: int) -> Image.Image:
 # 부동산 화면에 어울리지 않는 스톡 결과. 검색어가 도시·아파트여도
 # Pexels는 가끔 엉뚱한 것을 섞는다(09-29 대학가 원룸 영상에 금불상이
 # 3초 떴다). 사진은 alt, 영상은 페이지 주소 슬러그에 설명이 있다.
+# 검색을 locale=ko-KR로 해서 alt가 한국어로 온다. 영어 단어만 보던 첫
+# 버전은 같은 날 금불상 컷을 또 통과시켰다.
 _OFFTOPIC_RE = re.compile(
     r"buddha|statue|sculpture|temple|shrine|church|cathedral|mosque|religio|"
     r"monk|pray|candle|portrait|selfie|food|dish|meal|cat\b|dog\b|pet\b|"
-    r"flower|bouquet|wedding|bikini|model\b", re.I)
+    r"flower|bouquet|wedding|bikini|model\b|"
+    r"불상|부처|불교|사찰|사원|성당|교회|성전|동상|조각상|기도|승려|스님|양초|촛불|"
+    r"음식|요리|고양이|강아지|반려|꽃다발|웨딩|결혼|셀카|초상", re.I)
 
 
 def _offtopic(meta: dict) -> bool:
@@ -123,16 +128,19 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
             timeout=12,
         )
         r.raise_for_status()
-        imgs = []
+        imgs, kept = [], []
         for photo in r.json().get("photos", []):
             if _offtopic(photo):
-                log.info(f"  Pexels 사진 제외(주제 밖): {(photo.get('alt') or '')[:40]}")
+                note(f"배경 사진 제외(주제 밖): {(photo.get('alt') or '')[:40]}")
                 continue
             im = _download(photo["src"]["large2x"])
             if im:
                 imgs.append(im)
+                kept.append((photo.get("alt") or str(photo.get("id", "")))[:30])
             if len(imgs) >= n:
                 break
+        # 어떤 사진이 들어갔는지 남긴다. 엉뚱한 컷이 떴을 때 alt로 원인을 본다.
+        note(f"배경 사진({query}): " + " | ".join(kept))
         return imgs
     except Exception as e:
         log.info(f"  Pexels 실패: {e}")
@@ -251,12 +259,13 @@ def _pexels_videos(query: str, n: int) -> list[str]:
         return []
 
     links: list[str] = []
+    slugs: list[str] = []
     for vid in r.json().get("videos", []):
         # 너무 짧으면 컷 하나도 못 채우고, 너무 길면 내려받는 시간이 아깝다.
         if not (3 <= (vid.get("duration") or 0) <= 60):
             continue
         if _offtopic(vid):
-            log.info(f"  Pexels 영상 제외(주제 밖): {(vid.get('url') or '')[-50:]}")
+            note(f"b-roll 제외(주제 밖): {(vid.get('url') or '')[-50:]}")
             continue
         best, best_h = None, 0
         for f in vid.get("video_files", []):
@@ -269,8 +278,10 @@ def _pexels_videos(query: str, n: int) -> list[str]:
                 best, best_h = f.get("link"), h
         if best:
             links.append(best)
+            slugs.append((vid.get("url") or "").rstrip("/").rsplit("/", 1)[-1][:40])
         if len(links) >= n:
             break
+    note(f"b-roll({query}): " + " | ".join(slugs))
     return links
 
 
