@@ -602,6 +602,7 @@ def _fix_quoted_names(text: str, source_text: str) -> tuple[str, list[str]]:
 # 그래서 퍼센트 옆에 붙은 규모를 본다. 대본이 어떤 퍼센트 옆에 규모를
 # 적었다면, 기사에서 같은 퍼센트 옆에도 그 규모가 있어야 한다.
 _PCT_RE = re.compile(r"\d+(?:\.\d+)?\s?%")
+_SRC_PCT_RE = re.compile(r"(?<![\d.,])(\d[\d,]*(?:\.\d+)?)\s?%")
 _MAG_RE = re.compile(r"\d[\d,\.]*\s?(?:억|만|천)\s?\d*(?:천)?")
 _KOR_UNIT = {"억": 100_000_000, "만": 10_000, "천": 1_000}
 
@@ -696,7 +697,12 @@ def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     for m in _PCT_RE.finditer(script or ""):
         raw = m.group(0)
         pct = raw.replace(" ", "")
-        hits = list(re.finditer(re.escape(pct[:-1]) + r"\s?%", src))
+        # 같은 값인지로 찾는다. 글자로 찾으면 기사의 "8.0%"를 대본의 "8%"가
+        # 못 찾고(09-29 초안이 멀쩡한 두 문장을 잃고 35초가 됐다), 반대로
+        # "18%" 안의 "8%"는 찾은 것으로 친다.
+        want = float(pct[:-1])
+        hits = [h for h in _SRC_PCT_RE.finditer(src)
+                if abs(float(h.group(1).replace(",", "")) - want) < 1e-9]
         if not hits:
             out.append((raw, f"{pct}는 기사에 없는 수치다"))
             continue
