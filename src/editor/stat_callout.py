@@ -52,6 +52,7 @@ _TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개
 _MONTH_TAIL_RE = re.compile(r"\s?\d+\s?개월")
 _MONTH_BEFORE_RE = re.compile(r"\d{1,2}\s?월\s?$")
 _FROM_RE = re.compile(r"\s*(?:이하|이상|미만|초과)?\s*에서")
+_BASIS_RE = re.compile(r"\s*(?:원|짜리)?\s*기준")
 
 
 def _extend(phrase: str, m: re.Match) -> str:
@@ -134,6 +135,10 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
             continue
         # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
         if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
+            continue
+        # "보증금 1000만원 기준"의 1000만은 조건이지 뉴스가 아니다. 크게 띄우면
+        # 그게 월세처럼 보인다(09-29 대학가 원룸 영상).
+        if _BASIS_RE.match(phrase[m.start() + len(cand):]):
             continue
         # "660㎡ 이하에서 1,000㎡ 미만으로"는 바뀐 뒤 값이 뉴스다. 앞 값을
         # 띄우면 옛 기준을 새 기준처럼 보여준다(09-28 제작 중 확인).
