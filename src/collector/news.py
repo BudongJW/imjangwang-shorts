@@ -520,6 +520,20 @@ def _is_opinion(art) -> bool:
                 or _OPINION_BODY_RE.search(getattr(art, "summary", "") or ""))
 
 
+# 분양 홍보 기사도 쓰지 않는다. 앞은 뉴스처럼 시작하지만 뒤는 건설사 단지
+# 소개가 줄줄이 붙는다. 2026-09-30 초안(매일경제 '대학 몰린 곳, 집값도
+# 올랐다')이 이런 기사였고, 대본은 "천안 아이파크 시티도 풍부한 수요를
+# 기대할 수 있습니다"로 끝나 특정 분양 단지를 광고했다. 단지 소개 문장이
+# 두 번 이상이면 홍보 기사로 본다.
+_PROMO_RE = re.compile(
+    r"분양\s?(?:중이다|하고\s?있다|할\s?예정이다|에\s?나선다|을\s?앞두고\s?있다)")
+PROMO_MIN_HITS = 2
+
+
+def _is_promo(art) -> bool:
+    return len(_PROMO_RE.findall(getattr(art, "summary", "") or "")) >= PROMO_MIN_HITS
+
+
 def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Article | None:
     """관련성 높은 순으로 원문 해소하여 본문 확보된 첫 기사를 반환한다.
 
@@ -539,6 +553,11 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
         _resolve_and_enrich(art, session)
         if _is_opinion(art):
             log.info(f"칼럼·기고라 건너뜀: {art.title[:40]} ({art.source})")
+            time.sleep(0.5)
+            continue
+        if _is_promo(art):
+            log.info(f"분양 홍보 기사라 건너뜀: {art.title[:40]} ({art.source})")
+            note(f"분양 홍보 기사라 건너뜀: {art.title[:40]}")
             time.sleep(0.5)
             continue
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
