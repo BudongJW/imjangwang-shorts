@@ -905,6 +905,23 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 폭로형 단정. 진행자 말이라도 기사에 그런 판정이 없으면 쓰지 않는다.
+# 09-30 재생성본: 유튜브에 출연한 전문가 한 사람의 의견을 두고 "정부가
+# 집값 안정이라던 평탄화의 실체가 드러났습니다"로 열었다. 정부는 '지역 간
+# 평탄화'라고만 했고 '집값 안정'이라는 말은 없었다.
+_HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|충격적인\s?실태|대참사|거짓말이\s?드러")
+
+
+def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or ""):
+        m = _HYPE_RE.search(sent)
+        if m and re.sub(r"\s", "", m.group(0)) not in re.sub(r"\s", "", src):
+            out.append((sent.strip()[:40], f"기사에 없는 폭로형 단정 '{m.group(0)}'"))
+    return out
+
+
 # 앞 문장을 받는 말로 시작하는 문장. 앞 문장을 버리면 이 문장은 가리킬
 # 것이 없어진다. 09-26 재생성본: 서초구 4.53% 문장을 버리자 바로 뒤의
 # "이는 전국 평균 3.64%를 웃도는 수치입니다"만 남았다.
@@ -992,7 +1009,7 @@ def generate(art) -> ShortPlan:
             p = _pct_problems(text, hay)
             a = _unsourced_actors(text, hay)
             pr = _pair_problems(text, hay)
-            c = _causal_problems(text, hay)
+            c = _causal_problems(text, hay) + _hype_problems(text, hay)
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
                     + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]
