@@ -43,7 +43,7 @@ _DOWN = ["하락", "급락", "폭락", "내리", "줄", "감소", "떨어", "최
 # "2만"이 화면에 뜨는데, 실제 값은 2만 3천이라 숫자를 틀리게 보여주는 셈이다
 # (2026-09-14 검증 프레임 16초 지점).
 _CONT_RE = re.compile(
-    r"\s?(\d[\d,\.]*\s?(?:%|억원|억|만원|만|천|원|가구|세대|호|명|건|채|평|㎡))")
+    r"\s?(\d[\d,\.]*\s?(?:%|억원|억|천만원|천만|만원|만|천|원|가구|세대|호|명|건|채|평|㎡))")
 
 
 _TAIL_UNIT_RE = re.compile(r"\s?(?:가구|세대|명|건|채|호|원|평|㎡|개)")
@@ -167,7 +167,8 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
     # 옛 값만 크게 띄우면 그게 새 기준처럼 보인다.
     if _FROM_RE.match(phrase[best_end if best else weak_end:]):
         return None
-    big = fix_glyphs(cand.replace("퍼센트", "%").replace("만원", "만").replace("제곱미터", "㎡"))
+    big = cand.replace("퍼센트", "%").replace("제곱미터", "㎡")
+    big = fix_glyphs(re.sub(r"만\s?원$", "만", big))
     direction = "flat"
     if any(k in phrase for k in _UP):
         direction = "up"
