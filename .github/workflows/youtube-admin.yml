@@ -68,6 +68,7 @@ jobs:
           print("title<<EOF"); print(d.get("title", "")); print("EOF")
           print("description<<EOF"); print(d.get("description", "")); print("EOF")
           print(f"dry_run={'0' if d.get('dry_run') is False else '1'}")
+          print(f"publish_at={d.get('publish_at','')}")
           PY
           fi
 
@@ -82,6 +83,7 @@ jobs:
           TITLE: ${{ steps.req.outputs.title }}
           DESCRIPTION: ${{ steps.req.outputs.description }}
           DRY_RUN: ${{ steps.req.outputs.dry_run }}
+          PUBLISH_AT: ${{ steps.req.outputs.publish_at }}
         run: python scripts/youtube_admin.py
 
       - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)

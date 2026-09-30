@@ -175,6 +175,53 @@ def approve(video_id: str) -> int:
     return 0
 
 
+def schedule(video_id: str, when: str) -> int:
+    """비공개 영상을 지정 시각(KST)에 공개되도록 예약한다.
+
+    when은 "HH:MM"(오늘) 또는 "YYYY-MM-DD HH:MM". 검토를 마친 초안을
+    바로 공개하지 않고 시간을 띄워 내보낼 때 쓴다(같은 날 영상이 몰리면
+    서로 배포를 나눠 먹는다).
+    """
+    from datetime import datetime, timedelta, timezone
+    kst = timezone(timedelta(hours=9))
+    now = datetime.now(kst)
+    try:
+        if len(when.strip()) <= 5:
+            hh, mm = (int(x) for x in when.strip().split(":"))
+            target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        else:
+            target = datetime.strptime(when.strip(), "%Y-%m-%d %H:%M").replace(tzinfo=kst)
+    except ValueError:
+        _summary(f"## 공개 시각 형식 오류: `{when}` (HH:MM 또는 YYYY-MM-DD HH:MM)")
+        return 1
+    if target - now < timedelta(minutes=15):
+        _summary(f"## 공개 시각이 너무 가깝거나 지났습니다: {target:%Y-%m-%d %H:%M} KST")
+        return 1
+    yt = get_youtube_service()
+    res = yt.videos().list(part="status,snippet", id=video_id).execute()
+    items = res.get("items", [])
+    if not items:
+        _summary(f"## 영상을 찾을 수 없습니다: `{video_id}`")
+        return 1
+    st = items[0]["status"]
+    title = items[0]["snippet"].get("title", "")
+    if st.get("privacyStatus") == "public":
+        _summary(f"## 이미 공개 상태라 예약할 수 없습니다: `{video_id}` {title}")
+        return 1
+    st["privacyStatus"] = "private"
+    st["publishAt"] = target.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        yt.videos().update(part="status", body={"id": video_id, "status": st}).execute()
+    except HttpError as e:
+        status = getattr(e.resp, "status", "?")
+        _summary(f"## 예약 실패 (status={status})\n```\n"
+                 f"{(e.content or b'').decode('utf-8', 'replace')[:300]}\n```")
+        return 1
+    _summary(f"## 예약 완료: {target:%Y-%m-%d %H:%M} KST — {title}")
+    _summary(f"- https://youtube.com/shorts/{video_id}")
+    return 0
+
+
 def unschedule(video_id: str) -> int:
     """예약 공개를 취소하고 비공개로 둔다. 영상은 지우지 않는다.
 
@@ -392,6 +439,8 @@ if __name__ == "__main__":
         raise SystemExit(approve(vid))
     if action == "unschedule":
         raise SystemExit(unschedule(vid))
+    if action == "schedule":
+        raise SystemExit(schedule(vid, os.getenv("PUBLISH_AT", "")))
     if action == "edit":
         raise SystemExit(edit(vid, os.getenv("TITLE", "").strip(),
                              os.getenv("DESCRIPTION", "")))
@@ -403,5 +452,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | unschedule | delete_below)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | schedule | unschedule | delete_below)")
     raise SystemExit(1)
