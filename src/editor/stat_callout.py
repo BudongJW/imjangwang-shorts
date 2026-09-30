@@ -114,13 +114,20 @@ _KEY_TERMS = (
 )
 
 
+# 다른 낱말 속에 든 핵심어. "전세금으로"의 '세금'을 띄워 전세금 얘기가
+# 세금 얘기처럼 보였다(10-01 청년 전세대출 영상 55초 지점).
+_NOT_AFTER = {"세금": ("전", "월")}
+
+
 def pick_keyword(phrase: str) -> str | None:
     """구절에 실제로 나온 핵심어 1개. 없으면 None.
 
     긴 것부터 찾는다 — "공급 부족"이 있는데 "공급"만 띄우면 뜻이 달라진다.
     """
     for term in sorted(_KEY_TERMS, key=len, reverse=True):
-        if term in phrase:
+        for m in re.finditer(re.escape(term), phrase):
+            if phrase[:m.start()].endswith(_NOT_AFTER.get(term, ())):
+                continue
             return term
     return None
 
