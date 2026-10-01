@@ -854,6 +854,8 @@ _POLICY_RE = re.compile(
 _CAUSE_RE = re.compile(
     r"낳|부른|불러|초래|촉발|부추|밀어\s?올|끌어\s?올|밀어낸|내몰|역설|역효과|역풍|"
     r"부작용|탓|때문|결과입니다|여파")
+# 인과 낱말 없이 원인을 대는 꼴("~하면서 … 현상을 보여줍니다", "~의 영향").
+_EXPLAIN_RE = re.compile(r"억제|하면서|보여\s?줍|영향|원인|배경|덕분|결과")
 _HOST_READ_RE = re.compile(
     r"저는|제\s?눈에|봅니다|보입니다|읽힙니다|가능성|아닐까|아닌지|듯합니다|수 있습니다")
 _ATTRIB_RE = re.compile(
@@ -871,6 +873,7 @@ _LOADED_RE = re.compile(
 def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     """(문장 삭제용 바늘, 사유). 기사에 없는 정책 인과 단정과 없는 지적을 잡는다."""
     src = source_text or ""
+    flat_src = re.sub(r"\s", "", src)
     segs = [x for x in _SEG_SPLIT_RE.split(src) if x.strip()]
     windows = [" ".join(segs[i:i + 2]) for i in range(len(segs))]
     out: list[tuple[str, str]] = []
@@ -891,17 +894,18 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             continue
         # 진행자 본인의 읽기만 인과 검사를 면한다. 남의 말로 옮긴 인과는
         # 기사에 그 말이 있더라도 내용까지 기사에 있어야 한다.
+        # 기사에 아예 없는 정책을 원인으로 대는 문장. 해석("읽힙니다")이든
+        # 단정이든 같다. 10-01 초안: 기사는 "신규 공급이 줄어든 영향"이라고만
+        # 했는데 "공급 억제 정책과 인허가 지연이 부른 결과로 읽힙니다"가
+        # '읽힙니다' 덕에 통과했고, 고친 뒤 재생성본은 "부동산 정책이 공급을
+        # 억제하면서 … 현상을 보여줍니다"로 인과 낱말만 피해 갔다.
+        if _CAUSE_RE.search(sent) or _EXPLAIN_RE.search(sent):
+            miss = [m.group(0) for m in _POLICY_RE.finditer(sent)
+                    if re.sub(r"\s", "", m.group(0)) not in flat_src]
+            if miss:
+                out.append((needle, f"기사에 없는 정책을 원인으로 댔다: '{miss[0]}'"))
+                continue
         if not am and _HOST_READ_RE.search(sent):
-            # 해석은 진행자 몫이지만, 기사에 없는 원인을 이름 붙이는 건 해석이
-            # 아니다. 10-01 초안: 기사는 "신규 공급이 줄어든 영향"이라고만
-            # 했는데 "공급 억제 정책과 인허가 지연이 부른 결과로 읽힙니다"가
-            # '읽힙니다' 덕에 통과했다.
-            if _CAUSE_RE.search(sent):
-                flat = re.sub(r"\s", "", src)
-                miss = [m.group(0) for m in _POLICY_RE.finditer(sent)
-                        if re.sub(r"\s", "", m.group(0)) not in flat]
-                if miss:
-                    out.append((needle, f"해석에 기사에 없는 원인을 붙였다: '{miss[0]}'"))
             continue
         pm, cm = _POLICY_RE.search(sent), _CAUSE_RE.search(sent)
         if not (pm and cm):
