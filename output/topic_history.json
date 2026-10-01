@@ -844,5 +844,17 @@
     "source": "뉴스1",
     "topic_score": 0,
     "recency_score": 0
+  },
+  {
+    "title": "서울 집값 3분의 1 분양가·후분양 펜트하우스…경기 서북부 단지 소개 [집코노미 박람회 2026]",
+    "video_id": "KzQ440aKi9s",
+    "date": "2026-10-01T21:37:27.802083",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 374,
+    "source": "한국경제",
+    "age_days": 0.668255992650463,
+    "topic_score": 8,
+    "recency_score": 4
   }
 ]
