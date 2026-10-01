@@ -515,7 +515,7 @@ def _soften_verdict(line: str, source: str) -> str | None:
         m = rx.search(line)
         if m and re.sub(r"\s+", "", m.group(0))[:2] not in src:
             return (line[:m.start()] + q).strip()
-    m = _VERDICT_DROP_RE.search(line)
+    m = _VERDICT_DROP_RE.search(line) or _HYPE_RE.search(line)
     if m and re.sub(r"\s+", "", m.group(0)) not in src:
         return None
     return line
@@ -892,6 +892,16 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         # 진행자 본인의 읽기만 인과 검사를 면한다. 남의 말로 옮긴 인과는
         # 기사에 그 말이 있더라도 내용까지 기사에 있어야 한다.
         if not am and _HOST_READ_RE.search(sent):
+            # 해석은 진행자 몫이지만, 기사에 없는 원인을 이름 붙이는 건 해석이
+            # 아니다. 10-01 초안: 기사는 "신규 공급이 줄어든 영향"이라고만
+            # 했는데 "공급 억제 정책과 인허가 지연이 부른 결과로 읽힙니다"가
+            # '읽힙니다' 덕에 통과했다.
+            if _CAUSE_RE.search(sent):
+                flat = re.sub(r"\s", "", src)
+                miss = [m.group(0) for m in _POLICY_RE.finditer(sent)
+                        if re.sub(r"\s", "", m.group(0)) not in flat]
+                if miss:
+                    out.append((needle, f"해석에 기사에 없는 원인을 붙였다: '{miss[0]}'"))
             continue
         pm, cm = _POLICY_RE.search(sent), _CAUSE_RE.search(sent)
         if not (pm and cm):
@@ -909,7 +919,9 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # 09-30 재생성본: 유튜브에 출연한 전문가 한 사람의 의견을 두고 "정부가
 # 집값 안정이라던 평탄화의 실체가 드러났습니다"로 열었다. 정부는 '지역 간
 # 평탄화'라고만 했고 '집값 안정'이라는 말은 없었다.
-_HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|충격적인\s?실태|대참사|거짓말이\s?드러")
+# 10-01 초안: 미분양이 절반으로 줄었다는 기사에 배너를 "대구 미분양 절반의
+# 착시"로 달았다. 기사는 감소를 착시라고 하지 않았다.
+_HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|충격적인\s?실태|대참사|거짓말이\s?드러|착시")
 
 
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -1068,7 +1080,9 @@ def generate(art) -> ShortPlan:
         soft = [_soften_verdict(h, f"{getattr(art, 'title', '')} {body}") for h in headline]
         if soft != headline:
             note(f"배너: 기사에 없는 단정 → 물음으로 ({' / '.join(headline)[:40]})")
-        headline = [h for h in soft if h]
+        # 두 줄 배너는 한 문장이다. 한 줄만 빠지면 남은 줄이 엉뚱한 말이 된다
+        # ("공급 부족 역설"만 남는 식). 그럴 땐 기사 제목으로 되돌린다.
+        headline = [h for h in soft if h] if all(soft) else []
     if not headline:
         headline = _split_headline(getattr(art, "title", "부동산 뉴스"))
     if has_body and data.get("youtube_title"):
