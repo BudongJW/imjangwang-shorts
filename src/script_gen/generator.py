@@ -14,6 +14,7 @@ import itertools
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 
 from config.settings import (
     GEMINI_API_KEYS, GEMINI_MODEL, GEMINI_FALLBACK_MODELS, DEFAULT_HASHTAGS, FIXED_CTA,
@@ -311,7 +312,7 @@ def _fallback_plan(art) -> ShortPlan:
     # 문장 끝은 '다/요 + 마침표'로만 본다. 마침표 하나로 자르면 소수점에서
     # 끊긴다 — "34.2%"가 "34." + "2%..."로 갈려 나레이션에 "2%(484만8000원)
     # 각각 증가한 것이다"가 실렸다. 뒤에 숫자가 오는 마침표는 문장 끝이 아니다.
-    parts = re.split(r"(?<=[다요])[.!?]+(?!\d)", body)
+    parts = re.split(r"(?<=[다요죠])[.!?]+(?!\d)", body)
     sents = []
     for part in parts:
         part = part.strip()
@@ -629,7 +630,7 @@ def _kor_num(tok: str) -> float | None:
     return total if seen else None
 
 
-_SENT_END_RE = re.compile(r"(?<=[다요])[.!?]+(?!\d)")
+_SENT_END_RE = re.compile(r"(?<=[다요죠])[.!?]+(?!\d)")
 # 앞 문장의 규모를 받는 말. "94만 가구를 공급합니다. 이 중 79.5%가 …"
 _TAKE_PREV_RE = re.compile(r"\s*(?:이 중|이중|이 가운데|그중|그 중|이 가구|이 물량)")
 
@@ -809,7 +810,7 @@ def _pair_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         return False
 
     out: list[tuple[str, str]] = []
-    for sent in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or ""):
+    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
         sent = sent.strip()
         toks: dict = {}
         for key, _, _, raw in _qtys(sent):
@@ -877,7 +878,7 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     segs = [x for x in _SEG_SPLIT_RE.split(src) if x.strip()]
     windows = [" ".join(segs[i:i + 2]) for i in range(len(segs))]
     out: list[tuple[str, str]] = []
-    for sent in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or ""):
+    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
         sent = sent.strip()
         if not sent:
             continue
@@ -925,13 +926,39 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # 평탄화'라고만 했고 '집값 안정'이라는 말은 없었다.
 # 10-01 초안: 미분양이 절반으로 줄었다는 기사에 배너를 "대구 미분양 절반의
 # 착시"로 달았다. 기사는 감소를 착시라고 하지 않았다.
-_HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|충격적인\s?실태|대참사|거짓말이\s?드러|착시")
+# 같은 날 재생성본: "이 감소는 시장 회복 신호가 아닙니다", "공급이 씨가
+# 말랐기 때문". 기사는 감소를 평가하지 않았고 "신규 공급이 줄어든 영향"이라고만 했다.
+_HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|충격적인\s?실태|대참사|거짓말이\s?드러|착시|"
+                      r"신호가\s?아닙|씨가\s?말랐|참사")
+
+
+# 기사에 없는 연도. 10-01 재생성본: 기사의 "2024년 말 8807가구"를 "2022년 말
+# 8807가구"로 옮겼다. 숫자는 맞아서 다른 검사를 다 통과했다. 기사가 '올해'·
+# '지난해'로 쓴 해는 그 연도로 써도 된다.
+_YEAR_IN_SCRIPT_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})\s?년")
+
+
+def _year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    ok = set(re.findall(r"(?<!\d)((?:19|20)\d{2})(?!\d)", src))
+    now = datetime.now(timezone(timedelta(hours=9))).year
+    if "올해" in src or "올 " in src:
+        ok.add(str(now))
+    if re.search(r"지난해|작년", src):
+        ok.add(str(now - 1))
+    out = []
+    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
+        for m in _YEAR_IN_SCRIPT_RE.finditer(sent):
+            if m.group(1) not in ok:
+                out.append((sent.strip()[:40], f"기사에 없는 연도 '{m.group(1)}년'"))
+                break
+    return out
 
 
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     src = source_text or ""
     out = []
-    for sent in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or ""):
+    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
         m = _HYPE_RE.search(sent)
         if m and re.sub(r"\s", "", m.group(0)) not in re.sub(r"\s", "", src):
             out.append((sent.strip()[:40], f"기사에 없는 폭로형 단정 '{m.group(0)}'"))
@@ -953,7 +980,7 @@ def _drop_sentences_with(script: str, quotes: list[str]) -> str:
     """
     if not quotes:
         return script
-    parts = [p.strip() for p in re.split(r"(?<=[다요])[.!?]+(?!\d)", script or "")]
+    parts = [p.strip() for p in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or "")]
     parts = [p for p in parts if p]
     keep, dropped_prev = [], False
     for p in parts:
@@ -1025,7 +1052,8 @@ def generate(art) -> ShortPlan:
             p = _pct_problems(text, hay)
             a = _unsourced_actors(text, hay)
             pr = _pair_problems(text, hay)
-            c = _causal_problems(text, hay) + _hype_problems(text, hay)
+            c = (_causal_problems(text, hay) + _hype_problems(text, hay)
+                 + _year_problems(text, hay))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
                     + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]
