@@ -526,11 +526,20 @@ def _is_opinion(art) -> bool:
 # 기대할 수 있습니다"로 끝나 특정 분양 단지를 광고했다. 단지 소개 문장이
 # 두 번 이상이면 홍보 기사로 본다.
 _PROMO_RE = re.compile(
-    r"분양\s?(?:중이다|하고\s?있다|할\s?예정이다|에\s?나선다|을\s?앞두고\s?있다)")
+    r"분양\s?(?:중이다|하고\s?있다|할\s?예정이다|에\s?나선다|을\s?앞두고\s?있다)"
+    # 10-02 초안: 박람회 부스 단지 소개 기사(한국경제 [집코노미 박람회 2026])가
+    # 위 문구 없이 통과해, 영상이 단지 두 곳을 광고하듯 소개했다. 단지 소개
+    # 기사의 공통 문구를 더한다. 하나씩은 일반 기사에도 나오므로 두 개 이상일 때만.
+    r"|분양\s?관계자는|시행사\s?관계자는|관람객을\s?맞|[을를]\s?선보였다"
+    r"|지하\s?\d+층\s?~\s?지상\s?(?:최고\s?)?\d+층")
 PROMO_MIN_HITS = 2
+# 제목 꼬리표만으로 행사·홍보 기사인 것. 본문 문구와 상관없이 뺀다.
+_PROMO_TITLE_RE = re.compile(r"박람회|분양\s?(?:현장|포커스|리포트|캘린더)|견본주택\s?(?:개관|오픈)")
 
 
 def _is_promo(art) -> bool:
+    if _PROMO_TITLE_RE.search(getattr(art, "title", "") or ""):
+        return True
     return len(_PROMO_RE.findall(getattr(art, "summary", "") or "")) >= PROMO_MIN_HITS
 
 
