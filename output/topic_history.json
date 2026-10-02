@@ -856,5 +856,28 @@
     "age_days": 0.668255992650463,
     "topic_score": 8,
     "recency_score": 4
+  },
+  {
+    "title": "이성훈 LH 사장 \"집값 안정 위해 대출규제 필요…주택공급은 시차 있어\"",
+    "video_id": "FRwmrzzHkyc",
+    "date": "2026-10-02T02:06:45.002721",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 256,
+    "source": "아시아경제",
+    "age_days": 0.9610886259375,
+    "topic_score": 12,
+    "recency_score": 4,
+    "media": [
+      "p5412338",
+      "p7111558",
+      "p7680740",
+      "p8961151",
+      "p32141074",
+      "v7347611",
+      "v7646756",
+      "v7646611"
+    ],
+    "layout": "2026-10-02"
   }
 ]
