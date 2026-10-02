@@ -541,6 +541,16 @@ PROMO_MIN_HITS = 2
 _PROMO_TITLE_RE = re.compile(r"박람회|분양\s?(?:현장|포커스|리포트|캘린더)|견본주택\s?(?:개관|오픈)")
 
 
+# 언론사가 기계로 찍어 내는 실거래 목록 기사. 본문이 그날 등록 건 나열과
+# 옛 기사 링크 요약이라, 대본이 몇 달 전 기사의 내용을 지금 일처럼 옮긴다.
+# 10-02 재생성본(매일경제 [MAI부동산] 신현대9차 75억)이 그랬다.
+_AUTOGEN_TITLE_RE = re.compile(r"\[\s*MAI\s?부동산\s*\]|\[\s*AI\s?(?:기자|리포트|부동산)\s*\]")
+
+
+def _is_autogen(art) -> bool:
+    return bool(_AUTOGEN_TITLE_RE.search(getattr(art, "title", "") or ""))
+
+
 def _is_promo(art) -> bool:
     if _PROMO_TITLE_RE.search(getattr(art, "title", "") or ""):
         return True
@@ -566,6 +576,11 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
         _resolve_and_enrich(art, session)
         if _is_opinion(art):
             log.info(f"칼럼·기고라 건너뜀: {art.title[:40]} ({art.source})")
+            time.sleep(0.5)
+            continue
+        if _is_autogen(art):
+            log.info(f"자동 생성 기사라 건너뜀: {art.title[:40]} ({art.source})")
+            note(f"자동 생성 기사라 건너뜀: {art.title[:40]}")
             time.sleep(0.5)
             continue
         if _is_promo(art):
