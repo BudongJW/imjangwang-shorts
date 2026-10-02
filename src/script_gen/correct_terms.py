@@ -59,10 +59,27 @@ _RANGE_YEAR = re.compile(r"(\d{4})\s?[~∼～]\s?(\d{4})년")
 _RANGE_MONTH = re.compile(r"(?<![\d.])(\d{1,2})\s?[~∼～]\s?(\d{1,2})월")
 
 
+# 숫자를 자릿수 글자와 섞어 쓴 것("4천6백6십8가구"). 10-02 초안 자막에 그대로
+# 나갔다. 백·십이 들어간 것만 아라비아 숫자로 되돌린다. "4천만 원", "2만 4000"
+# 같은 금액 표기는 원래 쓰는 꼴이라 건드리지 않는다(뒤에 만·억이 오면 제외).
+_MIXED_NUM_RE = re.compile(
+    r"(?<![\d.])(?:(\d)천\s?)?(?:(\d)백\s?)?(?:(\d)십\s?)?(\d)?(?![\d만억천백십])")
+
+
+def _mixed_num(m: re.Match) -> str:
+    th, hu, te, one = m.groups()
+    if not (hu or te):
+        return m.group(0)
+    n = int(th or 0) * 1000 + int(hu or 0) * 100 + int(te or 0) * 10 + int(one or 0)
+    tail = m.group(0)[len(m.group(0).rstrip()):]
+    return f"{n}{tail}"
+
+
 def normalize_caption(text: str) -> str:
     """화면 자막용 정확 표기로 교정."""
     for bad, good in CAPTION_FIXES.items():
         text = text.replace(bad, good)
+    text = _MIXED_NUM_RE.sub(_mixed_num, text)
     text = _CHAE.sub(r"\1채", text)
     text = _RANGE_YEAR_GARBLE.sub(r"\1~\2년", text)
     text = _RANGE_MONTH_GARBLE.sub(r"\1~\2월", text)
