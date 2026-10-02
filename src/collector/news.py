@@ -26,7 +26,7 @@ from config.settings import (
     NEWS_MAX_CANDIDATES,
     NEWS_BLOCK_DOMAINS,
 )
-from src.collector.history import is_duplicate, load_history
+from src.collector.history import is_duplicate, is_recent_same_story, load_history
 from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
@@ -449,6 +449,8 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
             seen_titles.add(key)
             if is_duplicate(art.title, history=history) or _blocked(art.google_url):
                 continue
+            if is_recent_same_story(art.title, history=history):
+                continue
             if not is_real_estate(art.title):
                 dropped += 1
                 continue
@@ -462,6 +464,8 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
             if _blocked(art.google_url):
                 continue
             if is_duplicate(art.title, history=history):
+                continue
+            if is_recent_same_story(art.title, history=history):
                 continue
             seen_titles.add(key)
             if not is_real_estate(art.title):
