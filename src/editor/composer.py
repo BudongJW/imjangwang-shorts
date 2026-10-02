@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 import random
 import re
@@ -332,10 +333,115 @@ SEC_PER_CALLOUT = 8.0
 MIN_CALLOUT_N = 4
 
 
+# 첫 화면 숫자 카드. 쇼츠는 첫 1~2초에 넘길지가 정해진다(2026-10-01 레퍼런스
+# 조사). 지금까지 첫 화면은 스톡 사진과 배너뿐이고, 숫자는 그 숫자를 읽는
+# 순간에야 떴다. 앞 두 문장에서 가장 센 숫자를 0초부터 띄운다.
+HOOK_MAX_SEC = 2.6
+HOOK_SENTENCES = 2
+
+
+def _plan_hook_overlay(caption_script: str, total_sec: float,
+                       blocked: tuple[float, float] | None = None
+                       ) -> tuple[Path, float, float, str] | None:
+    """(경로, 0, 끝, 띄운 값). 앞 문장들에 숫자가 없으면 None."""
+    from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
+    sents = [x.strip() for x in re.split(r"(?<=[다요죠?])[.!?]*\s+", caption_script or "")
+             if x.strip()][:HOOK_SENTENCES]
+    from src.editor.compare_card import _values
+    from src.editor.stat_callout import _UP, _DOWN
+    best = None
+    for sent in sents:
+        # 바뀐 폭을 말하는 값을 먼저 쓴다("4424가구 감소", "1억 1000만 원 올랐").
+        # pick_stat은 "A에서 B로"의 B를 고르는데, 첫 화면에 B만 뜨면 그게
+        # 줄어든 양인지 남은 양인지 알 수 없다.
+        for a, b, v in _values(sent):
+            tail = sent[b:b + 8]
+            up = any(k in tail for k in _UP)
+            down = any(k in tail for k in _DOWN)
+            if (up or down) and not is_weak(v):
+                best = (re.sub(r"\s*원$", "", v).replace("만 원", "만"), "up" if up else "down")
+                break
+        if best:
+            break
+        # 문장 통째로 넣으면 pick_stat이 '센' 값을 고른다(% > 금액 > 기간).
+        st = pick_stat(sent)
+        if st and not is_weak(st[0]):
+            best = st
+            break
+        best = best or st
+    if not best:
+        return None
+    end = min(HOOK_MAX_SEC, total_sec)
+    if blocked and blocked[0] > 0:
+        end = min(end, blocked[0] - 0.1)
+    if end < MIN_CALLOUT_SEC:
+        return None
+    path = VIDEO_DIR / "hook.png"
+    render_stat_card(best[0], best[1], path)
+    note(f"첫 화면 숫자 카드: {best[0]} (0~{end:.1f}s)")
+    return path, 0.0, end, best[0]
+
+
+# 전후 비교 막대 카드. 문장 하나가 읽히는 동안 띄운다.
+COMPARE_MIN_SEC = 2.5
+COMPARE_MAX_SEC = 4.5
+COMPARE_MAX_N = 2
+
+
+def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: float,
+                           blocked: tuple[float, float] | None = None,
+                           cues: list[tuple[str, float, float]] | None = None
+                           ) -> list[tuple[Path, float, float]]:
+    """대본의 'A에서 B로'를 막대 비교 카드로 띄울 (경로, 시작, 끝) 계획.
+
+    첫 값을 읽기 시작할 때 띄워 두 번째 값을 다 읽고 1초 뒤까지 둔다.
+    값과 시점 이름은 대본 그대로다(compare_card 참고).
+    """
+    from src.editor.compare_card import find_pairs, render_compare_card
+    norm = re.sub(r"\s+", " ", caption_script or "").strip()
+    pairs = find_pairs(norm)
+    if not pairs:
+        return []
+    spans, pos = [], 0
+    for ph, s, e in _phrase_timings(caption_script, total_sec, cues):
+        i = norm.find(ph, pos)
+        if i < 0:
+            i = pos
+        spans.append((i, i + len(ph), s, e))
+        pos = i + len(ph)
+
+    def _at(char_pos: int) -> tuple[float, float]:
+        for a, b, s, e in spans:
+            if a <= char_pos < b:
+                return s, e
+        return spans[-1][2], spans[-1][3]
+
+    out: list[tuple[Path, float, float]] = []
+    for p in pairs:
+        if len(out) >= COMPARE_MAX_N:
+            break
+        s0, _ = _at(p.start_pos)
+        _, e1 = _at(max(0, p.end_pos - 1))
+        cs = max(s0, title_dur)
+        ce = min(total_sec, max(cs + COMPARE_MIN_SEC, min(e1 + 1.0, cs + COMPARE_MAX_SEC)))
+        cs, ce = _clip_blocked(cs, ce, blocked)
+        if ce - cs < COMPARE_MIN_SEC - 0.5:
+            continue
+        if out and cs < out[-1][2] + 0.5:
+            continue
+        path = VIDEO_DIR / f"compare_{len(out)}.png"
+        render_compare_card(p, path)
+        out.append((path, cs, ce))
+        note(f"비교 카드 {cs:5.1f}~{ce:5.1f}s  {p.label1} {p.v1} / {p.label2} {p.v2}")
+    return out
+
+
 def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
                         max_n: int | None = None,
                         blocked: tuple[float, float] | None = None,
-                        cues: list[tuple[str, float, float]] | None = None
+                        cues: list[tuple[str, float, float]] | None = None,
+                        avoid: list[tuple[float, float]] | None = None,
+                        skip_values: set[str] | None = None
                         ) -> list[tuple[Path, float, float]]:
     """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성.
 
@@ -368,7 +474,12 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         # 겹치지 않는 쪽으로 잘라 쓰고, 남는 길이가 모자랄 때만 버린다.
         cs, ce = _clip_blocked(cs, ce, blocked)
         in_article = ce - cs < MIN_CALLOUT_SEC
+        # 비교 카드가 떠 있는 동안에는 숫자 카드를 겹쳐 띄우지 않는다.
+        if any(cs < b and ce > a for a, b in (avoid or [])):
+            continue
         st = pick_stat(ph)
+        if st and skip_values and st[0] in skip_values:
+            continue      # 첫 화면에 이미 띄운 숫자
         if st:
             n_stat += 1
             if in_article:
@@ -432,6 +543,9 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         e = min(e, s + STAT_MAX_SEC)
         if i + 1 < len(picked):
             e = min(e, picked[i + 1][1] - 0.2)
+        for a, _b in (avoid or []):
+            if s < a:
+                e = min(e, a - 0.2)
         if e - s < MIN_CALLOUT_SEC:   # 너무 짧으면 깜빡이는 것처럼 보인다
             continue
         path = VIDEO_DIR / f"stat_{len(overlays)}.png"
@@ -442,7 +556,8 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
 
 def _seg_filter(idx: int, dur: float, zoom_in: bool,
                 scroll: bool = False, fit: bool = False,
-                punch: bool = False, is_video: bool = False) -> str:
+                punch: bool = False, is_video: bool = False,
+                scroll_to: int | None = None) -> str:
     """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
     scroll=True(긴 기사): 폭 맞추고 위→아래로 천천히 세로 스크롤.
@@ -453,11 +568,14 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
     그 외: zoompan 켄번즈(d=1, 출력프레임 on 으로 줌 구동).
     """
     if scroll:
-        # 폭 1080에 맞춘 세로 긴 기사 이미지를 위→아래로 스크롤(끝 0.4s는 정지)
-        hold = max(0.1, dur - 0.4)
+        # 폭 1080에 맞춘 세로 긴 기사 이미지를 위에서 아래로 스크롤한다.
+        # scroll_to가 있으면(강조 문장 위치) 거기까지만 내려가 멈춘다.
+        # 끝까지 내려가면 5초 안에 3400px을 지나가 아무것도 못 읽는다.
+        hold = max(0.1, dur - (1.2 if scroll_to is not None else 0.4))
+        dist = f"min(ih-{H},{scroll_to})" if scroll_to is not None else f"(ih-{H})"
         chain = (
             f"scale={W}:-2,"
-            f"crop={W}:{H}:0:'(ih-{H})*min(1,t/{hold:.3f})'"
+            f"crop={W}:{H}:0:'{dist}*min(1,t/{hold:.3f})'"
         )
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if fit:
@@ -491,6 +609,9 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
     return f"[{idx}:v]{chain},setsar=1[v{idx}]"
 
 
+ARTICLE_MAX_SEC = 5.0
+# 화면 구성 판. 토픽 기록에 남겨 분석 리포트가 바꾸기 전후를 가른다.
+LAYOUT_VERSION = "2026-10-02"
 VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
@@ -506,7 +627,9 @@ def _plan_segments(title_card: Path, article_img: Path | None,
     카드는 썸네일로만 쓰고 영상은 첫 프레임부터 내용으로 시작한다.
     """
     t_title = min(TITLE_CARD_MAX_SEC, dur * 0.2) if TITLE_CARD_IN_VIDEO else 0.0
-    t_article = min(8.0, max(4.0, dur * 0.22)) if article_img else 0.0
+    # 기사 화면은 출처를 보여 주는 컷이다. 8초 동안 글자로 꽉 찬 페이지를
+    # 스크롤하던 것을 5초 안쪽으로 줄이고, 강조 문장까지만 내려간다(10-02).
+    t_article = min(ARTICLE_MAX_SEC, max(4.0, dur * 0.09)) if article_img else 0.0
     rest = max(1.0, dur - t_title - t_article)
     n_img = max(1, math.ceil(rest / IMAGE_MAX_SEC))
     per = rest / n_img
@@ -533,6 +656,14 @@ def _plan_segments(title_card: Path, article_img: Path | None,
     if segs:
         last_img, last_d = segs[-1]
         segs[-1] = (last_img, max(0.5, last_d + diff))
+    # 끝 컷을 첫 컷과 같은 사진으로 맞춘다. 쇼츠는 끝나면 바로 처음부터 다시
+    # 돌아서, 끝 화면이 첫 화면으로 이어지면 끊김 없이 한 번 더 보게 된다
+    # (반복 재생은 배포 신호다, 2026-10-01 레퍼런스 조사). compose가 이 컷을
+    # 줌아웃으로 돌려 첫 컷의 시작 배율(1.0)에서 끝나게 한다.
+    first = next((p for p, _ in segs if str(p) != str(title_card)
+                  and str(p) != str(article_img or "")), None)
+    if first is not None and len(segs) >= 4 and not _is_video(first):
+        segs[-1] = (first, segs[-1][1])
     return segs
 
 
@@ -585,7 +716,13 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 blocked = (t, t + d)
                 break
             t += d
-    stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues)
+    hook = _plan_hook_overlay(caption_script, dur, blocked=blocked) if title_dur == 0 else None
+    compares = _plan_compare_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues)
+    avoid = [(a, b) for _, a, b in compares] + ([(hook[1], hook[2])] if hook else [])
+    stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
+                                avoid=avoid, skip_values={hook[3]} if hook else None)
+    # 숫자 카드·비교 카드·첫 화면 카드는 같은 방식(전체 화면 PNG, 시간 구간)으로 얹는다.
+    stats = sorted(stats + compares + ([hook[:3]] if hook else []), key=lambda x: x[1])
     # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
     # 눈으로 맞히기 어렵다(2~3.5초씩만 뜬다). 검증 아티팩트에 같이 실어
     # 몇 시에 무엇이 뜨는지 바로 보게 한다.
@@ -634,17 +771,30 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 art_h = int(_im.height * W / _im.width)  # 폭 1080 기준 높이
         except Exception:
             art_h = 0
+    # 강조 문장 위치(기사 캡처가 남긴 것). 화면 위에서 35% 지점에 오게 멈춘다.
+    art_focus = None
+    if art_p:
+        try:
+            fy = int(json.loads(Path(art_p).with_suffix(".focus.json").read_text())["y"])
+            art_focus = max(0, fy - int(H * 0.35))
+        except Exception:
+            art_focus = None
+        if art_focus is None and art_h >= H:
+            art_focus = 900      # 강조 위치를 모르면 헤드라인 아래 첫 문단까지만
     parts = []
     for i, (img, d) in enumerate(segs):
         is_art = str(img) == art_p
+        # 마지막 컷이 첫 컷과 같은 사진이면 줌아웃으로 끝내 첫 화면과 이어 붙인다.
+        loop_end = (i == len(segs) - 1 and i > 0 and str(img) == str(segs[0][0]))
         parts.append(_seg_filter(
-            i, d, zoom_in=(i % 2 == 0),
+            i, d, zoom_in=(i % 2 == 0) and not loop_end,
             scroll=(is_art and art_h >= H),
             fit=(is_art and art_h < H),
             # punch는 타이틀카드 전용 줌이다. 카드를 영상에서 뺀 뒤로는
             # 0번 세그먼트가 카드가 아니므로 경로가 같을 때만 건다.
             punch=(i == 0 and str(img) == str(title_card)),
             is_video=_is_video(img),
+            scroll_to=(art_focus if is_art else None),
         ))
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
@@ -675,7 +825,8 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     if bgm_idx is not None:
         graph += (
             f";[{audio_idx}:a]{fmt}[nar]"
-            f";[{bgm_idx}:a]{fmt},volume={BGM_VOLUME},afade=t=out:st={max(0.0, dur - 2):.2f}:d=2[bgm]"
+            # 끝 페이드는 짧게 둔다. 다시 재생될 때 음악이 뚝 끊겼다 살아나지 않게.
+            f";[{bgm_idx}:a]{fmt},volume={BGM_VOLUME},afade=t=out:st={max(0.0, dur - 0.8):.2f}:d=0.8[bgm]"
             f";[nar][bgm]amix=inputs=2:duration=first:normalize=0,{norm}[aout]"
         )
     else:

@@ -116,6 +116,24 @@ def _offtopic(meta: dict) -> bool:
     return bool(_OFFTOPIC_RE.search(text))
 
 
+# 이 영상에서 쓴 스톡 사진·영상 ID. 토픽 기록에 남겨 다음 영상들이 피한다.
+USED_MEDIA: list[str] = []
+# 최근 몇 편과 겹치지 않게 할지. 하루 3편 안팎이라 닷새치다.
+MEDIA_AVOID_RECENT = 15
+
+
+def _recent_media() -> set[str]:
+    """최근 영상들이 쓴 스톡 ID. 10-01 하루 세 편이 같은 사진을 그대로 썼다."""
+    try:
+        from src.collector.history import load_history
+        ids: set[str] = set()
+        for e in load_history()[-MEDIA_AVOID_RECENT:]:
+            ids.update(str(x) for x in (e.get("media") or []))
+        return ids
+    except Exception:
+        return set()
+
+
 def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
     if not PEXELS_API_KEY:
         return []
@@ -123,19 +141,24 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
         r = requests.get(
             "https://api.pexels.com/v1/search",
             headers={"Authorization": PEXELS_API_KEY},
-            params={"query": query, "per_page": n * 2, "page": page,
+            params={"query": query, "per_page": min(40, n * 4), "page": page,
                     "orientation": "portrait", "locale": "ko-KR"},
             timeout=12,
         )
         r.raise_for_status()
         imgs, kept = [], []
+        avoid = _recent_media() | set(USED_MEDIA)
         for photo in r.json().get("photos", []):
+            pid = f"p{photo.get('id')}"
+            if pid in avoid:
+                continue
             if _offtopic(photo):
                 note(f"배경 사진 제외(주제 밖): {(photo.get('alt') or '')[:40]}")
                 continue
             im = _download(photo["src"]["large2x"])
             if im:
                 imgs.append(im)
+                USED_MEDIA.append(pid)
                 kept.append((photo.get("alt") or str(photo.get("id", "")))[:30])
             if len(imgs) >= n:
                 break
@@ -159,6 +182,68 @@ PEXELS_QUERIES = (
     "real estate agency window",
     "han river apartment aerial",
 )
+
+
+# 기사 낱말로 고르는 검색어. 날짜로만 돌리면 같은 날 영상이 모두 같은
+# 사진을 쓴다(10-01 청년 전세대출·LH 대출규제·오피스텔 세 편이 비 오는
+# 거리와 경찰버스 사진을 똑같이 썼다). 말하는 내용과도 상관이 없었다.
+# 위에 있을수록 구체적이다. 영어로 찾는 게 Pexels 결과가 훨씬 많다.
+_TOPICS: list[tuple[re.Pattern, tuple[str, ...]]] = [
+    (re.compile(r"오피스텔|아파텔"), ("officetel building", "studio apartment interior",
+                                  "residential tower city")),
+    (re.compile(r"미분양"), ("empty new apartment", "new apartment complex")),
+    (re.compile(r"청약|(?<!미)분양|견본주택|모델하우스"), ("model house interior", "new apartment complex",
+                                          "apartment sales office")),
+    (re.compile(r"재건축|재개발|정비사업"), ("old apartment building", "demolition site",
+                                     "apartment construction crane")),
+    (re.compile(r"원룸|대학가|기숙사"), ("small studio room", "university district street")),
+    (re.compile(r"빌라|다가구|다세대|비아파트"), ("low rise residential buildings",
+                                         "residential alley houses")),
+    (re.compile(r"전세|월세|임대차|세입자|임차|보증금|집주인"), ("apartment keys hand", "moving boxes empty room",
+                                                  "apartment door hallway")),
+    (re.compile(r"대출|LTV|DSR|금리|보금자리론|디딤돌|은행"), ("bank loan documents", "signing contract desk",
+                                                  "calculator house model")),
+    (re.compile(r"세금|보유세|종부세|양도세|취득세|과세"), ("tax documents calculator", "paperwork desk calculator")),
+    (re.compile(r"공급|착공|입주|건설|공사비|인허가"), ("apartment construction crane", "construction site workers")),
+    (re.compile(r"한강|강남|서초|송파|용산|마포|성동"), ("han river apartment aerial", "seoul apartment buildings")),
+    (re.compile(r"대구|부산|울산|광주|대전|경북|경남|충남|충북|전북|전남|강원|지방"),
+     ("korean city apartment complex", "city apartment blocks")),
+    (re.compile(r"서울|수도권|경기|인천"), ("seoul apartment buildings", "seoul city skyline")),
+]
+
+
+_REGION_FROM = 10   # _TOPICS에서 이 번호부터는 지역
+
+
+def topic_queries(text: str, seed: int = 0, k: int = 3) -> list[str]:
+    """기사·대본에 많이 나온 주제 순서로 검색어 k개. 모자라면 날짜 회전으로 채운다.
+
+    같은 주제라도 seed(기사마다 다름)로 검색어를 돌려 영상끼리 겹치지 않게 한다.
+    """
+    text = text or ""
+    scored = []
+    for i, (rx, qs) in enumerate(_TOPICS):
+        hits = len(rx.findall(text))
+        # 지역은 주제보다 덜 친다. '서울 오피스텔'이면 오피스텔 사진이 먼저다.
+        if i >= _REGION_FROM:
+            hits *= 0.5
+        if hits:
+            scored.append((-hits, i, qs))
+    scored.sort()
+    out: list[str] = []
+    for _, _, qs in scored:
+        q = qs[seed % len(qs)]
+        if q not in out:
+            out.append(q)
+        if len(out) >= k:
+            break
+    j = 0
+    while len(out) < k:
+        q = _today_query(seed + j)
+        if q not in out:
+            out.append(q)
+        j += 1
+    return out
 
 
 def _today_ordinal() -> int:
@@ -188,9 +273,14 @@ DARK_OPEN_LUMA = 80
 
 
 def collect_backgrounds(article_image_url: str = "", need: int = 3,
-                        query: str = "") -> list[Path]:
-    """b-roll 배경 이미지 need개를 확보해 파일로 저장하고 경로 리스트 반환."""
-    query = query or _today_query()
+                        query: str = "", queries: list[str] | None = None,
+                        seed: int = 0) -> list[Path]:
+    """b-roll 배경 이미지 need개를 확보해 파일로 저장하고 경로 리스트 반환.
+
+    queries를 주면(기사 주제 검색어) 앞의 두 개에서 반씩 받는다.
+    """
+    query = query or (queries[0] if queries else _today_query())
+    second = queries[1] if queries and len(queries) > 1 else _today_query(1)
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     pool: list[Image.Image] = []
 
@@ -205,11 +295,14 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
     # 한 검색어에서 다 받으면 같은 촬영자의 비슷한 사진이 연달아 나온다.
     # 오늘 검색어와 다음 검색어에서 반씩 받는다.
     if len(pool) < need:
-        page = _today_page()
+        page = (_today_page() + seed) % 3 + 1
         first = (need - len(pool) + 1) // 2
         pool += _pexels(query, first, page)
         if len(pool) < need:
-            pool += _pexels(_today_query(1), need - len(pool), page)
+            pool += _pexels(second, need - len(pool), page)
+        if len(pool) < need:
+            # 주제 검색어가 결과를 덜 줬으면 날짜 회전 검색어로 채운다.
+            pool += _pexels(_today_query(seed), need - len(pool), 1)
 
     # 폴백 그라디언트도 날짜를 시작점으로 — 소스가 전부 실패한 날에도
     # 최소한 어제와 같은 색은 피한다.
@@ -249,7 +342,7 @@ def _pexels_videos(query: str, n: int) -> list[str]:
         r = requests.get(
             "https://api.pexels.com/videos/search",
             headers={"Authorization": PEXELS_API_KEY},
-            params={"query": query, "per_page": max(n * 2, 6),
+            params={"query": query, "per_page": max(n * 4, 12),
                     "orientation": "portrait", "size": "medium"},
             timeout=15,
         )
@@ -260,7 +353,11 @@ def _pexels_videos(query: str, n: int) -> list[str]:
 
     links: list[str] = []
     slugs: list[str] = []
+    avoid = _recent_media() | set(USED_MEDIA)
     for vid in r.json().get("videos", []):
+        vkey = f"v{vid.get('id')}"
+        if vkey in avoid:
+            continue
         # 너무 짧으면 컷 하나도 못 채우고, 너무 길면 내려받는 시간이 아깝다.
         if not (3 <= (vid.get("duration") or 0) <= 60):
             continue
@@ -278,6 +375,7 @@ def _pexels_videos(query: str, n: int) -> list[str]:
                 best, best_h = f.get("link"), h
         if best:
             links.append(best)
+            USED_MEDIA.append(vkey)
             slugs.append((vid.get("url") or "").rstrip("/").rsplit("/", 1)[-1][:40])
         if len(links) >= n:
             break
@@ -291,7 +389,11 @@ def collect_video_broll(query: str = "", need: int = 2) -> list[Path]:
     query = query or _today_query(2)
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     out: list[Path] = []
-    for i, link in enumerate(_pexels_videos(query, need)):
+    links = _pexels_videos(query, need)
+    if len(links) < need and query != _today_query(2):
+        # 주제 검색어로 세로 영상이 모자라면 날짜 회전 검색어로 채운다.
+        links += _pexels_videos(_today_query(2), need - len(links))
+    for i, link in enumerate(links):
         dst = VIDEO_DIR / f"broll_{i}.mp4"
         try:
             with requests.get(link, headers=UA, timeout=30, stream=True) as resp:

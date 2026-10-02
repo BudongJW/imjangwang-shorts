@@ -101,8 +101,19 @@ PUBLISH_MIN_LEAD_MIN = int(os.getenv("PUBLISH_MIN_LEAD_MIN", "15"))
 # 다만 관측된 길이가 45~92초뿐이라 45초 미만 구간은 데이터가 없다. short는
 # 그 빈 구간을 직접 재보려는 실험이며, 길이 외에는 아무것도 바꾸지 않는다.
 # 전환은 리포지터리 변수 SCRIPT_LEN_MODE=short 하나로 끝난다(워크플로가 넘긴다).
+#
+# ab: 날짜(KST) 홀짝으로 normal과 short를 번갈아 쓴다(2026-10-02 시작).
+# 9/20에 만든 short는 변수를 바꾸지 않아 한 번도 돌지 않았다. 기간을 통째로
+# 바꾸면 같은 날 바뀐 화면 구성(첫 화면 숫자 카드 등)과 효과가 섞이므로,
+# 새 화면 구성 아래에서 격일로 나눠 길이만 비교한다.
 CHARS_PER_SEC = 6.4
-SCRIPT_LEN_MODE = os.getenv("SCRIPT_LEN_MODE", "normal").strip().lower()
+_LEN_MODE_RAW = os.getenv("SCRIPT_LEN_MODE", "normal").strip().lower()
+if _LEN_MODE_RAW == "ab":
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    _ord = _dt.now(_tz(_td(hours=9))).date().toordinal()
+    SCRIPT_LEN_MODE = "short" if _ord % 2 else "normal"
+else:
+    SCRIPT_LEN_MODE = _LEN_MODE_RAW
 _LEN_PRESETS = {"normal": (310, 350, 380), "short": (200, 240, 270)}
 _len = _LEN_PRESETS.get(SCRIPT_LEN_MODE, _LEN_PRESETS["normal"])
 # 프리셋 밖 미세조정이 필요할 때만 개별 환경변수로 덮어쓴다.

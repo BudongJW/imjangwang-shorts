@@ -30,7 +30,7 @@ from src.tts.narrate import narrate
 from src.editor.title_card import (render_title_card, resolve_face, face_credit,
                                    layout_by_name,
                                    render_headline_banner, pick_accent)
-from src.editor.composer import compose
+from src.editor.composer import compose, LAYOUT_VERSION
 from src.utils.logger import setup_logger
 from src.utils.text import strip_links
 
@@ -351,7 +351,15 @@ def run(skip_upload: bool = False) -> int:
     # 4) 배경 이미지 + 기사 캡처
     # 사진 4장일 때는 50초 영상에서 같은 사진이 2~3번씩 돌았다. 6장 + 영상
     # 3개면 한 바퀴 반 안쪽으로 끝난다.
-    bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=6)
+    # 검색어는 기사 제목과 대본에서 고른다. 날짜로만 돌리던 때는 같은 날
+    # 영상이 모두 같은 사진을 썼고, 말하는 내용과도 상관이 없었다(10-01).
+    import zlib
+    topic_text = f"{art.title} {art.title} {plan.caption_script}"
+    media_seed = zlib.crc32((art.title or "").encode("utf-8"))
+    queries = images.topic_queries(topic_text, seed=media_seed)
+    buildnotes.note(f"배경 검색어: {' / '.join(queries)}")
+    bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=6,
+                                          queries=queries, seed=media_seed)
     # 실사 b-roll을 섞는다. "정적 이미지 루프"는 유튜브가 AI 양산 채널을
     # 가려내는 지표로 직접 지목한 형태고, 지금 배경은 사진에 켄번즈만 건
     # 것이라 정확히 그 모양이다. Pexels 영상은 사진과 같은 라이선스라
@@ -361,7 +369,8 @@ def run(skip_upload: bool = False) -> int:
     # 화면 변화가 크고, 받아오는 데 실패해도 그대로 굴러간다.
     if BROLL_VIDEO_N > 0:
         try:
-            brolls = images.collect_video_broll(need=BROLL_VIDEO_N)
+            brolls = images.collect_video_broll(query=queries[2] if len(queries) > 2 else "",
+                                                need=BROLL_VIDEO_N)
         except Exception as e:
             log.info(f"b-roll 영상 확보 실패(사진만 사용): {e}")
             brolls = []
@@ -447,12 +456,18 @@ def run(skip_upload: bool = False) -> int:
 
     record_topic(art.title, video_id,
                  title_style=_title_style(plan.youtube_title),
-                 len_mode=SCRIPT_LEN_MODE,
+                 # 지정 대본은 사람이 쓴 길이라 길이 실험 표본이 아니다.
+                 len_mode="pinned" if pinned else SCRIPT_LEN_MODE,
                  script_chars=len(plan.caption_script or ""),
                  source=getattr(art, "source", "") or None,
                  age_days=getattr(art, "pick_age_days", None),
                  topic_score=getattr(art, "pick_topic_score", None),
-                 recency_score=getattr(art, "pick_recency_score", None))
+                 recency_score=getattr(art, "pick_recency_score", None),
+                 # 다음 영상들이 같은 스톡 사진·영상을 피하도록 남긴다.
+                 media=list(images.USED_MEDIA) or None,
+                 # 화면 구성 판(첫 화면 숫자 카드, 짧은 기사 화면, 끝 컷 반복).
+                 # 분석 리포트가 바꾸기 전후 시청 유지를 이 값으로 가른다.
+                 layout=LAYOUT_VERSION)
     log.info("=== 완료 ===")
     return 0
 

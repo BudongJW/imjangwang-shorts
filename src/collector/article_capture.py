@@ -8,6 +8,8 @@ PC 뷰 캡처는 9:16에 담으면 글자만 크게 잘려 내용이 안 보인�
 
 from __future__ import annotations
 
+import json
+
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -299,6 +301,7 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                             while ((n = w.nextNode())) {
                                 if (n.nodeValue && n.nodeValue.includes(key) && n.parentElement) {
                                     n.parentElement.style.background='#fff59d';
+                                    n.parentElement.setAttribute('data-imjang-hl', '1');
                                     n.parentElement.scrollIntoView({block:'start'});
                                     break;
                                 }
@@ -335,6 +338,16 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                     note(f"기사 캡처 잔여 위젯 {len(left)}건: " + " | ".join(left[:4]))
             except Exception:
                 pass
+            # 강조 문장의 세로 위치(CSS px). 영상에서 기사 화면을 거기까지만
+            # 스크롤하는 데 쓴다. 사진·위젯을 걷어낸 뒤라 배치가 확정된 값이다.
+            focus_css = None
+            try:
+                focus_css = page.evaluate(
+                    "() => { const e = document.querySelector('[data-imjang-hl]');"
+                    " if (!e) return null; const r = e.getBoundingClientRect();"
+                    " return r.top + window.scrollY; }")
+            except Exception:
+                focus_css = None
             png = out.with_suffix(".png")
             page.screenshot(path=str(png), full_page=True)
             browser.close()
@@ -351,6 +364,12 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
                 log.info("  기사 캡처가 백지/짧음 → 카드 폴백")
                 return None
             im.save(png)
+            if focus_css is not None:
+                # 뷰포트 430px 기준 CSS 좌표를 폭 1080 이미지 좌표로 옮긴다.
+                fy = int(float(focus_css) * CARD_W / 430)
+                if 0 < fy < im.height:
+                    png.with_suffix(".focus.json").write_text(json.dumps({"y": fy}))
+                    note(f"기사 캡처: 강조 문장 위치 {fy}px")
             log.info(f"  기사 모바일 캡처 성공 ({im.width}x{im.height})")
             note(f"기사: Playwright 캡처 성공 {im.width}x{im.height}")
             return png
@@ -459,6 +478,8 @@ def build_article_visual(art, highlight: str = "") -> Path:
     """모바일 기사 비주얼(세로로 긴 이미지)을 만든다. 실제 캡처 우선, 실패 시 카드."""
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     out = VIDEO_DIR / "article"
+    # 앞 실행의 강조 위치가 남아 있으면 카드 폴백에 엉뚱하게 쓰인다.
+    out.with_suffix(".focus.json").unlink(missing_ok=True)
     shot = None
     if getattr(art, "url", ""):
         shot = _capture_with_playwright(art.url, highlight, out)

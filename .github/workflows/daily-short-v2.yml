@@ -106,7 +106,9 @@ jobs:
           # 200~240자(31~37초)로 돈다. 브랜치 이름에 'short'가 들어가면
           # 변수와 무관하게 한 번만 short로 돌아 렌더를 눈으로 검증할 수 있다
           # (예: run/daily-verify-short-0920).
-          SCRIPT_LEN_MODE: ${{ contains(github.ref_name, 'short') && 'short' || (vars.SCRIPT_LEN_MODE || 'normal') }}
+          # 변수가 비어 있으면 ab: 날짜 홀짝으로 normal과 short를 번갈아 쓴다
+          # (2026-10-02부터, config/settings.py 참고).
+          SCRIPT_LEN_MODE: ${{ contains(github.ref_name, 'short') && 'short' || (vars.SCRIPT_LEN_MODE || 'ab') }}
         run: |
           set +e
           SKIP=""

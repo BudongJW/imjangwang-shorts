@@ -234,6 +234,102 @@ def fetch_traffic_by_video(creds, video_ids: list[str], start: str, end: str) ->
     return out
 
 
+def fetch_retention(creds, videos: list[dict], start: str, end: str,
+                    n: int = 10, min_views: int = 100) -> dict:
+    """최근 공개 영상의 구간별 시청 유지(audienceWatchRatio).
+
+    영상 하나씩만 물을 수 있는 보고서다(filters=video==한 개). 그래서 최근
+    n편만 본다. elapsedVideoTimeRatio는 영상 길이의 1% 단위라 길이(초)를
+    곱해 초로 바꾼다. 반복 재생이 있으면 값이 1을 넘을 수 있다.
+    """
+    out: dict = {}
+    try:
+        ya = build("youtubeAnalytics", "v2", credentials=creds)
+    except Exception as e:
+        return {"error": str(e)[:200]}
+    picked = [v for v in videos if v["privacy"] == "public" and v.get("views", 0) >= min_views][:n]
+    for v in picked:
+        try:
+            res = ya.reports().query(
+                ids="channel==MINE", startDate=start, endDate=end,
+                metrics="audienceWatchRatio",
+                dimensions="elapsedVideoTimeRatio",
+                filters=f"video=={v['video_id']}",
+            ).execute()
+        except Exception as e:
+            out.setdefault("_errors", []).append(f"{v['video_id']}: {str(e)[:120]}")
+            continue
+        rows = res.get("rows", [])
+        if rows:
+            out[v["video_id"]] = [(float(r[0]), float(r[1])) for r in rows]
+    return out
+
+
+def _ratio_at(curve: list[tuple[float, float]], sec: float, dur: float) -> float | None:
+    """sec초 지점의 유지 비율. 곡선은 영상 길이 비율(0~1) 기준이다."""
+    if not curve or dur <= 0:
+        return None
+    x = sec / dur
+    best = min(curve, key=lambda p: abs(p[0] - x))
+    return best[1]
+
+
+# 10-02부터 영상 구성이 바뀌었다(첫 화면 숫자 카드, 기사 화면 8초에서 5초로,
+# 끝 컷을 첫 컷과 맞춤). 게시일이 아니라 만들 때 남긴 layout 값으로 가른다.
+# 10-01에 만들고 10-02에 공개한 영상은 옛 구성이다.
+LAYOUT_CHANGE_KST = "2026-10-02"
+
+
+def _layouts() -> dict[str, str]:
+    path = ROOT / "output" / "topic_history.json"
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {r["video_id"]: str(r.get("layout") or "") for r in rows
+            if isinstance(r, dict) and r.get("video_id")}
+
+
+def _retention_section(ret: dict, videos: list[dict]) -> list[str]:
+    curves = {k: v for k, v in ret.items() if not k.startswith("_")}
+    if not curves:
+        errs = ret.get("_errors") or ([ret["error"]] if "error" in ret else [])
+        return (["## 구간별 시청 유지", "", f"조회 실패: {errs[0][:160]}", ""]
+                if errs else [])
+    out = ["## 구간별 시청 유지 (초 단위)", ""]
+    out.append("그 시점까지 남아 있는 시청 비율이다(반복 재생이 있으면 100%를 넘는다). "
+               "1초·3초는 첫 화면, 8초는 기사 화면이 끝나는 지점이다. "
+               f"{LAYOUT_CHANGE_KST}에 만든 영상부터 첫 화면 숫자 카드와 짧은 기사 화면이 들어갔다.")
+    out.append("")
+    out.append("| 게시 | 길이 | 1초 | 3초 | 8초 | 12초 | 절반 | 끝 | 제목 |")
+    out.append("|------|----:|----:|----:|----:|----:|----:|----:|------|")
+    by_id = {v["video_id"]: v for v in videos}
+    layouts = _layouts()
+    groups: dict[str, list[float]] = {"before": [], "after": []}
+    for vid, curve in curves.items():
+        v = by_id.get(vid)
+        if not v:
+            continue
+        dur = float(v.get("duration_s") or 0)
+        pts = [_ratio_at(curve, t, dur) for t in (1, 3, 8, 12)]
+        half = _ratio_at(curve, dur / 2, dur)
+        end = curve[-1][1] if curve else None
+        cells = [f"{p * 100:.0f}%" if p is not None else "-" for p in pts + [half, end]]
+        out.append(f"| {v['published_kst'][5:16]} | {int(dur)}s | " + " | ".join(cells)
+                   + f" | {v['title'].split(' #')[0][:26]} |")
+        if pts[1] is not None:
+            key = "after" if layouts.get(vid) else "before"
+            groups[key].append(pts[1])
+    out.append("")
+    for key, label in (("before", "바꾸기 전"), ("after", "바꾼 뒤")):
+        vals = sorted(groups[key])
+        if vals:
+            out.append(f"3초 유지 중앙값 ({label}, {len(vals)}편): **{vals[len(vals) // 2] * 100:.0f}%**")
+    out.append("편수가 적을 때는 방향만 본다.")
+    out.append("")
+    return out
+
+
 def load_snapshots() -> list[dict]:
     if SNAPSHOT_PATH.exists():
         try:
@@ -414,7 +510,8 @@ def _pass_rate_section(analytics: dict, videos: list[dict]) -> list[str]:
     return out
 
 
-def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None, tbv=None) -> str:
+def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None, tbv=None,
+                 retention=None) -> str:
     now = datetime.now(KST)
     lines: list[str] = []
     cs = channel.get("statistics", {})
@@ -539,6 +636,7 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
             lines.append("")
 
         lines.extend(_pass_rate_section(analytics, videos))
+        lines.extend(_retention_section(retention or {}, videos))
 
     # 배포를 막는 플래그. 이상한 것만 찍는다 — 전부 정상이면 한 줄로 끝난다.
     # 아동용으로 잡히면 추천·Shorts 피드가 통째로 막히고, 지역 제한이나
@@ -879,9 +977,13 @@ def main() -> int:
     tbv = fetch_traffic_by_video(creds, recent_ids, start.isoformat(), end.isoformat())
     if "error" in tbv:
         print(f"[analyze] 영상별 유입경로 실패: {tbv['error']}", file=sys.stderr)
+    retention = fetch_retention(creds, videos, start.isoformat(), end.isoformat())
+    if retention.get("_errors") or "error" in retention:
+        print(f"[analyze] 구간별 유지 일부 실패: {(retention.get('_errors') or [retention.get('error')])[:2]}",
+              file=sys.stderr)
     snapshots = load_snapshots()
     report = build_report(channel, videos, analytics, traffic, snapshots, args.days,
-                          daily=daily, tbv=tbv)
+                          daily=daily, tbv=tbv, retention=retention)
     if not args.no_save:
         save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots,
                       channel=channel)
