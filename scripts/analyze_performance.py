@@ -317,14 +317,18 @@ def _retention_section(ret: dict, videos: list[dict]) -> list[str]:
         cells = [f"{p * 100:.0f}%" if p is not None else "-" for p in pts + [half, end]]
         out.append(f"| {v['published_kst'][5:16]} | {int(dur)}s | " + " | ".join(cells)
                    + f" | {v['title'].split(' #')[0][:26]} |")
-        if pts[1] is not None:
+        # 값 자체는 반복 재생 때문에 100%를 넘나들어 영상끼리 비교가 어렵다.
+        # 3초에 있던 시청 중 8초까지 남은 비율로 본다. 옛 구성은 3~11초가
+        # 기사 화면이라 이 구간이 그 화면의 이탈이다.
+        if pts[1] and pts[2] is not None:
             key = "after" if layouts.get(vid) else "before"
-            groups[key].append(pts[1])
+            groups[key].append(pts[2] / pts[1])
     out.append("")
     for key, label in (("before", "바꾸기 전"), ("after", "바꾼 뒤")):
         vals = sorted(groups[key])
         if vals:
-            out.append(f"3초 유지 중앙값 ({label}, {len(vals)}편): **{vals[len(vals) // 2] * 100:.0f}%**")
+            out.append(f"3초에서 8초까지 남은 비율 중앙값 ({label}, {len(vals)}편): "
+                       f"**{vals[len(vals) // 2] * 100:.0f}%**")
     out.append("편수가 적을 때는 방향만 본다.")
     out.append("")
     return out
