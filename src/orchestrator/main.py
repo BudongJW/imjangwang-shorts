@@ -31,6 +31,7 @@ from src.editor.title_card import (render_title_card, resolve_face, face_credit,
                                    layout_by_name,
                                    render_headline_banner, pick_accent)
 from src.editor.composer import compose, LAYOUT_VERSION
+from src.experiments import current_arms
 from src.utils.logger import setup_logger
 from src.utils.text import strip_links
 
@@ -467,7 +468,11 @@ def run(skip_upload: bool = False) -> int:
                  media=list(images.USED_MEDIA) or None,
                  # 화면 구성 판(첫 화면 숫자 카드, 짧은 기사 화면, 끝 컷 반복).
                  # 분석 리포트가 바꾸기 전후 시청 유지를 이 값으로 가른다.
-                 layout=LAYOUT_VERSION)
+                 layout=LAYOUT_VERSION,
+                 # 영상별 실험 배정. 분석이 이 값으로 팔을 가른다(src/experiments.py).
+                 # 지정 대본의 길이는 사람이 정했으므로 길이 실험 표본에서 뺀다.
+                 exp={**current_arms(),
+                      **({"len_mode": "pinned"} if pinned else {})})
     log.info("=== 완료 ===")
     return 0
 

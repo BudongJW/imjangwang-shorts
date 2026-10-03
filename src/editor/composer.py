@@ -637,7 +637,10 @@ def _plan_segments(title_card: Path, article_img: Path | None,
     # 스크롤하던 것을 5초 안쪽으로 줄이고, 강조 문장까지만 내려간다(10-02).
     t_article = min(ARTICLE_MAX_SEC, max(4.0, dur * 0.09)) if article_img else 0.0
     rest = max(1.0, dur - t_title - t_article)
-    n_img = max(1, math.ceil(rest / IMAGE_MAX_SEC))
+    # 실험: 컷 길이. 2초 팔이면 같은 길이에 컷이 1.5배 많아진다.
+    from src.experiments import arm
+    max_cut = 2.0 if arm("cut_pace") == "2s" else IMAGE_MAX_SEC
+    n_img = max(1, math.ceil(rest / max_cut))
     per = rest / n_img
 
     imgs = cycle(bg_paths) if bg_paths else cycle([title_card])
@@ -725,8 +728,12 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     compares = _plan_compare_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues)
     # 비교 카드가 첫 화면부터 뜨면 그게 첫 화면 카드다. 둘을 겹쳐 띄우지 않는다.
     opens_with_compare = any(a < HOOK_MAX_SEC for _, a, _ in compares)
+    from src.experiments import arm
+    hook_on = arm("hook_card") == "on"      # 실험: 첫 화면 숫자 카드
+    note(f"실험 배정: 첫 화면 숫자 카드 {'켬' if hook_on else '끔'}, 배경음 "
+         f"{arm('bgm')}, 컷 길이 {arm('cut_pace')}")
     hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked)
-            if title_dur == 0 and not opens_with_compare else None)
+            if title_dur == 0 and not opens_with_compare and hook_on else None)
     avoid = [(a, b) for _, a, b in compares] + ([(hook[1], hook[2])] if hook else [])
     # 첫 화면·비교 카드에 이미 나온 숫자는 숫자 카드로 다시 띄우지 않는다
     # (10-03 지정 영상: 비교 카드의 37.7%가 4초 뒤 숫자 카드로 또 떴다).
@@ -772,7 +779,8 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     audio_idx = stat_start_idx + len(stats)
     # 배경음(BGM): 나레이션 아래 저음량. 랜덤 트랙, 루프.
     bgm_idx = None
-    bgms = list(BGM_DIR.glob("*.mp3")) if BGM_VOLUME > 0 else []
+    bgm_on = arm("bgm") == "on"             # 실험: 배경음
+    bgms = list(BGM_DIR.glob("*.mp3")) if BGM_VOLUME > 0 and bgm_on else []
     if bgms:
         inputs += ["-stream_loop", "-1", "-i", str(random.choice(bgms))]
         bgm_idx = audio_idx + 1

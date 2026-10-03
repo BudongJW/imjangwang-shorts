@@ -1,0 +1,21 @@
+{
+ "experiments": {
+  "len_mode": {
+   "status": "running",
+   "slot": 0,
+   "started": "2026-10-02"
+  },
+  "hook_card": {
+   "status": "running",
+   "slot": 1,
+   "started": "2026-10-04"
+  },
+  "bgm": {
+   "status": "queued"
+  },
+  "cut_pace": {
+   "status": "queued"
+  }
+ },
+ "updated": "2026-10-03T14:08:12+09:00"
+}

@@ -514,8 +514,195 @@ def _pass_rate_section(analytics: dict, videos: list[dict]) -> list[str]:
     return out
 
 
+# ── 실험 판정 (src/experiments.py) ───────────────────────────────────
+# 영상마다 같은 나이에서 잰 값으로 견준다. 누적 조회수는 먼저 올린 영상이
+# 늘 유리하다. 48시간 조회수는 스냅샷 사이를 직선으로 이어 읽는다.
+# 통과율·시청률은 비율이라 나이 영향이 적어 Analytics 구간 값을 그대로 쓴다.
+EXP_AGE_H = 48.0
+EXP_MAX_GAP_H = 30.0      # 앞뒤 스냅샷이 이보다 멀면 48시간 값을 믿지 않는다
+EXP_MIN_VIEWS = 30        # 비율 지표는 조회가 이보다 적으면 한두 명에 휘둘린다
+
+
+def _views_at_age(snapshots: list[dict], v: dict, hours: float = EXP_AGE_H) -> int | None:
+    """게시 후 hours 시점의 조회수. 아직 그 나이가 안 됐거나 근처 기록이 없으면 None."""
+    if v["age_hours"] < hours:
+        return None
+    pub = _parse_rfc3339(v["published_at"])
+    target = pub + timedelta(hours=hours)
+    pts = [(pub, 0)]
+    for snap in snapshots:
+        rec = snap.get("videos", {}).get(v["video_id"])
+        if rec:
+            pts.append((datetime.fromisoformat(snap["taken_at"]), rec["views"]))
+    pts.append((datetime.now(timezone.utc), v["views"]))
+    pts.sort(key=lambda p: p[0])
+    before = [p for p in pts if p[0] <= target]
+    after = [p for p in pts if p[0] >= target]
+    if not before or not after:
+        return None
+    (t0, v0), (t1, v1) = before[-1], after[0]
+    gap = (t1 - t0).total_seconds() / 3600
+    if gap > EXP_MAX_GAP_H:
+        return None
+    if gap <= 0:
+        return v0
+    f = (target - t0).total_seconds() / 3600 / gap
+    return round(v0 + (v1 - v0) * f)
+
+
+def _video_metrics(v: dict, analytics: dict, snapshots: list[dict]) -> dict[str, float]:
+    out: dict[str, float] = {}
+    v48 = _views_at_age(snapshots, v)
+    if v48 is not None:
+        out["views_48h"] = v48
+    m = analytics.get(v["video_id"]) if isinstance(analytics, dict) else None
+    if m and (m.get("views", 0) or 0) >= EXP_MIN_VIEWS:
+        r = _pass_rate(m)
+        if r is not None:
+            out["pass_rate"] = r
+        if m.get("averageViewPercentage"):
+            out["avg_pct"] = m["averageViewPercentage"]
+    return out
+
+
+def _fmt_metric(metric: str, x: float | None) -> str:
+    if x is None:
+        return "-"
+    if metric == "pass_rate":
+        return f"{x * 100:.0f}%"
+    if metric == "avg_pct":
+        return f"{x:.0f}%"
+    return f"{x:,.0f}"
+
+
+def _video_arm(row: dict, key: str) -> str | None:
+    arm = (row.get("exp") or {}).get(key)
+    if arm is None and key == "len_mode":
+        arm = row.get("len_mode")      # exp 기록 전(10-02~03) 영상
+    return arm
+
+
+def _build_day_kst(row: dict) -> str:
+    """토픽 기록 시각(러너 UTC)을 KST 날짜로. 팔은 이 날짜로 정해졌다."""
+    try:
+        d = datetime.fromisoformat(row["date"][:26])
+    except (KeyError, ValueError):
+        return ""
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    return d.astimezone(KST).strftime("%Y-%m-%d")
+
+
+def experiment_section(videos: list[dict], analytics: dict, snapshots: list[dict],
+                       save: bool = True) -> list[str]:
+    """도는 실험을 팔별로 모아 판정하고, 판정이 나면 상태 파일을 갱신한다."""
+    from src import experiments as ex
+
+    try:
+        rows = json.loads(TOPIC_HISTORY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        rows = []
+    by_vid = {r["video_id"]: r for r in rows if isinstance(r, dict) and r.get("video_id")}
+    public = [v for v in videos if v["privacy"] == "public" and v["video_id"] in by_vid]
+    metrics = {v["video_id"]: _video_metrics(v, analytics, snapshots) for v in public}
+
+    state = ex.load_state()
+    exps = state["experiments"]
+    results: dict[str, dict] = {}
+    table: list[str] = []
+    for e in ex.REGISTRY:
+        st = exps.get(e["key"], {})
+        if st.get("status") != "running":
+            continue
+        samples: dict[str, list[float]] = {a: [] for a in e["arms"]}
+        waiting = 0
+        for v in public:
+            row = by_vid[v["video_id"]]
+            if _build_day_kst(row) < st.get("started", "9999"):
+                continue
+            if not e.get("pinned") and row.get("len_mode") == "pinned":
+                continue
+            a = _video_arm(row, e["key"])
+            if a not in samples:
+                continue
+            x = metrics[v["video_id"]].get(e["metric"])
+            if x is None:
+                waiting += 1
+                continue
+            samples[a].append(x)
+        res = ex.evaluate(e["key"], samples)
+        results[e["key"]] = res
+        a0, a1 = e["arms"]
+        n = res["n"]
+        meds = " · ".join(f"{a} {_fmt_metric(e['metric'], res.get('median_' + a))}"
+                          for a in e["arms"])
+        if res["verdict"] == "collecting":
+            verdict = f"모으는 중 ({n[a0]}·{n[a1]}편 / 팔마다 {ex.MIN_N}편)"
+        else:
+            lo, hi = res["ci"]
+            head = ("판정: " + res["winner"] + " 우세" if res["verdict"] == "winner"
+                    else "판정: 차이 없음, " + res["winner"] + " 유지")
+            verdict = (f"{head} "
+                       f"(차이 {_fmt_metric(e['metric'], res['diff'])}, "
+                       f"90% 구간 {_fmt_metric(e['metric'], lo)}~{_fmt_metric(e['metric'], hi)})")
+        if res["verdict"] == "collecting" and res.get("ci"):
+            lo, hi = res["ci"]
+            verdict = (f"아직 갈리지 않음 ({n[a0]}·{n[a1]}편, 90% 구간 "
+                       f"{_fmt_metric(e['metric'], lo)}~{_fmt_metric(e['metric'], hi)})")
+        if waiting:
+            verdict += f", 아직 잴 수 없는 영상 {waiting}편"
+        table.append(f"| {e['title']} | {ex.METRIC_LABEL[e['metric']]} | {meds} | {verdict} |")
+
+    notes = ex.apply_verdicts(state, results)
+    if save:
+        ex.save_state(state)
+
+    out = ["## 실험 현황", ""]
+    out.append("한 번에 한 가지만 바꿔 날짜별로 번갈아 내보낸다. 팔마다 "
+               f"{ex.MIN_N}편이 모이면 판정하고, 이긴 쪽을 기본값으로 굳힌 뒤 다음 실험을 연다.")
+    out.append("")
+    if table:
+        out.append("| 실험 | 판정 지표 | 팔별 중앙값 | 상태 |")
+        out.append("|------|----------|------------|------|")
+        out.extend(table)
+        out.append("")
+    for msg in notes:
+        out.append(f"- **{msg}**")
+    if notes:
+        out.append("")
+    done = [(e, exps[e["key"]]) for e in ex.REGISTRY
+            if exps.get(e["key"], {}).get("status") == "decided"]
+    if done:
+        out.append("끝난 실험: " + ", ".join(
+            f"{e['title']} {st.get('winner')} 채택({st.get('decided', '')})" for e, st in done))
+    queued = [e["title"] for e in ex.REGISTRY
+              if exps.get(e["key"], {}).get("status") == "queued"]
+    if queued:
+        out.append("대기 중인 실험: " + ", ".join(queued))
+    if done or queued:
+        out.append("")
+
+    keys = [e["key"] for e in ex.REGISTRY]
+    # 실험 관리를 시작한 새 레이아웃(10-02)부터의 영상만 보인다.
+    recent = [v for v in public if _build_day_kst(by_vid[v["video_id"]]) >= "2026-10-02"][:10]
+    if recent:
+        out.append("| 게시 | 48시간 조회 | 통과율 | 시청률 | 길이·카드·배경음·컷 | 제목 |")
+        out.append("|------|----------:|------:|------:|------|------|")
+        for v in recent:
+            row = by_vid[v["video_id"]]
+            m = metrics[v["video_id"]]
+            arms = "·".join(str(_video_arm(row, k) or "-") for k in keys)
+            out.append(f"| {v['published_kst'][5:16]} | "
+                       f"{_fmt_metric('views_48h', m.get('views_48h'))} | "
+                       f"{_fmt_metric('pass_rate', m.get('pass_rate'))} | "
+                       f"{_fmt_metric('avg_pct', m.get('avg_pct'))} | {arms} | "
+                       f"{v['title'].split(' #')[0][:28]} |")
+        out.append("")
+    return out
+
+
 def build_report(channel, videos, analytics, traffic, snapshots, days, daily=None, tbv=None,
-                 retention=None) -> str:
+                 retention=None, experiments=None) -> str:
     now = datetime.now(KST)
     lines: list[str] = []
     cs = channel.get("statistics", {})
@@ -588,6 +775,8 @@ def build_report(channel, videos, analytics, traffic, snapshots, days, daily=Non
             lines.append(f"- ⚠️ **{hours:.1f}시간째 증가 0** — 쇼츠 피드에 노출되지 "
                          f"않고 있다는 뜻이다. 누적 숫자와 무관하게 나쁜 신호.")
     lines.append("")
+
+    lines.extend(experiments or [])
 
     # 최근 증가 속도 (스냅샷이 쌓여야 의미 있음)
     moving = [v for v in public if v["delta"] and v["delta"][0] > 0]
@@ -986,8 +1175,14 @@ def main() -> int:
         print(f"[analyze] 구간별 유지 일부 실패: {(retention.get('_errors') or [retention.get('error')])[:2]}",
               file=sys.stderr)
     snapshots = load_snapshots()
+    # 실험 판정은 리포트를 막지 않는다. 깨져도 나머지 리포트는 낸다.
+    try:
+        exp_lines = experiment_section(videos, analytics, snapshots, save=not args.no_save)
+    except Exception as e:  # noqa: BLE001
+        print(f"[analyze] 실험 판정 실패: {e}", file=sys.stderr)
+        exp_lines = ["## 실험 현황", "", f"판정 실패: {str(e)[:200]}", ""]
     report = build_report(channel, videos, analytics, traffic, snapshots, args.days,
-                          daily=daily, tbv=tbv, retention=retention)
+                          daily=daily, tbv=tbv, retention=retention, experiments=exp_lines)
     if not args.no_save:
         save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots,
                       channel=channel)

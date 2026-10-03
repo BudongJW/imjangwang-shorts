@@ -82,10 +82,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           DEFAULT="${{ github.event.repository.default_branch }}"
           cp output/performance_history.json /tmp/ph.json
+          # 실험 판정 상태(src/experiments.py)도 같이 올린다. 다음 제작이
+          # master에서 이 파일을 읽어 오늘 쓸 팔을 정한다.
+          [ -f output/experiments_state.json ] && cp output/experiments_state.json /tmp/es.json
           git fetch origin "$DEFAULT"
           git checkout -B "$DEFAULT" "origin/$DEFAULT"
           mkdir -p output && cp /tmp/ph.json output/performance_history.json
           git add -f output/performance_history.json
+          if [ -f /tmp/es.json ]; then
+            cp /tmp/es.json output/experiments_state.json
+            git add -f output/experiments_state.json
+          fi
           git diff --cached --quiet && exit 0
           git commit -m "chore: performance snapshot [skip ci]"
           git push origin "HEAD:$DEFAULT" || echo "push 실패(무시)"

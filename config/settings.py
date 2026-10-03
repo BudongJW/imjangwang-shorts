@@ -109,9 +109,10 @@ PUBLISH_MIN_LEAD_MIN = int(os.getenv("PUBLISH_MIN_LEAD_MIN", "15"))
 CHARS_PER_SEC = 6.4
 _LEN_MODE_RAW = os.getenv("SCRIPT_LEN_MODE", "normal").strip().lower()
 if _LEN_MODE_RAW == "ab":
-    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
-    _ord = _dt.now(_tz(_td(hours=9))).date().toordinal()
-    SCRIPT_LEN_MODE = "short" if _ord % 2 else "normal"
+    # 2026-10-03부터 실험 관리(src/experiments.py)가 정한다. 실험이 도는 동안은
+    # 예전과 같이 날짜 홀짝이고, 판정이 나면 이긴 쪽으로 굳는다.
+    from src.experiments import arm as _arm
+    SCRIPT_LEN_MODE = _arm("len_mode")
 else:
     SCRIPT_LEN_MODE = _LEN_MODE_RAW
 _LEN_PRESETS = {"normal": (310, 350, 380), "short": (200, 240, 270)}
