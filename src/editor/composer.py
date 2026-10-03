@@ -728,8 +728,15 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked)
             if title_dur == 0 and not opens_with_compare else None)
     avoid = [(a, b) for _, a, b in compares] + ([(hook[1], hook[2])] if hook else [])
+    # 첫 화면·비교 카드에 이미 나온 숫자는 숫자 카드로 다시 띄우지 않는다
+    # (10-03 지정 영상: 비교 카드의 37.7%가 4초 뒤 숫자 카드로 또 떴다).
+    shown = {hook[3]} if hook else set()
+    if compares:
+        from src.editor.compare_card import find_pairs, _short
+        for pr in find_pairs(re.sub(r"\s+", " ", caption_script or "").strip())[:len(compares)]:
+            shown |= {_short(pr.v1), _short(pr.v2)}
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
-                                avoid=avoid, skip_values={hook[3]} if hook else None)
+                                avoid=avoid, skip_values=shown or None)
     # 숫자 카드·비교 카드·첫 화면 카드는 같은 방식(전체 화면 PNG, 시간 구간)으로 얹는다.
     stats = sorted(stats + compares + ([hook[:3]] if hook else []), key=lambda x: x[1])
     # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
