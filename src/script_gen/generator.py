@@ -631,6 +631,10 @@ def _kor_num(tok: str) -> float | None:
 
 
 _SENT_END_RE = re.compile(r"(?<=[다요죠])[.!?]+(?!\d)")
+# 검사용 문장 나누기. '다·요·죠'로 끝나지 않는 토막 문장("…주원인이라는 지적.",
+# "시장 왜곡 심화!")도 따로 본다. 10-03 재생성본이 이런 토막으로 써서 앞뒤
+# 문장과 한 덩어리로 묶였고, 남의 말·과장 검사를 다 빠져나갔다.
+_CHECK_SPLIT_RE = re.compile(r"(?<=[다요죠])[.!?]+(?!\d)|[.!?]+(?=\s|$)")
 # 앞 문장의 규모를 받는 말. "94만 가구를 공급합니다. 이 중 79.5%가 …"
 _TAKE_PREV_RE = re.compile(r"\s*(?:이 중|이중|이 가운데|그중|그 중|이 가구|이 물량)")
 
@@ -810,7 +814,7 @@ def _pair_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         return False
 
     out: list[tuple[str, str]] = []
-    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
         sent = sent.strip()
         toks: dict = {}
         for key, _, _, raw in _qtys(sent):
@@ -865,7 +869,7 @@ _ATTRIB_RE = re.compile(
     r"(지적|분석|시각|목소리|비판|전문가|업계|평가|관측|우려)"
     # 10-03 재생성본: "…현금 부자에게만 유리하다는 지적입니다". 기사에 '지적'도
     # '현금 부자'도 없었다. '~라는 지적입니다/분석입니다' 꼴을 더한다.
-    r"(?:이|가|은|는|도|들|에서는|까지|조차|마저|입니다|이에요|이죠|이다)")
+    r"(?:이|가|은|는|도|들|에서는|까지|조차|마저|입니다|이에요|이죠|이다|\s*$)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 CAUSE_MIN_SHARED = 2
 # 깎아내리는 평가어. 진행자 말로는 쓸 수 있지만, 남의 지적·분석으로 옮길
@@ -885,7 +889,7 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     segs = [x for x in _SEG_SPLIT_RE.split(src) if x.strip()]
     windows = [" ".join(segs[i:i + 2]) for i in range(len(segs))]
     out: list[tuple[str, str]] = []
-    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
         sent = sent.strip()
         if not sent:
             continue
@@ -939,7 +943,10 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"신호가\s?아닙|씨가\s?말랐|참사|"
                       # 10-03 초안 배너 "청약 당첨의 역설 … 지방 미분양 70%의 진실".
                       # 최근 배너 넷에 셋이 '역설'이었고 기사에는 한 번도 없었다.
-                      r"역설|의\s?진실|진실은|숨겨진\s?진실")
+                      r"역설|의\s?진실|진실은|숨겨진\s?진실|"
+                      # 같은 날 세 번째 재생성본: "계약 포기 속출!", "현금 부자만 유리한
+                      # 시장 왜곡 심화!". 둘 다 기사에 없는 판정이다.
+                      r"속출|현금\s?부자|시장\s?왜곡")
 
 
 # 기사에 없는 연도. 10-01 재생성본: 기사의 "2024년 말 8807가구"를 "2022년 말
@@ -957,7 +964,7 @@ def _year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     if re.search(r"지난해|작년", src):
         ok.add(str(now - 1))
     out = []
-    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
         for m in _YEAR_IN_SCRIPT_RE.finditer(sent):
             if m.group(1) not in ok:
                 out.append((sent.strip()[:40], f"기사에 없는 연도 '{m.group(1)}년'"))
@@ -968,7 +975,7 @@ def _year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     src = source_text or ""
     out = []
-    for sent in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or ""):
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
         m = _HYPE_RE.search(sent)
         if m and re.sub(r"\s", "", m.group(0)) not in re.sub(r"\s", "", src):
             out.append((sent.strip()[:40], f"기사에 없는 폭로형 단정 '{m.group(0)}'"))
@@ -990,7 +997,7 @@ def _drop_sentences_with(script: str, quotes: list[str]) -> str:
     """
     if not quotes:
         return script
-    parts = [p.strip() for p in re.split(r"(?<=[다요죠])[.!?]+(?!\d)", script or "")]
+    parts = [p.strip() for p in _CHECK_SPLIT_RE.split(script or "")]
     parts = [p for p in parts if p]
     keep, dropped_prev = [], False
     for p in parts:

@@ -416,6 +416,8 @@ def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: flo
                 return s, e
         return spans[-1][2], spans[-1][3]
 
+    m_end = re.search(r"(?<=[다요죠])[.!?]+(?!\d)", norm)
+    first_end = m_end.end() if m_end else len(norm)
     out: list[tuple[Path, float, float]] = []
     for p in pairs:
         if len(out) >= COMPARE_MAX_N:
@@ -423,6 +425,10 @@ def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: flo
         s0, _ = _at(p.start_pos)
         _, e1 = _at(max(0, p.end_pos - 1))
         cs = max(s0, title_dur)
+        # 첫 문장의 비교면 0초부터 띄워 첫 화면으로 쓴다. 그러지 않으면 곧
+        # 이어지는 기사 화면(약 3초부터)에 잘려 1초도 못 뜬다(10-03 지정 대본).
+        if title_dur == 0 and not out and p.start_pos < first_end:
+            cs = 0.0
         ce = min(total_sec, max(cs + COMPARE_MIN_SEC, min(e1 + 1.0, cs + COMPARE_MAX_SEC)))
         cs, ce = _clip_blocked(cs, ce, blocked)
         if ce - cs < COMPARE_MIN_SEC - 0.5:
@@ -716,8 +722,11 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 blocked = (t, t + d)
                 break
             t += d
-    hook = _plan_hook_overlay(caption_script, dur, blocked=blocked) if title_dur == 0 else None
     compares = _plan_compare_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues)
+    # 비교 카드가 첫 화면부터 뜨면 그게 첫 화면 카드다. 둘을 겹쳐 띄우지 않는다.
+    opens_with_compare = any(a < HOOK_MAX_SEC for _, a, _ in compares)
+    hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked)
+            if title_dur == 0 and not opens_with_compare else None)
     avoid = [(a, b) for _, a, b in compares] + ([(hook[1], hook[2])] if hook else [])
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
                                 avoid=avoid, skip_values={hook[3]} if hook else None)
