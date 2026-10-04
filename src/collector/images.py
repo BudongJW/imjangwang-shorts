@@ -1,7 +1,7 @@
 """영상용 배경 이미지 수집.
 
 개선안 ②·③에 맞춰 '실제 뉴스 캡처 중심'을 보조할 b-roll 이미지를 모은다.
-소스 우선순위: 기사 대표이미지(og:image) → Pexels(키 있을 때) → 그라디언트 생성.
+소스 우선순위: Pexels(키 있을 때) → 그라디언트 생성. 기사 대표이미지는 쓰지 않는다.
 반환 이미지는 모두 세로(1080x1920)로 크롭·리사이즈된 PNG.
 """
 
@@ -284,13 +284,13 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     pool: list[Image.Image] = []
 
-    # 뉴스 대표이미지가 로고/파비콘이면(구글뉴스 등) 배경으로 부적합 → 스킵
-    logo_like = any(k in article_image_url.lower() for k in ("google", "gstatic", "favicon", "logo"))
-    if article_image_url and not logo_like:
-        im = _download(article_image_url)
-        # 너무 작은 이미지(아이콘)는 배제
-        if im and min(im.size) >= 400:
-            pool.append(im)
+    # 기사 대표이미지(og:image)는 배경으로 쓰지 않는다. 대부분 언론사
+    # 보도사진이라 기사 캡처에서 저작권 때문에 걷어내는 바로 그 사진이다
+    # (article_capture._STRIP_PHOTO_JS). 배경의 첫 장은 첫 화면이자 끝 화면
+    # (반복 재생 이음새)이라 캡처보다 더 오래, 화면 가득 뜬다.
+    # 10-04 초안: 뉴시스 대표사진이 다른 유튜브 채널(월급쟁이부자들TV) 출연
+    # 화면 캡처였고, 출연자 얼굴이 첫 화면과 끝 화면에 그대로 떴다.
+    # article_image_url 인자는 호출부 호환을 위해 남겨 둔다.
 
     # 한 검색어에서 다 받으면 같은 촬영자의 비슷한 사진이 연달아 나온다.
     # 오늘 검색어와 다음 검색어에서 반씩 받는다.
