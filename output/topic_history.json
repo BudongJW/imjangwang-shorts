@@ -995,34 +995,5 @@
       "v36465333"
     ],
     "layout": "2026-10-02"
-  },
-  {
-    "title": "\"서울 전세난, 경기·인천으로 번졌다\"…수도권 집값 상승 본격화",
-    "video_id": "jrJOt9GjX6E",
-    "date": "2026-10-03T19:35:52.496463",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 265,
-    "source": "뉴시스",
-    "age_days": 0.18616053489583334,
-    "topic_score": 9,
-    "recency_score": 4,
-    "media": [
-      "p38650642",
-      "p27459661",
-      "p19763828",
-      "p36475843",
-      "p4568710",
-      "v8814707",
-      "v7735908",
-      "v7735907"
-    ],
-    "layout": "2026-10-02",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "on",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
