@@ -1025,5 +1025,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "전·월세난에 불붙은 집값…비강남으로 번졌다[집값, 최장 랠리②]",
+    "video_id": "73C7UdFozX0",
+    "date": "2026-10-04T19:54:51.258859",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 327,
+    "source": "뉴시스",
+    "age_days": 0.9722160650347224,
+    "topic_score": 7,
+    "recency_score": 4,
+    "media": [
+      "p7464209",
+      "p4568698",
+      "p7464509",
+      "p14367421",
+      "p14367425",
+      "p19386931",
+      "v38335324",
+      "v36718318",
+      "v36294726"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
