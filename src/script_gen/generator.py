@@ -858,7 +858,10 @@ _POLICY_RE = re.compile(
     r"공급\s?억제|정부")
 _CAUSE_RE = re.compile(
     r"낳|부른|불러|초래|촉발|부추|밀어\s?올|끌어\s?올|밀어낸|내몰|역설|역효과|역풍|"
-    r"부작용|탓|때문|결과입니다|여파")
+    r"부작용|탓|때문|결과입니다|여파|"
+    # 10-04 초안: "대출 한도 6억 원 정책도 일부 전세 수요를 매매로 전환시켰다는
+    # 분석". 기사는 '대출 여건과 전세가 상승'을 들었고 '정책'이라는 말이 없었다.
+    r"전환시")
 # 인과 낱말 없이 원인을 대는 꼴("~하면서 … 현상을 보여줍니다", "~의 영향").
 # 10-02 초안: "…대출 규제, 공급 부족 정책들이 내 집 마련을 어렵게 만들었다고
 # 읽힙니다". 기사(박람회 단지 소개)에는 정책 얘기가 없었다.
@@ -871,6 +874,20 @@ _ATTRIB_RE = re.compile(
     # '현금 부자'도 없었다. '~라는 지적입니다/분석입니다' 꼴을 더한다.
     r"(?:이|가|은|는|도|들|에서는|까지|조차|마저|입니다|이에요|이죠|이다|\s*$)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
+# 진행자 말로 맺는 원인 설명("~한 것이죠", "~때문입니다"). 기사가 그 내용을
+# 누군가의 분석으로만 썼으면 사실처럼 맺지 않는다. 10-04 초안: 기사는 너나위가
+# "입주 물량 감소와 서울 전세난에 따른 수요 이동"을 원인으로 '지적했다'고 썼는데,
+# 대본은 "서울 수요가 인접 지역으로 밀려온 것이죠"로 원인 하나만 단정했다.
+# '~할 것입니다'(전망·권유)는 맺음이 아니므로 앞 글자가 ㄹ받침이면 뺀다.
+_CONCLUDE_RE = re.compile(
+    r"([가-힣])\s?(?:것|셈)(?:이죠|입니다|이에요)|(?:때문|탓|결과)(?:이죠|입니다|이에요)")
+_SAID_RE = re.compile(r"지적|분석|설명|말했|밝혔|전망|꼽았|봤다|강조|주장|진단|평가")
+CONCLUDE_MIN_SHARED = 3
+
+
+def _rieul_final(ch: str) -> bool:
+    o = ord(ch) - 0xAC00
+    return 0 <= o < 11172 and o % 28 == 8
 CAUSE_MIN_SHARED = 2
 # 깎아내리는 평가어. 진행자 말로는 쓸 수 있지만, 남의 지적·분석으로 옮길
 # 때는 기사에 그 말이 있어야 한다. 09-28 초안: 기사의 "수급 불안 해소에
@@ -919,6 +936,13 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
                 continue
         if not am and _HOST_READ_RE.search(sent):
             continue
+        cc = None if am else _CONCLUDE_RE.search(sent)
+        if cc and not (cc.group(1) and _rieul_final(cc.group(1))):
+            mine = _stems(sent)
+            backs = [x for x in segs if len(mine & _stems(x)) >= CONCLUDE_MIN_SHARED]
+            if backs and all(_SAID_RE.search(x) for x in backs):
+                out.append((needle, "기사에서는 남의 분석인데 사실처럼 맺었다"))
+                continue
         pm, cm = _POLICY_RE.search(sent), _CAUSE_RE.search(sent)
         if not (pm and cm):
             continue
