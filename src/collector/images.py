@@ -188,17 +188,20 @@ PEXELS_QUERIES = (
 # 사진을 쓴다(10-01 청년 전세대출·LH 대출규제·오피스텔 세 편이 비 오는
 # 거리와 경찰버스 사진을 똑같이 썼다). 말하는 내용과도 상관이 없었다.
 # 위에 있을수록 구체적이다. 영어로 찾는 게 Pexels 결과가 훨씬 많다.
+# 건물 바깥을 찾는 말에는 seoul·korean을 붙인다. 10-05 지정 영상에서
+# "officetel building"이 베트남 하노이 거리(현지어 간판)를 가져왔다.
+# 열쇠·서류·상자처럼 실내·물건 사진은 나라가 드러나지 않아 그대로 둔다.
 _TOPICS: list[tuple[re.Pattern, tuple[str, ...]]] = [
-    (re.compile(r"오피스텔|아파텔"), ("officetel building", "studio apartment interior",
-                                  "residential tower city")),
-    (re.compile(r"미분양"), ("empty new apartment", "new apartment complex")),
-    (re.compile(r"청약|(?<!미)분양|견본주택|모델하우스"), ("model house interior", "new apartment complex",
+    (re.compile(r"오피스텔|아파텔"), ("seoul residential tower", "studio apartment interior",
+                                  "seoul high rise apartments")),
+    (re.compile(r"미분양"), ("empty new apartment", "korean apartment complex")),
+    (re.compile(r"청약|(?<!미)분양|견본주택|모델하우스"), ("model house interior", "korean apartment complex",
                                           "apartment sales office")),
-    (re.compile(r"재건축|재개발|정비사업"), ("old apartment building", "demolition site",
+    (re.compile(r"재건축|재개발|정비사업"), ("old korean apartment", "demolition site",
                                      "apartment construction crane")),
-    (re.compile(r"원룸|대학가|기숙사"), ("small studio room", "university district street")),
-    (re.compile(r"빌라|다가구|다세대|비아파트"), ("low rise residential buildings",
-                                         "residential alley houses")),
+    (re.compile(r"원룸|대학가|기숙사"), ("small studio room", "seoul university street")),
+    (re.compile(r"빌라|다가구|다세대|비아파트"), ("seoul residential alley",
+                                         "korean residential alley")),
     (re.compile(r"전세|월세|임대차|세입자|임차|보증금|집주인"), ("apartment keys hand", "moving boxes empty room",
                                                   "apartment door hallway")),
     (re.compile(r"대출|LTV|DSR|금리|보금자리론|디딤돌|은행"), ("bank loan documents", "signing contract desk",
@@ -207,7 +210,7 @@ _TOPICS: list[tuple[re.Pattern, tuple[str, ...]]] = [
     (re.compile(r"공급|착공|입주|건설|공사비|인허가"), ("apartment construction crane", "construction site workers")),
     (re.compile(r"한강|강남|서초|송파|용산|마포|성동"), ("han river apartment aerial", "seoul apartment buildings")),
     (re.compile(r"대구|부산|울산|광주|대전|경북|경남|충남|충북|전북|전남|강원|지방"),
-     ("korean city apartment complex", "city apartment blocks")),
+     ("korean city apartment complex", "korean apartment blocks")),
     (re.compile(r"서울|수도권|경기|인천"), ("seoul apartment buildings", "seoul city skyline")),
 ]
 
