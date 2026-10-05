@@ -1025,34 +1025,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "다주택자 잡고 '기업형 임대' 혜택…\"월세 오를라\" 美선 규제[부동산AtoZ]",
-    "video_id": "khB4qf0JcZI",
-    "date": "2026-10-05T02:31:51.105095",
-    "title_style": "인용",
-    "len_mode": "pinned",
-    "script_chars": 334,
-    "source": "아시아경제",
-    "topic_score": 0,
-    "recency_score": 0,
-    "media": [
-      "p8293717",
-      "p10375958",
-      "p39848587",
-      "p14216533",
-      "p6482459",
-      "p37415238",
-      "v34596730",
-      "v34828872",
-      "v34719410"
-    ],
-    "layout": "2026-10-02",
-    "exp": {
-      "len_mode": "pinned",
-      "hook_card": "off",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
