@@ -604,6 +604,9 @@ def _fix_quoted_names(text: str, source_text: str) -> tuple[str, list[str]]:
 # 적었다면, 기사에서 같은 퍼센트 옆에도 그 규모가 있어야 한다.
 _PCT_RE = re.compile(r"\d+(?:\.\d+)?\s?%")
 _SRC_PCT_RE = re.compile(r"(?<![\d.,])(\d[\d,]*(?:\.\d+)?)\s?%")
+# 퍼센트 바로 뒤의 말. 기사의 "~의 44.3%에 불과"(비중)와 대본의 "44.3% 줄어"(감소 폭)를 가른다.
+_PCT_SHARE_RE = re.compile(r"\s?(?:에\s?불과|수준|에\s?그[쳤친치]|에\s?머[물무])")
+_PCT_DROP_RE = re.compile(r"\s?(?:가|이|나|로|까지)?\s?(?:줄|감소|급감|하락|떨어|축소|낮아)")
 _MAG_RE = re.compile(r"\d[\d,\.]*\s?(?:억|만|천)\s?\d*(?:천)?")
 _KOR_UNIT = {"억": 100_000_000, "만": 10_000, "천": 1_000}
 
@@ -710,6 +713,13 @@ def _pct_problems(script: str, source_text: str) -> list[tuple[str, str]]:
                 if abs(float(h.group(1).replace(",", "")) - want) < 1e-9]
         if not hits:
             out.append((raw, f"{pct}는 기사에 없는 수치다"))
+            continue
+        # 비중을 감소 폭으로 읽은 경우. 10-05 초안: 기사는 "2년간 입주 물량은
+        # 직전 2년간 전망치의 44.3%에 불과하다"(55.7% 감소)였는데 대본은
+        # "44.3% 줄어듭니다"라고 했다. 숫자도 문맥 낱말도 맞아 다른 검사를 다 통과했다.
+        if (_PCT_DROP_RE.match(script, m.end())
+                and all(_PCT_SHARE_RE.match(src, h.end()) for h in hits)):
+            out.append((raw, f"{pct}는 기사에서 '~의 {pct}'(비중)인데 그만큼 줄었다고 했다"))
             continue
         # 문맥: 대본이 이 퍼센트 옆에 쓴 낱말이 기사의 같은 자리에도 있는가
         src_stems: set[str] = set()

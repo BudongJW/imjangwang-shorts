@@ -390,12 +390,13 @@ COMPARE_MAX_N = 2
 
 def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: float,
                            blocked: tuple[float, float] | None = None,
-                           cues: list[tuple[str, float, float]] | None = None
-                           ) -> list[tuple[Path, float, float]]:
-    """대본의 'A에서 B로'를 막대 비교 카드로 띄울 (경로, 시작, 끝) 계획.
+                           cues: list[tuple[str, float, float]] | None = None,
+                           first_clear: bool = False) -> list[tuple]:
+    """대본의 'A에서 B로'를 막대 비교 카드로 띄울 (경로, 시작, 끝, 쌍) 계획.
 
     첫 값을 읽기 시작할 때 띄워 두 번째 값을 다 읽고 1초 뒤까지 둔다.
     값과 시점 이름은 대본 그대로다(compare_card 참고).
+    first_clear면 첫 화면(0~HOOK_MAX_SEC)에 걸리는 카드는 만들지 않는다.
     """
     from src.editor.compare_card import find_pairs, render_compare_card
     norm = re.sub(r"\s+", " ", caption_script or "").strip()
@@ -427,17 +428,19 @@ def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: flo
         cs = max(s0, title_dur)
         # 첫 문장의 비교면 0초부터 띄워 첫 화면으로 쓴다. 그러지 않으면 곧
         # 이어지는 기사 화면(약 3초부터)에 잘려 1초도 못 뜬다(10-03 지정 대본).
-        if title_dur == 0 and not out and p.start_pos < first_end:
+        if title_dur == 0 and not out and p.start_pos < first_end and not first_clear:
             cs = 0.0
         ce = min(total_sec, max(cs + COMPARE_MIN_SEC, min(e1 + 1.0, cs + COMPARE_MAX_SEC)))
         cs, ce = _clip_blocked(cs, ce, blocked)
         if ce - cs < COMPARE_MIN_SEC - 0.5:
             continue
+        if first_clear and cs < HOOK_MAX_SEC:
+            continue
         if out and cs < out[-1][2] + 0.5:
             continue
         path = VIDEO_DIR / f"compare_{len(out)}.png"
         render_compare_card(p, path)
-        out.append((path, cs, ce))
+        out.append((path, cs, ce, p))
         note(f"비교 카드 {cs:5.1f}~{ce:5.1f}s  {p.label1} {p.v1} / {p.label2} {p.v2}")
     return out
 
@@ -725,23 +728,30 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 blocked = (t, t + d)
                 break
             t += d
-    compares = _plan_compare_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues)
-    # 비교 카드가 첫 화면부터 뜨면 그게 첫 화면 카드다. 둘을 겹쳐 띄우지 않는다.
-    opens_with_compare = any(a < HOOK_MAX_SEC for _, a, _ in compares)
     from src.experiments import arm
     hook_on = arm("hook_card") == "on"      # 실험: 첫 화면 숫자 카드
     note(f"실험 배정: 첫 화면 숫자 카드 {'켬' if hook_on else '끔'}, 배경음 "
          f"{arm('bgm')}, 컷 길이 {arm('cut_pace')}")
+    # 끔 팔은 첫 화면(0~HOOK_MAX_SEC)을 비운다. 10-05 초안(끔 배정)에서 첫 문장의
+    # "86주"가 숫자 카드로 0.1초에 떠, 켠 날과 첫 화면이 같았다. 첫 문장 비교
+    # 카드도 같은 이유로 뺀다(바로 뒤가 기사 화면이라 미룰 자리가 없다).
+    first_clear = title_dur == 0 and not hook_on
+    compares = _plan_compare_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
+                                      first_clear=first_clear)
+    # 비교 카드가 첫 화면부터 뜨면 그게 첫 화면 카드다. 둘을 겹쳐 띄우지 않는다.
+    opens_with_compare = any(c[1] < HOOK_MAX_SEC for c in compares)
     hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked)
             if title_dur == 0 and not opens_with_compare and hook_on else None)
-    avoid = [(a, b) for _, a, b in compares] + ([(hook[1], hook[2])] if hook else [])
+    avoid = ([(c[1], c[2]) for c in compares] + ([(hook[1], hook[2])] if hook else [])
+             + ([(0.0, HOOK_MAX_SEC)] if first_clear else []))
     # 첫 화면·비교 카드에 이미 나온 숫자는 숫자 카드로 다시 띄우지 않는다
     # (10-03 지정 영상: 비교 카드의 37.7%가 4초 뒤 숫자 카드로 또 떴다).
     shown = {hook[3]} if hook else set()
     if compares:
-        from src.editor.compare_card import find_pairs, _short
-        for pr in find_pairs(re.sub(r"\s+", " ", caption_script or "").strip())[:len(compares)]:
-            shown |= {_short(pr.v1), _short(pr.v2)}
+        from src.editor.compare_card import _short
+        for c in compares:
+            shown |= {_short(c[3].v1), _short(c[3].v2)}
+    compares = [c[:3] for c in compares]
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
                                 avoid=avoid, skip_values=shown or None)
     # 숫자 카드·비교 카드·첫 화면 카드는 같은 방식(전체 화면 PNG, 시간 구간)으로 얹는다.
