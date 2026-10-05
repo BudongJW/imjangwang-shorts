@@ -29,6 +29,7 @@ _STAT_RE = re.compile(
 # 연도는 수치가 아니라 날짜다. "2024년"을 화면 한복판에 210px로 띄우면
 # 숫자 임팩트가 아니라 잡음이 된다(2026-09-14 실측에서 2회 잡혔다).
 _YEAR_RE = re.compile(r"^(1[89]\d{2}|20\d{2})년$")
+_RANGE_HEAD_RE = re.compile(r"(?<![\d.,])(\d[\d,]*(?:\.\d+)?)\s?[~∼～]\s?$")
 # 같은 구절에 여러 수치가 있으면 '센' 쪽을 띄운다. 기간(5년·2주·3개월)은
 # 대개 기준일 뿐 임팩트가 아니다 — "지난 5년 평균 대비"의 5년을 화면
 # 한복판에 띄워 봐야 시청자에게 남는 게 없다(2026-09-14 실측).
@@ -143,6 +144,11 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         cand = _extend(phrase, m)
         if _YEAR_RE.match(cand.replace(",", "")):
             continue
+        # 범위는 통째로 띄운다. 10-05 지정 영상: "9~15%", "3~4%대"가 "15%",
+        # "4%"로 떠서 다른 숫자처럼 보였다.
+        rng = _RANGE_HEAD_RE.search(phrase[:m.start()])
+        if rng:
+            cand = f"{rng.group(1)}~{cand}"
         # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
         if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
             continue
