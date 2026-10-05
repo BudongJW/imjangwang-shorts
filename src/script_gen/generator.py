@@ -983,6 +983,33 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"속출|현금\s?부자|시장\s?왜곡")
 
 
+# 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
+# 융자 금리를 "2.6~3.4%→2.0~2.8%"로 낮췄다고 썼는데, 대본은 범위의 양 끝을
+# 전후로 읽어 "연 2.0에서 2.8%로 낮춰"라고 했다. 숫자는 모두 기사에 있어서
+# 퍼센트·짝 검사를 통과했다. 대본 한 문장 안에서 앞뒤가 안 맞는지만 본다.
+_NUMVAL = r"((?:\d[\d,]*(?:\.\d+)?\s?(?:조|억|천만|만|천)?\s?)+)"
+_UNIT_OPT = r"(?:%|원|가구|세대|명|건|채)?"
+_FROM_TO_RE = re.compile(
+    _NUMVAL + _UNIT_OPT + r"\s?(?:에서|이던|였던)\s?" + _NUMVAL + _UNIT_OPT
+    + r"\s?(?:으로|로|까지)\s?([가-힣]{1,4})")
+_DOWN_VERB_RE = re.compile(r"^(?:낮|내려|내린|내렸|인하|줄|감소|급감|하락|떨어|축소|깎)")
+_UP_VERB_RE = re.compile(r"^(?:올|높|인상|늘|증가|급증|상승|뛰|확대)")
+
+
+def _direction_problems(script: str) -> list[tuple[str, str]]:
+    from src.editor.compare_card import to_number
+    out: list[tuple[str, str]] = []
+    for m in _FROM_TO_RE.finditer(script or ""):
+        a, b = to_number(m.group(1)), to_number(m.group(2))
+        if not a or not b or a == b:
+            continue
+        verb = m.group(3)
+        if (b > a and _DOWN_VERB_RE.match(verb)) or (b < a and _UP_VERB_RE.match(verb)):
+            out.append((m.group(0).strip()[:40],
+                        f"'{m.group(0).strip()}' 숫자 방향과 말이 반대다"))
+    return out
+
+
 # 기사에 없는 연도. 10-01 재생성본: 기사의 "2024년 말 8807가구"를 "2022년 말
 # 8807가구"로 옮겼다. 숫자는 맞아서 다른 검사를 다 통과했다. 기사가 '올해'·
 # '지난해'로 쓴 해는 그 연도로 써도 된다.
@@ -1104,7 +1131,7 @@ def generate(art) -> ShortPlan:
             a = _unsourced_actors(text, hay)
             pr = _pair_problems(text, hay)
             c = (_causal_problems(text, hay) + _hype_problems(text, hay)
-                 + _year_problems(text, hay))
+                 + _year_problems(text, hay) + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
                     + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]
