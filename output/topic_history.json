@@ -1054,35 +1054,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "불안한 전월세…서울시 '민간임대·장기전세' 해법 모색",
-    "video_id": "k0qK1d075zo",
-    "date": "2026-10-05T23:04:22.885070",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 226,
-    "source": "아시아경제",
-    "age_days": 1.8622279717708332,
-    "topic_score": 8,
-    "recency_score": 4,
-    "media": [
-      "p7647753",
-      "p8482869",
-      "p7768228",
-      "p37384706",
-      "p19511930",
-      "p36965350",
-      "v8965542",
-      "v14346212",
-      "v36236832"
-    ],
-    "layout": "2026-10-02",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
