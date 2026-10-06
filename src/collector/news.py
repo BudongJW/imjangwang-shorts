@@ -551,6 +551,22 @@ def _is_autogen(art) -> bool:
     return bool(_AUTOGEN_TITLE_RE.search(getattr(art, "title", "") or ""))
 
 
+# 앞으로 열릴 행사를 알리는 기사. 10-06 초안: 아시아경제 "불안한 전월세…
+# 서울시 '민간임대·장기전세' 해법 모색"은 제목에 행사명이 없지만 본문은 "7일
+# 서울주거포럼이 개최된다"는 안내와 발표자 명단뿐이었다. 수치가 0개라 대본이
+# "한계가 있다고 저는 봅니다" 같은 진행자 의견으로 채워졌다. 이미 열린 행사의
+# 결과 보도("개최했다", "열었다")는 내용이 있으므로 미래형만 본다.
+_EVENT_NOTICE_RE = re.compile(
+    r"(?:포럼|세미나|토론회|심포지엄|설명회|콘퍼런스|컨퍼런스|공청회|간담회)['’\"」』]?"
+    r"[^.]{0,30}?(?:개최된다|개최한다|개최할\s?예정|열린다|연다)")
+EVENT_NOTICE_LEAD = 400
+
+
+def _is_event_notice(art) -> bool:
+    lead = f"{getattr(art, 'title', '') or ''} {(getattr(art, 'summary', '') or '')[:EVENT_NOTICE_LEAD]}"
+    return bool(_EVENT_NOTICE_RE.search(lead))
+
+
 def _is_promo(art) -> bool:
     if _PROMO_TITLE_RE.search(getattr(art, "title", "") or ""):
         return True
@@ -581,6 +597,11 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
         if _is_autogen(art):
             log.info(f"자동 생성 기사라 건너뜀: {art.title[:40]} ({art.source})")
             note(f"자동 생성 기사라 건너뜀: {art.title[:40]}")
+            time.sleep(0.5)
+            continue
+        if _is_event_notice(art):
+            log.info(f"행사 안내 기사라 건너뜀: {art.title[:40]} ({art.source})")
+            note(f"행사 안내 기사라 건너뜀: {art.title[:40]}")
             time.sleep(0.5)
             continue
         if _is_promo(art):
