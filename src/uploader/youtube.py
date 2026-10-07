@@ -96,6 +96,11 @@ def get_youtube_service():
     return build("youtube", "v3", credentials=get_credentials())
 
 
+# 마지막 already_posted_today 확인이 실패한 이유. 호출부가 '토큰 만료'와
+# 일시 오류를 가르는 데 쓴다.
+LAST_CHECK_ERROR = ""
+
+
 def already_posted_today(tz_offset_hours: int = 9) -> bool | None:
     """오늘(KST) 이미 업로드했으면 True, 아니면 False, 확인 못 하면 None.
 
@@ -122,6 +127,8 @@ def already_posted_today(tz_offset_hours: int = 9) -> bool | None:
         kst = timezone(timedelta(hours=tz_offset_hours))
         return dt.astimezone(kst).date() == datetime.now(kst).date()
     except Exception as e:
+        global LAST_CHECK_ERROR
+        LAST_CHECK_ERROR = str(e)
         print(f"[youtube] already_posted_today 확인 실패: {e}")
         return None
 

@@ -316,6 +316,13 @@ def run(skip_upload: bool = False) -> int:
             if _posted_today_in_history():
                 log.info("오늘자 업로드 이력이 있어 건너뜁니다(API 확인 실패 → 로컬 이력).")
                 return 0
+            # 토큰 만료는 다음 실행도 똑같이 막힌다. 성공(0)으로 끝내면 워크플로가
+            # 초록으로 남아 아무 알림도 안 간다(10-07 새벽: 만료 뒤 '성공'으로 건너뜀).
+            # 실패로 끝내 GitHub 실패 알림이 가게 한다. 2가 아니라서 재시도는 없다.
+            from src.uploader import youtube as _yt
+            if "invalid_grant" in (_yt.LAST_CHECK_ERROR or ""):
+                log.error("유튜브 토큰이 만료돼 업로드가 멈췄습니다. run/auth-* 로 재발급하세요.")
+                return 3
             log.error("업로드 여부를 확인할 수 없어 중복 방지를 위해 건너뜁니다. "
                       "다시 올리려면 run/daily-force-* 브랜치로 실행하세요.")
             return 0
