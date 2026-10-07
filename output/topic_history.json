@@ -1083,5 +1083,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“시공 주요단지 잇단 신고가”…두산건설, 부산 북구서 ‘두산위브 트리니뷰 구명역’ 공급",
+    "video_id": "hrD0oQwgwc4",
+    "date": "2026-10-07T21:56:48.975791",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 210,
+    "source": "매일경제",
+    "age_days": 0.5371478476157407,
+    "topic_score": 9,
+    "recency_score": 4,
+    "media": [
+      "p34360429",
+      "p34642280",
+      "p27806664",
+      "p31955712",
+      "p7821500",
+      "p7926653",
+      "v36796001",
+      "v32107131",
+      "v32501285"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
