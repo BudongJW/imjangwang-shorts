@@ -1113,5 +1113,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "홍지선 장관 \"연말가면 서울 집값 진정될 것\"",
+    "video_id": "8N5VLEAJRTQ",
+    "date": "2026-10-07T23:57:25.654106",
+    "title_style": "인용",
+    "len_mode": "pinned",
+    "script_chars": 348,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p37384706",
+      "p19511930",
+      "p36965350",
+      "p33289717",
+      "p19829173",
+      "p36584990",
+      "v8965542",
+      "v14346212",
+      "v36601732"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "pinned",
+      "hook_card": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
