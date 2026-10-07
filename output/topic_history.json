@@ -1054,5 +1054,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "[2026국감]수도권 집값 누구 탓?…與 \"공급 부족\" 野 \"대출규제 실패\"",
+    "video_id": "ZopysldeIoE",
+    "date": "2026-10-07T11:16:33.252490",
+    "title_style": "인용",
+    "len_mode": "pinned",
+    "script_chars": 313,
+    "source": "아시아경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p7680752",
+      "p8276209",
+      "p5412362",
+      "p26975196",
+      "p20993117",
+      "p12454406",
+      "v7701961",
+      "v8103305",
+      "v10240699"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "pinned",
+      "hook_card": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
