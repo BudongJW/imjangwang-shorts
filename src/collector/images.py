@@ -108,7 +108,13 @@ _OFFTOPIC_RE = re.compile(
     r"monk|pray|candle|portrait|selfie|food|dish|meal|cat\b|dog\b|pet\b|"
     r"flower|bouquet|wedding|bikini|model\b|"
     r"불상|부처|불교|사찰|사원|성당|교회|성전|동상|조각상|기도|승려|스님|양초|촛불|"
-    r"음식|요리|고양이|강아지|반려|꽃다발|웨딩|결혼|셀카|초상", re.I)
+    r"음식|요리|고양이|강아지|반려|꽃다발|웨딩|결혼|셀카|초상|"
+    # 10-08 LH 영상: "bank loan documents"로 너구리, 서양인 남성, 연체 독촉장이
+    # 왔다. 서양인 얼굴은 "이성훈 LH 사장이" 자막 밑에 떠서 본인처럼 보였다.
+    # 실명이 나오는 영상이 많아 한 사람이 찍힌 사진은 아예 뺀다.
+    r"raccoon|wildlife|animal|squirrel|bird\b|너구리|동물|야생|다람쥐|조류|"
+    r"\bman\b|\bwoman\b|businessman|businesswoman|남성|여성|남자|여자|"
+    r"past\s?due|overdue|bankrupt|foreclos|연체|파산|독촉", re.I)
 
 
 # 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을
@@ -140,7 +146,8 @@ USED_MEDIA: list[str] = []
 # v34435020: 이스탄불 고속도로(터키어 표지판), 10-08 두 초안에 연달아 떴다.
 # p30764160: 지붕 위 판잣집 항공 사진, 10-08 초안.
 # p20111013: 눈 덮인 가평 리조트(설명에 눈이 없다), 10-08 초안.
-BANNED_MEDIA = {"v34435020", "p30764160", "p20111013"}
+# v19327271: 일본 주택가 골목, 10-08 LH 영상.
+BANNED_MEDIA = {"v34435020", "p30764160", "p20111013", "v19327271"}
 # 최근 몇 편과 겹치지 않게 할지. 하루 3편 안팎이라 닷새치다.
 MEDIA_AVOID_RECENT = 15
 
@@ -227,8 +234,8 @@ _TOPICS: list[tuple[re.Pattern, tuple[str, ...]]] = [
                                          "korean residential alley")),
     (re.compile(r"전세|월세|임대차|세입자|임차|보증금|집주인"), ("apartment keys hand", "moving boxes empty room",
                                                   "apartment door hallway")),
-    (re.compile(r"대출|LTV|DSR|금리|보금자리론|디딤돌|은행"), ("bank loan documents", "signing contract desk",
-                                                  "calculator house model")),
+    (re.compile(r"대출|LTV|DSR|금리|보금자리론|디딤돌|은행"), ("calculator house model", "signing contract desk",
+                                                  "seoul apartment buildings")),
     (re.compile(r"세금|보유세|종부세|양도세|취득세|과세"), ("tax documents calculator", "paperwork desk calculator")),
     (re.compile(r"공급|착공|입주|건설|공사비|인허가"), ("apartment construction crane", "construction site workers")),
     (re.compile(r"한강|강남|서초|송파|용산|마포|성동"), ("han river apartment aerial", "seoul apartment buildings")),
