@@ -136,6 +136,10 @@ def _offtopic(meta: dict) -> bool:
 
 # 이 영상에서 쓴 스톡 사진·영상 ID. 토픽 기록에 남겨 다음 영상들이 피한다.
 USED_MEDIA: list[str] = []
+# 설명에 나라가 안 적혀 위 필터를 지나간 외국 컷. 보이는 대로 여기 더한다.
+# v34435020: 이스탄불 고속도로(터키어 표지판), 10-08 두 초안에 연달아 떴다.
+# p30764160: 지붕 위 판잣집 항공 사진, 10-08 초안.
+BANNED_MEDIA = {"v34435020", "p30764160"}
 # 최근 몇 편과 겹치지 않게 할지. 하루 3편 안팎이라 닷새치다.
 MEDIA_AVOID_RECENT = 15
 
@@ -165,7 +169,7 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
         )
         r.raise_for_status()
         imgs, kept = [], []
-        avoid = _recent_media() | set(USED_MEDIA)
+        avoid = _recent_media() | set(USED_MEDIA) | BANNED_MEDIA
         for photo in r.json().get("photos", []):
             pid = f"p{photo.get('id')}"
             if pid in avoid:
@@ -374,7 +378,7 @@ def _pexels_videos(query: str, n: int) -> list[str]:
 
     links: list[str] = []
     slugs: list[str] = []
-    avoid = _recent_media() | set(USED_MEDIA)
+    avoid = _recent_media() | set(USED_MEDIA) | BANNED_MEDIA
     for vid in r.json().get("videos", []):
         vkey = f"v{vid.get('id')}"
         if vkey in avoid:
