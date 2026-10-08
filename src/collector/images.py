@@ -111,9 +111,27 @@ _OFFTOPIC_RE = re.compile(
     r"음식|요리|고양이|강아지|반려|꽃다발|웨딩|결혼|셀카|초상", re.I)
 
 
+# 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을
+# 붙여도 Pexels는 비슷한 아시아 도시를 섞는다(10-08 "korean apartment
+# complex"가 베이징 아파트를 가져왔다). alt에 나라·도시가 적혀 오니 거른다.
+_FOREIGN_RE = re.compile(
+    r"\b(?:china|chinese|beijing|shanghai|shenzhen|guangzhou|hong\s?kong|japan|tokyo|"
+    r"osaka|vietnam|hanoi|saigon|bangkok|thailand|singapore|taipei|taiwan|dubai|"
+    r"new\s?york|manhattan|london|paris|malaysia|kuala|manila|jakarta)|"
+    r"중국|베이징|상하이|광저우|홍콩|일본|도쿄|오사카|베트남|하노이|호찌민|호치민|"
+    r"태국|방콕|싱가포르|대만|타이베이|두바이|뉴욕|맨해튼|런던|말레이시아|"
+    r"쿠알라|필리핀|마닐라|인도네시아|자카르타", re.I)
+# 눈 덮인 겨울 사진은 겨울에만 쓴다(10-08 영상에 눈 쌓인 단지가 떴다).
+_WINTER_RE = re.compile(r"눈\s?(?:으로\s?)?덮인|눈이\s?(?:내리|쌓인|덮)|설경|겨울|snow|winter", re.I)
+
+
 def _offtopic(meta: dict) -> bool:
     text = f"{meta.get('alt') or ''} {meta.get('url') or ''}".replace("-", " ")
-    return bool(_OFFTOPIC_RE.search(text))
+    if _OFFTOPIC_RE.search(text) or _FOREIGN_RE.search(text):
+        return True
+    from datetime import datetime, timezone, timedelta
+    month = datetime.now(timezone(timedelta(hours=9))).month
+    return month not in (12, 1, 2) and bool(_WINTER_RE.search(text))
 
 
 # 이 영상에서 쓴 스톡 사진·영상 ID. 토픽 기록에 남겨 다음 영상들이 피한다.

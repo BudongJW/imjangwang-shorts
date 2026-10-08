@@ -168,7 +168,7 @@ PROMPT = """당신은 한국 부동산 유튜브 쇼츠 대본 작가입니다.
 [출력: 아래 JSON만, 다른 텍스트 없이. 주석(//)을 달지 말 것.
  값 안에 큰따옴표를 쓸 때는 반드시 \\" 로 이스케이프할 것]
 {{
-  "headline": ["타이틀 1줄(12자 이내, 정책 문제 겨냥)", "타이틀 2줄", "(선택)3줄"],
+  "headline": ["타이틀 1줄(12자 이내, 정책 문제 겨냥. 기사에 정책·규제 얘기가 없으면 기사 핵심으로)", "타이틀 2줄", "(선택)3줄"],
   "hook_word": "헤드라인에서 노랗게 강조할 핵심 단어 1개",
   "highlight_sentence": "기사에서 형광펜 칠할 핵심 한 문장(20자 내외)",
   "script": "말하는 문장만. {chars_min}~{chars_max}자. 지문·괄호·타임스탬프 없이.",
@@ -507,6 +507,9 @@ _VERDICT_Q = [
     (re.compile(r"못\s?푼다|못\s?풀(?:어|고)?"), "풀까"),
 ]
 _VERDICT_DROP_RE = re.compile(r"소용\s?없|무용지물|물거품|헛수고|실패했|효과\s?없")
+# 배너 지시가 "정책 문제 겨냥"이라 정책 얘기가 없는 기사에도 규제를 끌어
+# 붙인다. 10-08 철도 개통 기사(규제 언급 없음)에 "규제 속에서도"가 붙었다.
+_FRAME_RE = re.compile(r"규제|대책|정책")
 
 
 def _soften_verdict(line: str, source: str) -> str | None:
@@ -516,7 +519,7 @@ def _soften_verdict(line: str, source: str) -> str | None:
         m = rx.search(line)
         if m and re.sub(r"\s+", "", m.group(0))[:2] not in src:
             return (line[:m.start()] + q).strip()
-    m = _VERDICT_DROP_RE.search(line) or _HYPE_RE.search(line)
+    m = _VERDICT_DROP_RE.search(line) or _HYPE_RE.search(line) or _FRAME_RE.search(line)
     if m and re.sub(r"\s+", "", m.group(0)) not in src:
         return None
     return line
