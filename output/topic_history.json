@@ -1112,5 +1112,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "'집값 급등열차' 타길 잘했네…'미달 속출' 아파트의 대반전",
+    "video_id": "KuGYvm6VQMQ",
+    "date": "2026-10-08T02:26:21.941792",
+    "title_style": "주장",
+    "len_mode": "pinned",
+    "script_chars": 256,
+    "source": "한국경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p24601783",
+      "p20111013",
+      "p34056455",
+      "p12640884",
+      "p20837362",
+      "p20849996",
+      "v40049384",
+      "v38335324",
+      "v36849357"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "pinned",
+      "hook_card": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
