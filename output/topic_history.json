@@ -1141,5 +1141,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“내 집 마련 사다리 걷어차나”…LH 사장 발언에 청년층 부글부글",
+    "video_id": "M2GQmarsPI0",
+    "date": "2026-10-08T11:06:03.086296",
+    "title_style": "인용",
+    "len_mode": "pinned",
+    "script_chars": 350,
+    "source": "이데일리",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p31955712",
+      "p7821500",
+      "p7926653",
+      "p34360429",
+      "p34642280",
+      "p27806664",
+      "v40049367",
+      "v35539434",
+      "v19327271"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "pinned",
+      "hook_card": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
