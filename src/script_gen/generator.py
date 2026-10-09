@@ -356,6 +356,25 @@ def _fallback_plan(art) -> ShortPlan:
     )
 
 
+def _banner_title(title: str, limit: int = 26) -> str:
+    """기사 제목을 배너용으로 줄인다. 앞뒤 꼬리표를 떼고, 길면 '…' 앞 절만 쓴다.
+
+    10-09 시험 빌드: '국토장관 "민간 주택공급 회복 중요…HUG PF보증 신속
+    지원해야"(종합)'이 배너에서 '…HUG PF보증'으로 잘린 채 영상 내내 떴다.
+    """
+    t = re.sub(r"\((?:종합|상보|1보|2보|속보|단독)[^)]*\)|\[[^\]]*\]|【[^】]*】", " ", title or "")
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) > limit and "…" in t:
+        head = t.split("…")[0].strip()
+        # 따옴표를 열고 '…'에서 끊겼으면 닫아 준다.
+        for o, c in (('"', '"'), ("'", "'"), ("“", "”"), ("‘", "’")):
+            if head.count(o) % 2 == 1 if o == c else head.count(o) > head.count(c):
+                head += c
+        if len(head) >= 8:
+            t = head
+    return t
+
+
 def _split_headline(text: str, per_line: int = 12, max_lines: int = 3) -> list[str]:
     text = normalize_caption(text)[: per_line * max_lines]
     lines, cur = [], ""
@@ -1217,7 +1236,7 @@ def generate(art) -> ShortPlan:
         # ("공급 부족 역설"만 남는 식). 그럴 땐 기사 제목으로 되돌린다.
         headline = [h for h in soft if h] if all(soft) else []
     if not headline:
-        headline = _split_headline(getattr(art, "title", "부동산 뉴스"))
+        headline = _split_headline(_banner_title(getattr(art, "title", "부동산 뉴스")))
     if has_body and data.get("youtube_title"):
         t = _soften_verdict(str(data["youtube_title"]), f"{getattr(art, 'title', '')} {body}")
         data["youtube_title"] = t or _headline_title(getattr(art, "title", ""))
