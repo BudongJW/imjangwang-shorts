@@ -512,9 +512,47 @@ def _render_news_card(title: str, source: str, published: str,
 # 캡처 윗부분(매체·제목)은 출처 증거로 작게 두고, 강조 문장은 기사 원문
 # 그대로 크게 다시 쓴다. 위는 제목 배너, 아래는 자막 자리라 그 사이에 넣는다.
 PROOF_TOP = 410          # 제목 배너 아래
-PROOF_CROP_H = 520       # 캡처 위에서 이만큼(폭 1080 기준)을 증거로 쓴다
+PROOF_CROP_H = 400       # 캡처 위에서 이만큼(폭 1080 기준)을 증거로 쓴다(매체·제목·송고 시각)
 PROOF_SCALE = 0.85
 QUOTE_BOTTOM = 1250      # 자막 상자 위
+
+
+def _wrap_words(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
+    """어절 단위 줄바꿈. 한 어절이 한 줄보다 길 때만 글자 단위로 자른다.
+
+    글자 단위로만 자르면 "2026~203 / 0년", "80 / %"처럼 숫자가 갈렸다(10-09 시험).
+    """
+    lines: list[str] = []
+    cur = ""
+    for w in text.split():
+        cand = f"{cur} {w}" if cur else w
+        if font.getlength(cand) <= max_w:
+            cur = cand
+            continue
+        if cur:
+            lines.append(cur)
+        if font.getlength(w) <= max_w:
+            cur = w
+        else:
+            parts = _wrap(w, font, max_w)
+            lines.extend(parts[:-1])
+            cur = parts[-1]
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _date_ko(published: str) -> str:
+    """'Thu, 08 Oct 2026 17:17:00 +0900'이나 '2026-10-08 17:17'을 '2026.10.08'로."""
+    p = (published or "").strip()
+    m = re.match(r"(\d{4})[-.](\d{1,2})[-.](\d{1,2})", p)
+    if m:
+        return f"{m.group(1)}.{int(m.group(2)):02d}.{int(m.group(3)):02d}"
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(p).strftime("%Y.%m.%d")
+    except Exception:
+        return ""
 
 
 def _sentence_with(text: str, key: str) -> str:
@@ -550,7 +588,7 @@ def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
     canvas.paste(crop, (x0, PROOF_TOP), mask)
 
     y = PROOF_TOP + ph + 46
-    meta = " · ".join(x for x in ((source or "").strip(), (published or "")[:10]) if x)
+    meta = " · ".join(x for x in ((source or "").strip(), _date_ko(published)) if x)
     if meta:
         f_meta = ImageFont.truetype(font_bold(), 36)
         d.text((x0, y), meta + (" 기사 제목" if is_title else " 기사 중"), font=f_meta,
@@ -562,7 +600,7 @@ def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
     inner = pw
     for size in (66, 60, 54, 48, 44):
         f_q = ImageFont.truetype(font_bold(), size)
-        lines = _wrap(quote, f_q, inner)
+        lines = _wrap_words(quote, f_q, inner)
         lh = int(size * 1.32)
         if y + len(lines) * lh <= QUOTE_BOTTOM:
             break

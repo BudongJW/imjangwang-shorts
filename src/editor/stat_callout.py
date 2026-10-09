@@ -208,6 +208,10 @@ _DOWN_DONE = re.compile(r"내렸|내린|하락했|하락한|하락해|줄었|줄
                         r"떨어졌|떨어진|급락했|급락한|빠졌|빠진")
 
 
+_DATE_WORD_RE = re.compile(r"^(?:\d{4}(?:\s?[~∼～-]\s?\d{4})?년|\d{1,2}(?:\s?[~∼～-]\s?\d{1,2})?월)"
+                           r"(?:부터|까지|에|엔|의|말|초)?$")
+
+
 def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
     """문장에서 big 숫자 앞의 이름표와 방향(up/down/flat)을 찾는다.
 
@@ -244,6 +248,9 @@ def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
         if len(label) >= LABEL_MAX_WORDS or len(" ".join([w] + label)) > LABEL_MAX_CHARS:
             break
         if w.endswith((",", "，")):
+            break
+        # 날짜("2026~2030년", "9월")는 앞말과 끊긴 곳이라 거기서 멈추고 모은 말은 쓴다.
+        if _DATE_WORD_RE.match(w):
             break
         if re.search(r"\d", w):
             if w.endswith("당") and not label:
