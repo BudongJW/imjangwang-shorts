@@ -271,11 +271,18 @@ def _rounded(draw, box, radius, fill):
     draw.rounded_rectangle(box, radius=radius, fill=fill)
 
 
-def render_stat_card(big: str, direction: str, out: Path, label: str = "") -> Path:
-    """화면 중앙에 수치 콜아웃을 렌더한 전체 투명 PNG. label은 숫자 위 작은 글씨."""
+def render_stat_card(big: str, direction: str, out: Path, label: str = "",
+                     full: bool = False) -> Path:
+    """화면 중앙에 수치 콜아웃을 렌더한 전체 PNG. label은 숫자 위 작은 글씨.
+
+    full이면 사진 위에 얹는 투명 카드가 아니라 남색 정보 화면 전체를 그린다
+    (실험 bg_mode의 graphic 팔).
+    """
+    color = {"up": RED, "down": BLUE}.get(direction, YELLOW)
+    if full:
+        return _render_stat_slide(big, direction, color, out, label)
     img = Image.new("RGBA", (SHORTS_WIDTH, SHORTS_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    color = {"up": RED, "down": BLUE}.get(direction, YELLOW)
 
     # 숫자는 짧아 210px로 충분하지만 핵심어("공급 부족")는 넘친다.
     # 패널 좌우 여백까지 고려해 폭 안에 들어올 때까지 줄인다.
@@ -322,6 +329,51 @@ def render_stat_card(big: str, direction: str, out: Path, label: str = "") -> Pa
     draw.text((cx, cy), big, font=font, fill=color + (255,),
               anchor="mm", stroke_width=10, stroke_fill=DARK + (255,))
 
+    VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    img.save(out)
+    return out
+
+
+def _fit_font(draw, text: str, size: int, max_w: int, stroke: int = 0, floor: int = 60):
+    while size > floor:
+        font = ImageFont.truetype(font_bold(), size)
+        bb = draw.textbbox((0, 0), text, font=font, stroke_width=stroke)
+        if bb[2] - bb[0] <= max_w:
+            return font
+        size -= 8
+    return ImageFont.truetype(font_bold(), floor)
+
+
+def _render_stat_slide(big: str, direction: str, color: tuple, out: Path,
+                       label: str = "") -> Path:
+    """정보 화면판 숫자 카드. 상자 없이 남색 바탕에 이름표·숫자·밑줄만 둔다.
+
+    사진 위 카드는 배경과 갈라 보이게 어두운 상자가 필요했지만, 바탕이 이미
+    남색이면 상자는 답답하기만 하다. 숫자를 더 크게 키운다.
+    """
+    from src.editor.slide_bg import backdrop
+    img = backdrop()
+    draw = ImageDraw.Draw(img)
+    W = SHORTS_WIDTH
+    cx, cy = W // 2, int(SHORTS_HEIGHT * 0.46)
+    font = _fit_font(draw, big, 280, W - 160, stroke=0, floor=90)
+    bb = draw.textbbox((0, 0), big, font=font)
+    tw, th = bb[2] - bb[0], bb[3] - bb[1]
+    if label:
+        lf = _fit_font(draw, label, 84, W - 160, floor=48)
+        draw.text((cx, cy - th // 2 - 70), label, font=lf, fill=(225, 230, 240, 255), anchor="mb")
+    draw.text((cx, cy), big, font=font, fill=color + (255,), anchor="mm")
+    # 숫자 밑 색 띠. 방향이 있으면 끝에 삼각형을 단다.
+    uy = cy + th // 2 + 50
+    draw.rounded_rectangle([cx - tw // 2, uy, cx + tw // 2, uy + 14], radius=7, fill=color + (255,))
+    # 숫자가 길면 옆자리가 없어 화면 밖으로 잘린다. 밑줄 오른쪽 끝 아래에 둔다.
+    if direction in ("up", "down"):
+        ax = min(cx + tw // 2 - 45, W - 70)
+        ay = uy + 70
+        if direction == "up":
+            draw.polygon([(ax, ay - 45), (ax - 45, ay + 30), (ax + 45, ay + 30)], fill=color)
+        else:
+            draw.polygon([(ax, ay + 45), (ax - 45, ay - 30), (ax + 45, ay - 30)], fill=color)
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     img.save(out)
     return out

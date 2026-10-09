@@ -10,11 +10,12 @@
     상태(output/experiments_state.json): master에 남아 다음 제작이 읽는다.
 
 배정은 날짜(KST)로 한다. 하루 한두 편이라 영상 단위로 섞으면 같은 날 영상끼리
-조건이 갈려 확인이 어렵다. 동시에 도는 실험은 두 개까지이고, 서로 다른 칸(slot)
+조건이 갈려 확인이 어렵다. 동시에 도는 실험은 세 개까지이고, 서로 다른 칸(slot)
 을 써서 겹치지 않게 나눈다.
     slot 0: 날짜 홀짝            (하루씩 번갈아)
     slot 1: 날짜를 2로 나눈 홀짝  (이틀씩 번갈아)
-네 날이면 두 실험의 네 조합이 한 번씩 나온다. 한 실험의 효과가 다른 실험의
+    slot 2: 날짜를 4로 나눈 홀짝  (나흘씩 번갈아)
+여드레면 세 실험의 여덟 조합이 한 번씩 나온다. 한 실험의 효과가 다른 실험의
 팔에 몰려 섞이지 않는다.
 
 판정 규칙(evaluate)은 보수적으로 둔다. 표본이 적은 상관계수로 방향을 정했다가
@@ -45,6 +46,11 @@ REGISTRY: list[dict] = [
      "control": "on", "metric": "pass_rate", "also": ["views_48h"],
      "pinned": True,
      "about": "0~2.6초에 앞 문장의 가장 센 숫자를 크게 띄우는지"},
+    # 10-09 사용자 지시로 디자인 개선을 시작하며 칸 하나를 새로 열어 바로 돌린다.
+    {"key": "bg_mode", "title": "숫자 구간 배경", "arms": ["photo", "graphic"],
+     "control": "photo", "metric": "avg_pct", "also": ["views_48h", "pass_rate"],
+     "pinned": True,
+     "about": "숫자·비교 카드를 사진 위에 얹는지, 남색 정보 화면 전체로 띄우는지"},
     {"key": "bgm", "title": "배경음", "arms": ["on", "off"],
      "control": "on", "metric": "avg_pct", "also": ["views_48h"],
      "pinned": True,
@@ -55,7 +61,7 @@ REGISTRY: list[dict] = [
      "about": "배경 사진·영상 한 컷을 3초까지 두는지 2초까지 두는지"},
 ]
 BY_KEY = {e["key"]: e for e in REGISTRY}
-MAX_RUNNING = 2
+MAX_RUNNING = 3
 # 팔마다 이만큼 모이면 판정을 시도한다. 구간이 0을 안 넘으면 이긴 쪽으로,
 # 두 배가 모여도 넘으면 '차이 없음'으로 닫는다.
 MIN_N = 10
@@ -69,6 +75,7 @@ DEFAULT_STATE = {
     "experiments": {
         "len_mode": {"status": "running", "slot": 0, "started": "2026-10-02"},
         "hook_card": {"status": "running", "slot": 1, "started": "2026-10-04"},
+        "bg_mode": {"status": "running", "slot": 2, "started": "2026-10-10"},
         "bgm": {"status": "queued"},
         "cut_pace": {"status": "queued"},
     }

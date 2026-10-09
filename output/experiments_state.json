@@ -10,6 +10,11 @@
    "slot": 1,
    "started": "2026-10-04"
   },
+  "bg_mode": {
+   "status": "running",
+   "slot": 2,
+   "started": "2026-10-10"
+  },
   "bgm": {
    "status": "queued"
   },

@@ -686,7 +686,8 @@ def experiment_section(videos: list[dict], analytics: dict, snapshots: list[dict
     # 실험 관리를 시작한 새 레이아웃(10-02)부터의 영상만 보인다.
     recent = [v for v in public if _build_day_kst(by_vid[v["video_id"]]) >= "2026-10-02"][:10]
     if recent:
-        out.append("| 게시 | 48시간 조회 | 통과율 | 시청률 | 길이·카드·배경음·컷 | 제목 |")
+        out.append("| 게시 | 48시간 조회 | 통과율 | 시청률 | "
+                   + "·".join(e["title"] for e in ex.REGISTRY) + " | 제목 |")
         out.append("|------|----------:|------:|------:|------|------|")
         for v in recent:
             row = by_vid[v["video_id"]]

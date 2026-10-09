@@ -155,17 +155,24 @@ def _fit(draw, text: str, size: int, max_w: int):
     return ImageFont.truetype(font_bold(), size)
 
 
-def render_compare_card(pair: Pair, out: Path) -> Path:
-    """화면 중앙에 막대 두 개짜리 비교 카드를 그린 전체 투명 PNG."""
+def render_compare_card(pair: Pair, out: Path, full: bool = False) -> Path:
+    """화면 중앙에 막대 두 개짜리 비교 카드를 그린 전체 PNG(full이면 정보 화면 배경)."""
     W, H = SHORTS_WIDTH, SHORTS_HEIGHT
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    if full:
+        from src.editor.slide_bg import backdrop
+        img = backdrop()
+    else:
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     color = RED if pair.up else BLUE
 
     pw, ph = 860, 820
     cx, cy = W // 2, int(H * 0.46)
     panel = [cx - pw // 2, cy - ph // 2, cx + pw // 2, cy + ph // 2]
-    draw.rounded_rectangle(panel, radius=48, fill=(10, 10, 14, 230))
+    # 정보 화면이면 바탕이 이미 남색이라 상자는 한 톤 밝은 남색으로 둔다.
+    # 반투명으로 칠하면 그 자리만 투명해져 아래 사진이 비친다(불투명 색만 쓴다).
+    draw.rounded_rectangle(panel, radius=48,
+                           fill=(30, 52, 84, 255) if full else (10, 10, 14, 230))
     draw.rounded_rectangle([panel[0], panel[1], panel[2], panel[1] + 16], radius=8,
                            fill=color + (255,))
 

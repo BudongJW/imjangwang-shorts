@@ -371,7 +371,8 @@ HOOK_SENTENCES = 2
 
 
 def _plan_hook_overlay(caption_script: str, total_sec: float,
-                       blocked: tuple[float, float] | None = None
+                       blocked: tuple[float, float] | None = None,
+                       full: bool = False
                        ) -> tuple[Path, float, float, str] | None:
     """(경로, 0, 끝, 띄운 값). 앞 문장들에 숫자가 없으면 None."""
     from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
@@ -412,7 +413,7 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
     if end < MIN_CALLOUT_SEC:
         return None
     path = VIDEO_DIR / "hook.png"
-    render_stat_card(best[0], best[1], path, label=label)
+    render_stat_card(best[0], best[1], path, label=label, full=full)
     note(f"첫 화면 숫자 카드: {(label + ' ') if label else ''}{best[0]} (0~{end:.1f}s)")
     return path, 0.0, end, best[0]
 
@@ -426,7 +427,7 @@ COMPARE_MAX_N = 2
 def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: float,
                            blocked: tuple[float, float] | None = None,
                            cues: list[tuple[str, float, float]] | None = None,
-                           first_clear: bool = False) -> list[tuple]:
+                           first_clear: bool = False, full: bool = False) -> list[tuple]:
     """대본의 'A에서 B로'를 막대 비교 카드로 띄울 (경로, 시작, 끝, 쌍) 계획.
 
     첫 값을 읽기 시작할 때 띄워 두 번째 값을 다 읽고 1초 뒤까지 둔다.
@@ -474,7 +475,7 @@ def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: flo
         if out and cs < out[-1][2] + 0.5:
             continue
         path = VIDEO_DIR / f"compare_{len(out)}.png"
-        render_compare_card(p, path)
+        render_compare_card(p, path, full=full)
         out.append((path, cs, ce, p))
         note(f"비교 카드 {cs:5.1f}~{ce:5.1f}s  {p.label1} {p.v1} / {p.label2} {p.v2}")
     return out
@@ -485,7 +486,8 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
                         blocked: tuple[float, float] | None = None,
                         cues: list[tuple[str, float, float]] | None = None,
                         avoid: list[tuple[float, float]] | None = None,
-                        skip_values: set[str] | None = None
+                        skip_values: set[str] | None = None,
+                        full: bool = False
                         ) -> list[tuple[Path, float, float]]:
     """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성.
 
@@ -612,7 +614,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         if e - s < MIN_CALLOUT_SEC:   # 너무 짧으면 깜빡이는 것처럼 보인다
             continue
         path = VIDEO_DIR / f"stat_{len(overlays)}.png"
-        render_stat_card(st[0], st[1], path, label=st[2] if len(st) > 2 else "")
+        render_stat_card(st[0], st[1], path, label=st[2] if len(st) > 2 else "", full=full)
         overlays.append((path, s, e))
     return overlays
 
@@ -784,17 +786,19 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             t += d
     from src.experiments import arm
     hook_on = arm("hook_card") == "on"      # 실험: 첫 화면 숫자 카드
+    # 실험: 숫자·비교 카드를 남색 정보 화면 전체로 띄우는지(graphic) 사진 위에 얹는지
+    graphic = arm("bg_mode") == "graphic"
     note(f"실험 배정: 첫 화면 숫자 카드 {'켬' if hook_on else '끔'}, 배경음 "
-         f"{arm('bgm')}, 컷 길이 {arm('cut_pace')}")
+         f"{arm('bgm')}, 컷 길이 {arm('cut_pace')}, 숫자 구간 배경 {arm('bg_mode')}")
     # 끔 팔은 첫 화면(0~HOOK_MAX_SEC)을 비운다. 10-05 초안(끔 배정)에서 첫 문장의
     # "86주"가 숫자 카드로 0.1초에 떠, 켠 날과 첫 화면이 같았다. 첫 문장 비교
     # 카드도 같은 이유로 뺀다(바로 뒤가 기사 화면이라 미룰 자리가 없다).
     first_clear = title_dur == 0 and not hook_on
     compares = _plan_compare_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
-                                      first_clear=first_clear)
+                                      first_clear=first_clear, full=graphic)
     # 비교 카드가 첫 화면부터 뜨면 그게 첫 화면 카드다. 둘을 겹쳐 띄우지 않는다.
     opens_with_compare = any(c[1] < HOOK_MAX_SEC for c in compares)
-    hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked)
+    hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked, full=graphic)
             if title_dur == 0 and not opens_with_compare and hook_on else None)
     avoid = ([(c[1], c[2]) for c in compares] + ([(hook[1], hook[2])] if hook else [])
              + ([(0.0, HOOK_MAX_SEC)] if first_clear else []))
@@ -807,7 +811,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             shown |= {_short(c[3].v1), _short(c[3].v2)}
     compares = [c[:3] for c in compares]
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
-                                avoid=avoid, skip_values=shown or None)
+                                avoid=avoid, skip_values=shown or None, full=graphic)
     # 숫자 카드·비교 카드·첫 화면 카드는 같은 방식(전체 화면 PNG, 시간 구간)으로 얹는다.
     stats = sorted(stats + compares + ([hook[:3]] if hook else []), key=lambda x: x[1])
     # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
@@ -887,12 +891,6 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
     graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
     cur = "vc"
-    if banner_idx is not None:
-        graph += (
-            f";[{banner_idx}:v]scale={W}:{H}[bn]"
-            f";[{cur}][bn]overlay=0:0:enable='gte(t,{title_dur:.2f})'[vb]"
-        )
-        cur = "vb"
     for i, (path, s, e) in enumerate(stats):
         idx = stat_start_idx + i
         graph += (
@@ -900,6 +898,14 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             f";[{cur}][sc{i}]overlay=0:0:enable='between(t,{s:.2f},{e:.2f})'[vs{i}]"
         )
         cur = f"vs{i}"
+    # 배너는 카드 위에 얹는다. 정보 화면(graphic 팔)은 화면 전체를 덮어서,
+    # 배너를 먼저 깔면 그 구간 동안 제목이 사라진다.
+    if banner_idx is not None:
+        graph += (
+            f";[{banner_idx}:v]scale={W}:{H}[bn]"
+            f";[{cur}][bn]overlay=0:0:enable='gte(t,{title_dur:.2f})'[vb]"
+        )
+        cur = "vb"
     graph += f";[{cur}]{_sub_filter(ass, asset_dir)}[vout]"
 
     # 오디오: 나레이션 + (BGM 저음량, 끝 페이드아웃) 믹스 → 음량 정규화
