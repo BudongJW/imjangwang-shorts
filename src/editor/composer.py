@@ -129,22 +129,52 @@ _ENDS_UNIT = re.compile(r"(?:%|억|만원|만|천|원|년|배|채|가구|세대|
 _STARTS_NUM = re.compile(r"^\d")
 
 
+# 단지 이름이 줄 사이에서 갈렸다(10-08 "검단 푸르지오 더 / 베뉴는",
+# "더샵' 도 / 대경선"). 이름에 자주 붙는 말은 앞 토큰과 묶는다.
+_BRAND_TOK = re.compile(
+    r"^[‘'\"“]?(?:푸르지오|자이|힐스테이트|아이파크|더샵|래미안|e편한세상|롯데캐슬|캐슬|위브|"
+    r"센트레빌|베르힐|트리니뷰|베뉴|리센츠|헬리오시티|파크리오|엘스|아크로|디에이치|써밋|"
+    r"포레나|하늘채|어울림|스위첸|데시앙|꿈에그린|센트럴|파크|시티|타워|팰리스|자이언트|"
+    r"더휴|리버뷰|레이크|포레|에듀|프레스티지|퍼스트|그랑|SK뷰|화성파크드림|파크드림)")
+# 뒤 말에 붙여 읽어야 하는 짧은 앞말("더 베뉴", "약 1.6배", "최대 92%", "사 주는").
+_STICK_NEXT = {"더", "약", "총", "최대", "최소", "무려", "전용", "단", "안", "못", "잘",
+               "꼭", "사", "또", "새", "옛", "각"}
+# 앞 말에 붙여 읽어야 하는 말("생긴 뒤", "분양 때", "500가구 이상").
+_STICK_PREV = {"뒤", "때", "후", "전", "중", "간", "수", "것", "등", "뿐",
+               "이상", "이하", "미만", "초과", "이내", "가량", "정도"}
+GLUE_MAX = CAPTION_MAX_CHARS + 4
+
+
 def _glue_tokens(tokens: list[str]) -> list[list[str]]:
-    """끊으면 안 되는 토큰끼리 미리 묶는다(숫자+단위, 관형사+의존명사)."""
+    """끊으면 안 되는 토큰끼리 미리 묶는다(숫자+단위, 관형사+의존명사, 단지 이름)."""
     groups: list[list[str]] = []
-    for tok in tokens:
+    stick = False
+    quote_open = False
+    for i, tok in enumerate(tokens):
         prev = groups[-1][-1] if groups else ""
+        nxt = tokens[i + 1] if i + 1 < len(tokens) else ""
         # 앞이 숫자거나 이미 수 단위로 끝났으면, 뒤따르는 단위·조수사는
         # 같은 수의 일부다. "3천 건", "2억 2천", "3,481 가구" 모두 해당한다.
         num_like = bool(_ENDS_NUM.search(prev) or _ENDS_UNIT.search(prev))
+        fits = groups and len(" ".join(groups[-1] + [tok])) <= GLUE_MAX
         if groups and (
             (num_like and _UNIT_TOK.match(tok))
             or (_ENDS_UNIT.search(prev) and _STARTS_NUM.match(tok))
             or prev in ("한", "두", "세", "네", "이", "그", "저")
+            # 아래는 이름·수식을 지키려는 묶음이라 너무 길어지면 포기한다.
+            or (fits and (stick or quote_open or _BRAND_TOK.match(tok)
+                          or tok in _STICK_PREV
+                          # "푸르지오 더 베뉴"의 '더'는 이름의 일부다.
+                          or (tok == "더" and _BRAND_TOK.match(nxt))))
         ):
             groups[-1].append(tok)
         else:
             groups.append([tok])
+        stick = tok in _STICK_NEXT
+        # 따옴표로 연 이름은 닫힐 때까지 묶는다.
+        n_q = len(re.findall(r"[‘’'“”\"]", tok))
+        if n_q % 2 == 1:
+            quote_open = not quote_open
     return groups
 
 
