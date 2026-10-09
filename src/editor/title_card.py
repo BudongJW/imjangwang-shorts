@@ -28,6 +28,10 @@ DARK = (18, 18, 20)
 
 # 영상마다 액센트 색을 변주해 '찍어낸 템플릿' 느낌을 줄인다(YouTube inauthentic 정책 대응).
 ACCENTS = [(206, 32, 32), (230, 150, 20), (30, 158, 148), (44, 96, 220), (168, 60, 190)]
+# 채널 색. 배너 바탕을 검정에서 남색으로 바꾸고 채널 이름표를 단다(10-09 디자인
+# 정리: 어느 채널 영상인지 알 표시가 없었다). 좌측 액센트 변주는 그대로 둔다.
+BRAND_NAVY = (14, 26, 43)
+BRAND_NAME = "공인중개사 임장왕"
 
 
 @dataclass(frozen=True)
@@ -429,9 +433,17 @@ def render_headline_banner(headline: list[str], hook_word: str,
     # 60에서 시작하면 줄 끝 강조어가 아이콘 밑에 깔린다.
     top = 150
     band_h = len(lines) * line_h + 44
-    # 반투명 검정 밴드 + 빨강 좌측 액센트
-    draw.rectangle([0, top, SHORTS_WIDTH, top + band_h], fill=(10, 10, 12, 210))
+    # 반투명 남색 밴드 + 좌측 액센트
+    draw.rectangle([0, top, SHORTS_WIDTH, top + band_h], fill=BRAND_NAVY + (225,))
     draw.rectangle([0, top, 20, top + band_h], fill=accent)
+    # 밴드 아래 오른쪽에 채널 이름표. 숫자 카드(화면 46% 높이)와 자막(아래)에
+    # 걸리지 않는 자리다.
+    bf = ImageFont.truetype(font_bold(), 34)
+    bw = int(draw.textlength(BRAND_NAME, font=bf))
+    bx1, by0 = SHORTS_WIDTH - 36, top + band_h + 18
+    draw.rounded_rectangle([bx1 - bw - 44, by0, bx1, by0 + 58], radius=29,
+                           fill=BRAND_NAVY + (215,))
+    draw.text((bx1 - bw - 22, by0 + 29), BRAND_NAME, font=bf, fill=YELLOW, anchor="lm")
 
     y = top + 22
     for line in lines:
