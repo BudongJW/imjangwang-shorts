@@ -18,6 +18,7 @@ from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
     POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
     PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN, SCRIPT_LEN_MODE, BROLL_VIDEO_N,
+    SCRIPT_CHARS_MIN, SCRIPT_CHARS_CAP,
 )
 from src.collector import news, images
 from src.utils import buildnotes
@@ -126,6 +127,10 @@ def _load_pinned_plan():
         # 주제 인물이 이재명이 아닌 날(예: 다른 인사 의혹)에 엉뚱한 얼굴이
         # 붙는 것을 막는다. 미지정이면 기존 날짜 회전을 그대로 쓴다.
         face_pin = str(p.get("face", "")).strip()
+        # 자동 초안의 사실만 바로잡은 지정 대본은 길이가 오늘 팔 그대로라
+        # 길이 실험 표본에 넣는다. 10-07~10-09 영상이 전부 지정 대본이라
+        # 길이 실험이 사흘 동안 한 편도 못 모았다.
+        plan.keep_len_arm = bool(p.get("keep_len_arm"))
         try:
             pin.unlink()   # 1회용(로컬 정리). 러너는 예약일 게이트로 재사용 방지.
         except OSError:
@@ -462,10 +467,17 @@ def run(skip_upload: bool = False) -> int:
         if review:
             _review_summary(plan, art, video_id, final)
 
+    # 지정 대본이라도 자동 초안을 고친 것이고 글자 수가 오늘 팔 범위면 길이 표본으로 둔다.
+    n_chars = len(plan.caption_script or "")
+    len_pinned = bool(pinned) and not (
+        getattr(plan, "keep_len_arm", False)
+        and SCRIPT_CHARS_MIN <= n_chars <= SCRIPT_CHARS_CAP)
+    if pinned and not len_pinned:
+        log.info(f"  지정 대본이지만 길이 실험 표본 유지 ({SCRIPT_LEN_MODE}, {n_chars}자)")
     record_topic(art.title, video_id,
                  title_style=_title_style(plan.youtube_title),
                  # 지정 대본은 사람이 쓴 길이라 길이 실험 표본이 아니다.
-                 len_mode="pinned" if pinned else SCRIPT_LEN_MODE,
+                 len_mode="pinned" if len_pinned else SCRIPT_LEN_MODE,
                  script_chars=len(plan.caption_script or ""),
                  source=getattr(art, "source", "") or None,
                  age_days=getattr(art, "pick_age_days", None),
@@ -479,7 +491,7 @@ def run(skip_upload: bool = False) -> int:
                  # 영상별 실험 배정. 분석이 이 값으로 팔을 가른다(src/experiments.py).
                  # 지정 대본의 길이는 사람이 정했으므로 길이 실험 표본에서 뺀다.
                  exp={**current_arms(),
-                      **({"len_mode": "pinned"} if pinned else {})})
+                      **({"len_mode": "pinned"} if len_pinned else {})})
     log.info("=== 완료 ===")
     return 0
 
