@@ -131,6 +131,25 @@ _FOREIGN_RE = re.compile(
 _WINTER_RE = re.compile(r"눈\s?(?:으로\s?)?덮인|눈이\s?(?:내리|쌓인|덮)|설경|겨울|snow|winter", re.I)
 
 
+# 서울·한국을 찾는 검색어로도 Pexels는 중국·동남아·유럽 단지를 섞어 준다.
+# 10-09 "korean apartment complex"가 유럽식 노란 건물, 중국 캠퍼스 단지,
+# 호찌민풍 고층을 가져왔다. 나라를 적지 않은 외국 사진은 이름으로 못 거른다.
+# 그래서 한국을 찾는 검색어면 설명에 한국 지명이 있는 것만 쓴다.
+_KOREA_QUERY_RE = re.compile(r"seoul|korea|busan|incheon|han\s?river", re.I)
+_KOREA_RE = re.compile(
+    r"korea|seoul|busan|incheon|gyeong|jeju|daegu|daejeon|gwangju|ulsan|suwon|"
+    r"seongnam|bundang|gangnam|han\s?river|hangang|namsan|seongsu|jamsil|lotte|"
+    r"한국|서울|부산|인천|경기|제주|대구|대전|광주|울산|수원|성남|분당|강남|"
+    r"한강|남산|성수|잠실|롯데|경복궁|북촌|가평|해운대|광안", re.I)
+
+
+def _not_korea(query: str, meta: dict) -> bool:
+    if not _KOREA_QUERY_RE.search(query or ""):
+        return False
+    text = f"{meta.get('alt') or ''} {meta.get('url') or ''}".replace("-", " ")
+    return not _KOREA_RE.search(text)
+
+
 def _offtopic(meta: dict) -> bool:
     text = f"{meta.get('alt') or ''} {meta.get('url') or ''}".replace("-", " ")
     if _OFFTOPIC_RE.search(text) or _FOREIGN_RE.search(text):
@@ -177,6 +196,7 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
         )
         r.raise_for_status()
         imgs, kept = [], []
+        skipped_nk = 0
         avoid = _recent_media() | set(USED_MEDIA) | BANNED_MEDIA
         for photo in r.json().get("photos", []):
             pid = f"p{photo.get('id')}"
@@ -184,6 +204,9 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
                 continue
             if _offtopic(photo):
                 note(f"배경 사진 제외(주제 밖): {(photo.get('alt') or '')[:40]}")
+                continue
+            if _not_korea(query, photo):
+                skipped_nk += 1
                 continue
             im = _download(photo["src"]["large2x"])
             if im:
@@ -193,7 +216,8 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
             if len(imgs) >= n:
                 break
         # 어떤 사진이 들어갔는지 남긴다. 엉뚱한 컷이 떴을 때 alt로 원인을 본다.
-        note(f"배경 사진({query}): " + " | ".join(kept))
+        note(f"배경 사진({query}): " + " | ".join(kept)
+             + (f" (한국 표시 없는 {skipped_nk}장 제외)" if skipped_nk else ""))
         return imgs
     except Exception as e:
         log.info(f"  Pexels 실패: {e}")
@@ -396,6 +420,8 @@ def _pexels_videos(query: str, n: int) -> list[str]:
             continue
         if _offtopic(vid):
             note(f"b-roll 제외(주제 밖): {(vid.get('url') or '')[-50:]}")
+            continue
+        if _not_korea(query, vid):
             continue
         best, best_h = None, 0
         for f in vid.get("video_files", []):
