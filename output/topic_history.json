@@ -1200,5 +1200,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "'폭락' 외치던 이 사람도 돌아섰다…\"다 틀렸다, 남은 건 급등\"",
+    "video_id": "d1GyGKT1KTg",
+    "date": "2026-10-09T01:43:31.982555",
+    "title_style": "주장",
+    "len_mode": "pinned",
+    "script_chars": 397,
+    "source": "파이낸셜뉴스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p19699777",
+      "p37769571",
+      "p17631127",
+      "p4476378",
+      "p7580753",
+      "p7680692",
+      "v36603607",
+      "v37419711",
+      "v30291144"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "pinned",
+      "hook_card": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
