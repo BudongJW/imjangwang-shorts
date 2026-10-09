@@ -237,7 +237,7 @@ _TOPICS: list[tuple[re.Pattern, tuple[str, ...]]] = [
     (re.compile(r"대출|LTV|DSR|금리|보금자리론|디딤돌|은행"), ("calculator house model", "signing contract desk",
                                                   "seoul apartment buildings")),
     (re.compile(r"세금|보유세|종부세|양도세|취득세|과세"), ("tax documents calculator", "paperwork desk calculator")),
-    (re.compile(r"공급|착공|입주|건설|공사비|인허가"), ("apartment construction crane", "construction site workers")),
+    (re.compile(r"공급|착공|입주|건설|공사비|인허가"), ("apartment construction crane", "korean construction site")),
     (re.compile(r"한강|강남|서초|송파|용산|마포|성동"), ("han river apartment aerial", "seoul apartment buildings")),
     (re.compile(r"대구|부산|울산|광주|대전|경북|경남|충남|충북|전북|전남|강원|지방"),
      ("korean city apartment complex", "korean apartment blocks")),

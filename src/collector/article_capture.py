@@ -9,6 +9,7 @@ PC 뷰 캡처는 9:16에 담으면 글자만 크게 잘려 내용이 안 보인�
 from __future__ import annotations
 
 import json
+import re
 
 from pathlib import Path
 
@@ -267,7 +268,16 @@ def _trim_blank_bottom(im: Image.Image, keep: int = 24) -> Image.Image:
     return im.crop((0, 0, w, cut))
 
 
-def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None:
+# 제목 낱말이 페이지에 이만큼도 없으면 다른 기사로 본다.
+TITLE_MATCH_MIN = 0.3
+
+
+def _title_words(title: str) -> list[str]:
+    return [w for w in re.findall(r"[가-힣A-Za-z0-9]{2,}", title or "")]
+
+
+def _capture_with_playwright(url: str, highlight: str, out: Path,
+                             title: str = "") -> Path | None:
     """모바일 뷰포트로 기사 상단부(헤드라인+본문+사진)를 세로로 길게 캡처."""
     try:
         from playwright.sync_api import sync_playwright
@@ -285,6 +295,17 @@ def _capture_with_playwright(url: str, highlight: str, out: Path) -> Path | None
             # 아시아경제는 15초 안에 DOM이 안 올 때가 있다(09-27 카드 폴백).
             page.goto(url, wait_until="domcontentloaded", timeout=25000)
             page.wait_for_timeout(1600)
+            # 주소가 다른 기사를 가리키면 그 기사를 찍어 버린다. 10-09 지정
+            # 대본에서 네이버 '같은 매체 기사' 목록의 주소를 원문으로 잘못
+            # 넣어 역주행 사고 기사가 3초간 떴다. 제목 낱말로 확인한다.
+            words = _title_words(title)
+            if words:
+                body = page.evaluate("() => document.body ? document.body.innerText : ''") or ""
+                hit = sum(1 for w in words if w in body) / len(words)
+                if hit < TITLE_MATCH_MIN:
+                    note(f"기사 캡처: 페이지에 제목 낱말이 {hit:.0%}뿐 → 다른 기사로 보고 카드 폴백")
+                    browser.close()
+                    return None
             # 쿠키/구독/모달 배너 best-effort 제거
             page.evaluate(_STRIP_JS)
             # 핵심 문장/헤드라인 형광펜 (모든 접근에 null 가드)
@@ -482,7 +503,7 @@ def build_article_visual(art, highlight: str = "") -> Path:
     out.with_suffix(".focus.json").unlink(missing_ok=True)
     shot = None
     if getattr(art, "url", ""):
-        shot = _capture_with_playwright(art.url, highlight, out)
+        shot = _capture_with_playwright(art.url, highlight, out, getattr(art, "title", ""))
     if not shot:
         shot = _render_news_card(
             title=getattr(art, "title", ""),
