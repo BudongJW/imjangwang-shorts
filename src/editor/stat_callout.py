@@ -192,12 +192,87 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
     return big, direction
 
 
+# 카드에 숫자만 크게 뜨면 무슨 숫자인지 모른다(10-08 "1%", "2%", "100%").
+# 대본에서 숫자 바로 앞 말을 그대로 따서 위에 작게 단다. 말을 새로 지으면
+# 틀릴 수 있어서 대본 글자만 쓴다.
+LABEL_MAX_WORDS = 3
+LABEL_MAX_CHARS = 14
+_LEAD_DROP = {"그리고", "하지만", "특히", "다만", "또", "또한", "결국", "이어",
+              "반면", "그러나", "즉"}
+# 화살표는 그 숫자가 실제로 오르거나 내렸다고 말할 때만 단다. 10-08 LH 영상의
+# "6억 한도를 더 줄여야"는 앞으로 줄이자는 말인데 6억에 내림 화살표가 붙어
+# 이미 줄어든 것처럼 보였다. 숫자 바로 뒤 두 어절의 '끝난 변화'만 본다.
+_UP_DONE = re.compile(r"올랐|오른|올라|상승했|상승한|상승해|늘었|늘어난|늘어|증가했|증가한|증가해|"
+                      r"뛰었|뛴|급등했|급등한|치솟")
+_DOWN_DONE = re.compile(r"내렸|내린|하락했|하락한|하락해|줄었|줄어든|줄어|감소했|감소한|감소해|"
+                        r"떨어졌|떨어진|급락했|급락한|빠졌|빠진")
+
+
+def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
+    """문장에서 big 숫자 앞의 이름표와 방향(up/down/flat)을 찾는다.
+
+    near: 문장 안에서 이 위치 이후의 첫 출현을 쓴다(같은 숫자가 두 번 나올 때).
+    """
+    m0 = re.match(r"[\d,\.]+", big or "")
+    if not m0 or not sentence:
+        return "", "flat"
+    num = m0.group(0).rstrip(".,")
+    rest = big[len(num):].strip()
+    # 단위까지 맞춰 찾는다. "85~92%"를 숫자만으로 찾으면 앞의 "85제곱미터"에
+    # 걸린다. 범위면 뒤 숫자까지, 아니면 단위 첫 글자까지 본다.
+    rng = re.match(r"[~∼～]\s?([\d,\.]+)", rest)
+    if rng:
+        tail_pat = r"\s?[~∼～]\s?" + re.escape(rng.group(1))
+    elif rest:
+        u0 = rest[0]
+        tail_pat = r"\s?" + {"%": "[%퍼]", "㎡": "[㎡제]"}.get(u0, re.escape(u0))
+    else:
+        tail_pat = ""
+    pat = re.compile(rf"(?<![\d.,]){re.escape(num)}(?![\d]){tail_pat}")
+    m = pat.search(sentence, max(0, near)) or pat.search(sentence)
+    if not m:
+        return "", "flat"
+    # 숫자가 든 어절의 시작과 끝
+    ws = sentence.rfind(" ", 0, m.start()) + 1
+    we = sentence.find(" ", m.end())
+    we = len(sentence) if we < 0 else we
+    # 이름표: 앞 어절을 거꾸로 모은다. 숫자가 든 어절을 만나면 그 수식이 잘려
+    # 뜻이 바뀌므로 이름표를 버린다. "3.3제곱미터당"처럼 단위 기준만 예외.
+    words = sentence[:ws].split()
+    label: list[str] = []
+    for w in reversed(words):
+        if len(label) >= LABEL_MAX_WORDS or len(" ".join([w] + label)) > LABEL_MAX_CHARS:
+            break
+        if w.endswith((",", "，")):
+            break
+        if re.search(r"\d", w):
+            if w.endswith("당") and not label:
+                label.insert(0, w)
+                break
+            label = []
+            break
+        label.insert(0, w)
+    # 앞 숫자에 붙는 말("85제곱미터 이하"의 '이하')로 시작하면 뗀다.
+    while label and (label[0] in _LEAD_DROP or len(label[0]) == 1
+                     or label[0] in ("이하", "이상", "미만", "초과", "이내", "동안", "정도", "가량")):
+        label.pop(0)
+    # 방향: 숫자 어절 뒤 두 어절. 숫자가 든 어절이 나오면 거기서 멈춘다.
+    after = []
+    for w in sentence[we:].split()[:2]:
+        if re.search(r"\d", w):
+            break
+        after.append(w)
+    tail = sentence[m.end():we] + " " + " ".join(after)
+    direction = "up" if _UP_DONE.search(tail) else "down" if _DOWN_DONE.search(tail) else "flat"
+    return " ".join(label), direction
+
+
 def _rounded(draw, box, radius, fill):
     draw.rounded_rectangle(box, radius=radius, fill=fill)
 
 
-def render_stat_card(big: str, direction: str, out: Path) -> Path:
-    """화면 중앙에 수치 콜아웃을 렌더한 전체 투명 PNG."""
+def render_stat_card(big: str, direction: str, out: Path, label: str = "") -> Path:
+    """화면 중앙에 수치 콜아웃을 렌더한 전체 투명 PNG. label은 숫자 위 작은 글씨."""
     img = Image.new("RGBA", (SHORTS_WIDTH, SHORTS_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     color = {"up": RED, "down": BLUE}.get(direction, YELLOW)
@@ -217,8 +292,15 @@ def render_stat_card(big: str, direction: str, out: Path) -> Path:
 
     cx, cy = SHORTS_WIDTH // 2, int(SHORTS_HEIGHT * 0.46)
     pad_x, pad_y = 90, 70
-    panel = [cx - tw // 2 - pad_x, cy - th // 2 - pad_y,
-             cx + tw // 2 + pad_x, cy + th // 2 + pad_y]
+    lab_font, lab_h, lab_w = None, 0, 0
+    if label:
+        lab_font = ImageFont.truetype(font_bold(), 66)
+        lb = draw.textbbox((0, 0), label, font=lab_font)
+        lab_w, lab_h = lb[2] - lb[0], lb[3] - lb[1]
+    half_w = max(tw, lab_w) // 2
+    top_extra = lab_h + 34 if label else 0
+    panel = [cx - half_w - pad_x, cy - th // 2 - pad_y - top_extra,
+             cx + half_w + pad_x, cy + th // 2 + pad_y]
     _rounded(draw, panel, 48, (10, 10, 14, 205))
     # 상단 컬러 액센트 바
     _rounded(draw, [panel[0], panel[1], panel[2], panel[1] + 16], 8, color + (255,))
@@ -232,6 +314,10 @@ def render_stat_card(big: str, direction: str, out: Path) -> Path:
         else:
             draw.polygon([(ax, ay + 90), (ax - 55, ay), (ax + 55, ay)], fill=color)
 
+    # 이름표
+    if label:
+        draw.text((cx, panel[1] + 16 + pad_y // 2 + lab_h // 2), label, font=lab_font,
+                  fill=(235, 235, 240, 255), anchor="mm")
     # 큰 수치
     draw.text((cx, cy), big, font=font, fill=color + (255,),
               anchor="mm", stroke_width=10, stroke_fill=DARK + (255,))

@@ -348,37 +348,42 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
     sents = [x.strip() for x in re.split(r"(?<=[다요죠?])[.!?]*\s+", caption_script or "")
              if x.strip()][:HOOK_SENTENCES]
     from src.editor.compare_card import _values
-    from src.editor.stat_callout import _UP, _DOWN
-    best = None
+    from src.editor.stat_callout import _UP_DONE, _DOWN_DONE, stat_context
+    best, best_sent = None, ""
     for sent in sents:
         # 바뀐 폭을 말하는 값을 먼저 쓴다("4424가구 감소", "1억 1000만 원 올랐").
         # pick_stat은 "A에서 B로"의 B를 고르는데, 첫 화면에 B만 뜨면 그게
-        # 줄어든 양인지 남은 양인지 알 수 없다.
+        # 줄어든 양인지 남은 양인지 알 수 없다. 변화는 끝난 변화만 본다
+        # ("6억 한도를 더 줄여야"는 줄어든 게 아니다, 10-08).
         for a, b, v in _values(sent):
             tail = sent[b:b + 8]
-            up = any(k in tail for k in _UP)
-            down = any(k in tail for k in _DOWN)
+            up = bool(_UP_DONE.search(tail))
+            down = bool(_DOWN_DONE.search(tail))
             if (up or down) and not is_weak(v):
                 best = (re.sub(r"\s*원$", "", v).replace("만 원", "만"), "up" if up else "down")
+                best_sent = sent
                 break
         if best:
             break
         # 문장 통째로 넣으면 pick_stat이 '센' 값을 고른다(% > 금액 > 기간).
         st = pick_stat(sent)
         if st and not is_weak(st[0]):
-            best = st
+            best, best_sent = st, sent
             break
-        best = best or st
+        if not best and st:
+            best, best_sent = st, sent
     if not best:
         return None
+    label, direction = stat_context(best_sent, best[0])
+    best = (best[0], direction)
     end = min(HOOK_MAX_SEC, total_sec)
     if blocked and blocked[0] > 0:
         end = min(end, blocked[0] - 0.1)
     if end < MIN_CALLOUT_SEC:
         return None
     path = VIDEO_DIR / "hook.png"
-    render_stat_card(best[0], best[1], path)
-    note(f"첫 화면 숫자 카드: {best[0]} (0~{end:.1f}s)")
+    render_stat_card(best[0], best[1], path, label=label)
+    note(f"첫 화면 숫자 카드: {(label + ' ') if label else ''}{best[0]} (0~{end:.1f}s)")
     return path, 0.0, end, best[0]
 
 
@@ -467,12 +472,28 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     (2026-09-14 검증 프레임 12초 지점에서 실제로 그렇게 나왔다).
     """
     from src.editor.stat_callout import (pick_stat, pick_keyword,
-                                          render_stat_card, is_weak)
+                                          render_stat_card, is_weak, stat_context)
     if max_n is None:
         max_n = max(MIN_CALLOUT_N, round(total_sec / SEC_PER_CALLOUT))
     cands, kw_cands = [], []
     n_phrase = n_stat = n_blocked = 0
+    # 구절이 든 문장을 찾아 둔다. 카드 이름표와 화살표는 문장 단위로 정한다
+    # (구절만 보면 "8.54%"와 "늘었습니다"가 다른 자막 줄로 갈린다).
+    norm = re.sub(r"\s+", " ", caption_script or "").strip()
+    sent_spans = [(m.start(), m.end()) for m in
+                  re.finditer(r".+?(?:(?<=[다요죠])[.!?]+(?!\d)|$)", norm) if m.group(0).strip()]
+    pos = 0
+
+    def _sentence_at(i: int) -> tuple[str, int]:
+        for a, b in sent_spans:
+            if a <= i < b:
+                return norm[a:b].strip(), i - a
+        return "", 0
+
     for ph, s, e in _phrase_timings(caption_script, total_sec, cues):
+        ph_at = norm.find(ph, pos)
+        if ph_at >= 0:
+            pos = ph_at + len(ph)
         if e <= title_dur:      # 타이틀카드 구간은 건너뜀
             continue
         n_phrase += 1
@@ -490,6 +511,9 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         if st and skip_values and st[0] in skip_values:
             continue      # 첫 화면에 이미 띄운 숫자
         if st:
+            sent, off = _sentence_at(ph_at if ph_at >= 0 else 0)
+            label, direction = stat_context(sent, st[0], near=off) if sent else ("", "flat")
+            st = (st[0], direction, label)
             n_stat += 1
             if in_article:
                 n_blocked += 1
@@ -558,7 +582,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         if e - s < MIN_CALLOUT_SEC:   # 너무 짧으면 깜빡이는 것처럼 보인다
             continue
         path = VIDEO_DIR / f"stat_{len(overlays)}.png"
-        render_stat_card(st[0], st[1], path)
+        render_stat_card(st[0], st[1], path, label=st[2] if len(st) > 2 else "")
         overlays.append((path, s, e))
     return overlays
 
