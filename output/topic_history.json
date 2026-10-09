@@ -1199,5 +1199,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "LH, 미분양 매입확약 연말까지 접수…분양가 92%까지 적용",
+    "video_id": "DnB6L5x-ooU",
+    "date": "2026-10-09T02:29:44.873736",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 360,
+    "source": "연합뉴스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p33827312",
+      "p18075690",
+      "p8519089",
+      "p16509758",
+      "p35396697",
+      "p24960455",
+      "v32501285",
+      "v6016323",
+      "v32107131"
+    ],
+    "layout": "2026-10-02",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
