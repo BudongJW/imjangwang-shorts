@@ -134,8 +134,12 @@ _WINTER_RE = re.compile(r"눈\s?(?:으로\s?)?덮인|눈이\s?(?:내리|쌓인|�
 # 서울·한국을 찾는 검색어로도 Pexels는 중국·동남아·유럽 단지를 섞어 준다.
 # 10-09 "korean apartment complex"가 유럽식 노란 건물, 중국 캠퍼스 단지,
 # 호찌민풍 고층을 가져왔다. 나라를 적지 않은 외국 사진은 이름으로 못 거른다.
-# 그래서 한국을 찾는 검색어면 설명에 한국 지명이 있는 것만 쓴다.
-_KOREA_QUERY_RE = re.compile(r"seoul|korea|busan|incheon|han\s?river", re.I)
+# 그래서 건물·거리가 찍힐 수 있는 검색어면 설명에 한국 지명이 있는 것만 쓴다.
+# 처음엔 seoul·korean이 든 검색어만 걸었는데, 같은 날 다시 만든 영상에서
+# "apartment sales office"가 유럽식 노란 건물을, "high rise apartment window"가
+# 외국 고층을 가져왔다. 나라가 안 드러나는 실내·물건 검색어만 뺀다.
+_INDOOR_QUERY_RE = re.compile(
+    r"interior|room|desk|calculator|documents|paperwork|keys|boxes|hallway|contract", re.I)
 _KOREA_RE = re.compile(
     r"korea|seoul|busan|incheon|gyeong|jeju|daegu|daejeon|gwangju|ulsan|suwon|"
     r"seongnam|bundang|gangnam|han\s?river|hangang|namsan|seongsu|jamsil|lotte|"
@@ -144,7 +148,7 @@ _KOREA_RE = re.compile(
 
 
 def _not_korea(query: str, meta: dict) -> bool:
-    if not _KOREA_QUERY_RE.search(query or ""):
+    if _INDOOR_QUERY_RE.search(query or ""):
         return False
     text = f"{meta.get('alt') or ''} {meta.get('url') or ''}".replace("-", " ")
     return not _KOREA_RE.search(text)
