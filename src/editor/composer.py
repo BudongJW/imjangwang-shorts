@@ -676,7 +676,9 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
 
 ARTICLE_MAX_SEC = 5.0
 # 화면 구성 판. 토픽 기록에 남겨 분석 리포트가 바꾸기 전후를 가른다.
-LAYOUT_VERSION = "2026-10-02"
+# 2026-10-10: 기사 화면을 '캡처 윗부분 + 원문 강조 문장 크게'로, 숫자 카드 이름표,
+# 자막 묶음 규칙.
+LAYOUT_VERSION = "2026-10-10"
 VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 

@@ -13,7 +13,7 @@ import re
 
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from config.settings import VIDEO_DIR, ARTICLE_HIGHLIGHT, SHORTS_WIDTH, SHORTS_HEIGHT
 from src.editor.fonts import font_bold, font_regular
@@ -272,6 +272,8 @@ def _trim_blank_bottom(im: Image.Image, keep: int = 24) -> Image.Image:
 
 # 제목 낱말이 페이지에 이만큼도 없으면 다른 기사로 본다.
 TITLE_MATCH_MIN = 0.3
+# 마지막 캡처에서 강조 문장이 든 문단의 원문(없으면 빈 문자열).
+LAST_HL_TEXT = ""
 
 
 def _title_words(title: str) -> list[str]:
@@ -371,6 +373,15 @@ def _capture_with_playwright(url: str, highlight: str, out: Path,
                     " return r.top + window.scrollY; }")
             except Exception:
                 focus_css = None
+            # 강조 문장이 든 문단 원문. 기사 화면에 크게 옮겨 쓸 때 대본이
+            # 고른 강조 문구가 아니라 기사 글자 그대로를 쓴다(인용 위조 방지).
+            global LAST_HL_TEXT
+            try:
+                LAST_HL_TEXT = page.evaluate(
+                    "() => { const e = document.querySelector('[data-imjang-hl]');"
+                    " return e ? e.innerText : ''; }") or ""
+            except Exception:
+                LAST_HL_TEXT = ""
             png = out.with_suffix(".png")
             page.screenshot(path=str(png), full_page=True)
             browser.close()
@@ -497,6 +508,75 @@ def _render_news_card(title: str, source: str, published: str,
     return png
 
 
+# 기사 화면은 휴대폰에서 글씨가 작아 못 읽었다(10-09 사용자 디자인 검토).
+# 캡처 윗부분(매체·제목)은 출처 증거로 작게 두고, 강조 문장은 기사 원문
+# 그대로 크게 다시 쓴다. 위는 제목 배너, 아래는 자막 자리라 그 사이에 넣는다.
+PROOF_TOP = 410          # 제목 배너 아래
+PROOF_CROP_H = 520       # 캡처 위에서 이만큼(폭 1080 기준)을 증거로 쓴다
+PROOF_SCALE = 0.85
+QUOTE_BOTTOM = 1250      # 자막 상자 위
+
+
+def _sentence_with(text: str, key: str) -> str:
+    """문단에서 key가 든 문장 하나. 못 찾으면 빈 문자열."""
+    text = re.sub(r"\s+", " ", text or "").strip()
+    if not key or key not in text:
+        return ""
+    for sent in re.split(r"(?<=[다요]\.)\s+|(?<=[!?])\s+", text):
+        if key in sent:
+            return sent.strip()
+    return ""
+
+
+def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
+                          is_title: bool, out: Path) -> Path:
+    """캡처 윗부분(증거) + 기사 원문 강조 문장(크게)을 한 화면(1080x1920)으로."""
+    from src.editor.slide_bg import backdrop
+    W, H = SHORTS_WIDTH, SHORTS_HEIGHT
+    canvas = backdrop().convert("RGB")
+    d = ImageDraw.Draw(canvas)
+    cap = Image.open(shot).convert("RGB")
+    crop = cap.crop((0, 0, cap.width, min(cap.height, PROOF_CROP_H)))
+    pw, ph = int(crop.width * PROOF_SCALE), int(crop.height * PROOF_SCALE)
+    crop = crop.resize((pw, ph), Image.LANCZOS)
+    x0 = (W - pw) // 2
+    # 그림자 + 둥근 모서리
+    shadow = Image.new("L", (pw, ph), 0)
+    ImageDraw.Draw(shadow).rounded_rectangle([0, 0, pw, ph], radius=28, fill=110)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(18))
+    canvas.paste((0, 0, 0), (x0 + 10, PROOF_TOP + 14), shadow)
+    mask = Image.new("L", (pw, ph), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, pw, ph], radius=28, fill=255)
+    canvas.paste(crop, (x0, PROOF_TOP), mask)
+
+    y = PROOF_TOP + ph + 46
+    meta = " · ".join(x for x in ((source or "").strip(), (published or "")[:10]) if x)
+    if meta:
+        f_meta = ImageFont.truetype(font_bold(), 36)
+        d.text((x0, y), meta + (" 기사 제목" if is_title else " 기사 중"), font=f_meta,
+               fill=(160, 178, 204))
+        y += 64
+    from src.editor.fonts import fix_glyphs
+    quote = fix_glyphs(quote)
+    # 남은 높이에 들어갈 때까지 글자를 줄인다. 원문을 자르지 않는다.
+    inner = pw
+    for size in (66, 60, 54, 48, 44):
+        f_q = ImageFont.truetype(font_bold(), size)
+        lines = _wrap(quote, f_q, inner)
+        lh = int(size * 1.32)
+        if y + len(lines) * lh <= QUOTE_BOTTOM:
+            break
+    for ln in lines:
+        d.rectangle([x0 - 22, y + 6, x0 - 12, y + lh - 6], fill=HL)
+        d.text((x0, y), ln, font=f_q, fill=(255, 255, 255))
+        y += lh
+    png = out.with_name(out.name + "_quote").with_suffix(".png")
+    canvas.save(png)
+    note(f"기사 화면: 캡처 위 {PROOF_CROP_H}px 증거 + {'제목' if is_title else '원문 강조 문장'} "
+         f"{len(quote)}자 {len(lines)}줄 ({size}px)")
+    return png
+
+
 def build_article_visual(art, highlight: str = "") -> Path:
     """모바일 기사 비주얼(세로로 긴 이미지)을 만든다. 실제 캡처 우선, 실패 시 카드."""
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
@@ -504,8 +584,22 @@ def build_article_visual(art, highlight: str = "") -> Path:
     # 앞 실행의 강조 위치가 남아 있으면 카드 폴백에 엉뚱하게 쓰인다.
     out.with_suffix(".focus.json").unlink(missing_ok=True)
     shot = None
+    global LAST_HL_TEXT
+    LAST_HL_TEXT = ""
     if getattr(art, "url", ""):
         shot = _capture_with_playwright(art.url, highlight, out, getattr(art, "title", ""))
+    if shot:
+        try:
+            sent = _sentence_with(LAST_HL_TEXT, (highlight or "")[:12])
+            quote, is_title = (sent, False) if sent else (getattr(art, "title", ""), True)
+            if quote:
+                q = _compose_quote_screen(shot, quote, getattr(art, "source", ""),
+                                          getattr(art, "published", ""), is_title, out)
+                # 한 화면짜리라 스크롤 위치는 쓰지 않는다.
+                out.with_suffix(".focus.json").unlink(missing_ok=True)
+                return q
+        except Exception as e:
+            note(f"기사 화면 재구성 실패(캡처 그대로 씀): {type(e).__name__}: {str(e)[:80]}")
     if not shot:
         shot = _render_news_card(
             title=getattr(art, "title", ""),

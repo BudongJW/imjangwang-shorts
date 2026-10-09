@@ -305,7 +305,7 @@ def _retention_section(ret: dict, videos: list[dict]) -> list[str]:
     out.append("|------|----:|----:|----:|----:|----:|----:|----:|------|")
     by_id = {v["video_id"]: v for v in videos}
     layouts = _layouts()
-    groups: dict[str, list[float]] = {"before": [], "after": []}
+    groups: dict[str, list[float]] = {}
     for vid, curve in curves.items():
         v = by_id.get(vid)
         if not v:
@@ -320,15 +320,15 @@ def _retention_section(ret: dict, videos: list[dict]) -> list[str]:
         # 값 자체는 반복 재생 때문에 100%를 넘나들어 영상끼리 비교가 어렵다.
         # 3초에 있던 시청 중 8초까지 남은 비율로 본다. 옛 구성은 3~11초가
         # 기사 화면이라 이 구간이 그 화면의 이탈이다.
+        # 화면 구성 판(layout)마다 따로 모은다. 10-10에 기사 화면을 다시 짰다.
         if pts[1] and pts[2] is not None:
-            key = "after" if layouts.get(vid) else "before"
-            groups[key].append(pts[2] / pts[1])
+            groups.setdefault(layouts.get(vid) or "", []).append(pts[2] / pts[1])
     out.append("")
-    for key, label in (("before", "바꾸기 전"), ("after", "바꾼 뒤")):
+    for key in sorted(groups):
         vals = sorted(groups[key])
-        if vals:
-            out.append(f"3초에서 8초까지 남은 비율 중앙값 ({label}, {len(vals)}편): "
-                       f"**{vals[len(vals) // 2] * 100:.0f}%**")
+        label = f"{key[5:]}판" if key else "10-02 전"
+        out.append(f"3초에서 8초까지 남은 비율 중앙값 ({label}, {len(vals)}편): "
+                   f"**{vals[len(vals) // 2] * 100:.0f}%**")
     out.append("편수가 적을 때는 방향만 본다.")
     out.append("")
     return out
