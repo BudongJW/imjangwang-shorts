@@ -917,6 +917,7 @@ _ATTRIB_RE = re.compile(
 # 당부했다고 썼는데 대본은 "건설 금융 걸림돌부터 없애야 한다는 지적이 컸습니다"였다.
 _CROWD_RE = re.compile(
     r"(지적|비판|우려|목소리|불만)(?:이|가|도)\s?(?:컸|크|많|잇따|쏟아|높|거세|커지|나오|나왔|나옵|제기)")
+_HEARSAY_RE = re.compile(r"다는\s?(지적|비판|우려|목소리|분석|평가|관측)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 # 진행자 말로 맺는 원인 설명("~한 것이죠", "~때문입니다"). 기사가 그 내용을
 # 누군가의 분석으로만 썼으면 사실처럼 맺지 않는다. 10-04 초안: 기사는 너나위가
@@ -964,6 +965,12 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         cm = _CROWD_RE.search(sent)
         if cm and not _CROWD_RE.search(src):
             out.append((needle, f"기사에 없는 여론으로 키웠다('{cm.group(0)}')"))
+            continue
+        # "~다는 지적에"처럼 내용을 남의 지적으로 옮긴 꼴. 기사에 '지적했다'만
+        # 있으면 통과하던 구멍이다(10-10 재생성본: "실수요자 피해가 컸다는 지적에").
+        hm = _HEARSAY_RE.search(sent)
+        if hm and not re.search(r"다는\s?" + hm.group(1), src):
+            out.append((needle, f"기사에 없는 '~다는 {hm.group(1)}'"))
             continue
         lm = _LOADED_RE.search(sent) if am else None
         if lm and lm.group(0) not in src:
