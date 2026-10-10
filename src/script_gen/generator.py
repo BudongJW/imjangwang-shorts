@@ -912,6 +912,11 @@ _ATTRIB_RE = re.compile(
     # 10-03 재생성본: "…현금 부자에게만 유리하다는 지적입니다". 기사에 '지적'도
     # '현금 부자'도 없었다. '~라는 지적입니다/분석입니다' 꼴을 더한다.
     r"(?:이|가|은|는|도|들|에서는|까지|조차|마저|입니다|이에요|이죠|이다|\s*$)")
+# 여러 사람이 지적한다는 꼴("~라는 지적이 컸습니다"). 기사에 한 사람의 말만 있으면
+# 여론처럼 키운 것이다. 10-10 초안: 기사는 장관이 "건설 금융이 걸림돌이 되지 않도록"
+# 당부했다고 썼는데 대본은 "건설 금융 걸림돌부터 없애야 한다는 지적이 컸습니다"였다.
+_CROWD_RE = re.compile(
+    r"(지적|비판|우려|목소리|불만)(?:이|가|도)\s?(?:컸|크|많|잇따|쏟아|높|거세|커지|나오|나왔|나옵|제기)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 # 진행자 말로 맺는 원인 설명("~한 것이죠", "~때문입니다"). 기사가 그 내용을
 # 누군가의 분석으로만 썼으면 사실처럼 맺지 않는다. 10-04 초안: 기사는 너나위가
@@ -955,6 +960,10 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         # '지적'으로 잡혀, 기사에 없는 "임대차법 … 결과라는 지적"이 통과했다.
         if am and not re.search(r"(?<![가-힣])" + am.group(1), src):
             out.append((needle, f"남의 말로 옮겼는데 기사에 '{am.group(1)}' 표현이 없다"))
+            continue
+        cm = _CROWD_RE.search(sent)
+        if cm and not _CROWD_RE.search(src):
+            out.append((needle, f"기사에 없는 여론으로 키웠다('{cm.group(0)}')"))
             continue
         lm = _LOADED_RE.search(sent) if am else None
         if lm and lm.group(0) not in src:

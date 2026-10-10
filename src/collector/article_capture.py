@@ -515,6 +515,9 @@ PROOF_TOP = 410          # 제목 배너 아래
 PROOF_CROP_H = 400       # 캡처 위에서 이만큼(폭 1080 기준)을 증거로 쓴다(매체·제목·송고 시각)
 PROOF_SCALE = 0.85
 QUOTE_BOTTOM = 1250      # 자막 상자 위
+# 기사 화면은 4~5초 뜬다. 이보다 긴 문장은 그 사이에 못 읽고 글자만 작아진다
+# (10-10 초안: 146자가 44px 6줄). 그럴 땐 기사 제목을 크게 쓴다.
+QUOTE_MAX_CHARS = 90
 
 
 def _wrap_words(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
@@ -629,6 +632,9 @@ def build_article_visual(art, highlight: str = "") -> Path:
     if shot:
         try:
             sent = _sentence_with(LAST_HL_TEXT, (highlight or "")[:12])
+            if sent and len(sent) > QUOTE_MAX_CHARS:
+                note(f"기사 화면: 강조 문장이 {len(sent)}자라 제목으로 대신함")
+                sent = ""
             quote, is_title = (sent, False) if sent else (getattr(art, "title", ""), True)
             if quote:
                 q = _compose_quote_screen(shot, quote, getattr(art, "source", ""),

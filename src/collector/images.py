@@ -230,14 +230,17 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
 
 # 검색어를 고정하면 Pexels가 매번 같은 사진군을 준다. 날짜별로 돌려
 # 배경이 겹치지 않게 한다(썸네일 구도·얼굴 크롭 회전과 같은 방식).
+# 주제와 상관없는 날에도 쓰이는 목록이라 건물·도시만 둔다. 10-10 공급 기사
+# 초안에 'moving boxes empty room'이 걸려 서양인 이삿짐 사진이 들어갔다
+# (실내 검색어는 한국 지명 필터를 안 거친다). 이삿짐은 전월세 주제 목록에만 둔다.
 PEXELS_QUERIES = (
     "seoul apartment building",
     "korean city skyline night",
     "apartment construction site",
     "seoul street rain",
     "high rise apartment window",
-    "moving boxes empty room",
-    "real estate agency window",
+    "seoul apartment complex aerial",
+    "seoul night apartment lights",
     "han river apartment aerial",
 )
 

@@ -1224,36 +1224,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "국토장관 \"민간 주택공급 회복 중요…HUG PF보증 신속 지원해야\"(종합)",
-    "video_id": "ZM7GcMFsnJE",
-    "date": "2026-10-09T21:21:06.349797",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 231,
-    "source": "연합뉴스",
-    "age_days": 1.5428288214351853,
-    "topic_score": 8,
-    "recency_score": 4,
-    "media": [
-      "p20949052",
-      "p14452237",
-      "p20837360",
-      "p3142005",
-      "p37384711",
-      "p10502211",
-      "v4553200",
-      "v4553290",
-      "v7217133"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
