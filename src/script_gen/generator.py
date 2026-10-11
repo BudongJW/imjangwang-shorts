@@ -1031,7 +1031,10 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"충격적|넘쳐|넘친다|"
                       # 10-09 재생성본: 분양가의 85~92%에 사들이는 제도를
                       # "공공이 비싸게 사주는 정책"이라고 했다. 값 판정은 기사에 있어야 한다.
-                      r"비싸게|헐값")
+                      r"비싸게|헐값|"
+                      # 10-11 초안: 기사는 "제1호 준주거지 모아타운"이라고만 썼는데
+                      # 대본은 "이례적인 준주거지 모아타운"이었다.
+                      r"이례적")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1080,6 +1083,28 @@ def _year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         for m in _YEAR_IN_SCRIPT_RE.finditer(sent):
             if m.group(1) not in ok:
                 out.append((sent.strip()[:40], f"기사에 없는 연도 '{m.group(1)}년'"))
+                break
+    return out
+
+
+# 대본이 직접 센 곳 수. 10-11 초안: 기사는 화곡6동·서계동·망우동·면목동 네 곳을
+# 하나씩 소개했고 개수를 쓰지 않았다. 대본은 "강서, 중랑 포함 서울 3곳"이었다
+# (자치구로 세면 셋, 사업지로 세면 넷). 기사가 그 수를 쓴 경우만 통과시킨다.
+_KO_NUM = {"한": "1", "두": "2", "세": "3", "네": "4", "다섯": "5", "여섯": "6",
+           "일곱": "7", "여덟": "8", "아홉": "9", "열": "10"}
+_PLACE_COUNTER = r"(?:곳|개\s?(?:지역|구역|단지|자치구|구|동|사업장|지구|권역)|개소)"
+_PLACE_COUNT_RE = re.compile(
+    r"(?<![\d,.가-힣])(\d+|" + "|".join(_KO_NUM) + r")\s?" + _PLACE_COUNTER)
+
+
+def _count_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    ok = {_KO_NUM.get(m.group(1), m.group(1)) for m in _PLACE_COUNT_RE.finditer(src)}
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        for m in _PLACE_COUNT_RE.finditer(sent):
+            if _KO_NUM.get(m.group(1), m.group(1)) not in ok:
+                out.append((sent.strip()[:40], f"기사에 없는 개수 '{m.group(0)}'"))
                 break
     return out
 
@@ -1189,7 +1214,8 @@ def generate(art) -> ShortPlan:
             a = _unsourced_actors(text, hay)
             pr = _pair_problems(text, hay)
             c = (_causal_problems(text, hay) + _hype_problems(text, hay)
-                 + _year_problems(text, hay) + _direction_problems(text))
+                 + _year_problems(text, hay) + _count_problems(text, hay)
+                 + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
                     + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]

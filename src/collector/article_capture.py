@@ -569,6 +569,29 @@ def _sentence_with(text: str, key: str) -> str:
     return ""
 
 
+_TITLE_NUM_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s?(?:가구|세대|%|억|만|층|명|건|채|곳|호)")
+
+
+def _title_typo(title: str, body: str) -> str:
+    """제목 숫자 중 본문에 없는 것. 10-11 매일경제 기사는 제목이 '483가구',
+    본문이 '438가구'였다(4곳 합계 1735가구로 본문이 맞다). 본문을 못 받았으면 묻지 않는다."""
+    flat = re.sub(r"[\s,]", "", body or "")
+    if len(flat) < 200:
+        return ""
+    for m in _TITLE_NUM_RE.finditer(title or ""):
+        if m.group(1).replace(",", "") not in flat:
+            return m.group(0)
+    return ""
+
+
+def _short_clause(sent: str, key: str) -> str:
+    """긴 문장에서 key가 든 쉼표 토막. 토막도 길면 빈 문자열."""
+    for part in re.split(r"(?<=[,，])\s+", sent):
+        if key and key in part and len(part) <= QUOTE_MAX_CHARS:
+            return part.strip().rstrip(",，")
+    return ""
+
+
 def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
                           is_title: bool, out: Path) -> Path:
     """캡처 윗부분(증거) + 기사 원문 강조 문장(크게)을 한 화면(1080x1920)으로."""
@@ -631,10 +654,22 @@ def build_article_visual(art, highlight: str = "") -> Path:
         shot = _capture_with_playwright(art.url, highlight, out, getattr(art, "title", ""))
     if shot:
         try:
-            sent = _sentence_with(LAST_HL_TEXT, (highlight or "")[:12])
+            key = (highlight or "")[:12]
+            typo = _title_typo(getattr(art, "title", ""), getattr(art, "summary", ""))
+            sent = _sentence_with(LAST_HL_TEXT, key)
+            if not sent and typo:
+                # 페이지에서 강조 문단을 못 찾았어도 제목 대신 본문 발췌에서 찾는다.
+                sent = _sentence_with(getattr(art, "summary", ""), key)
+                if not sent:
+                    note(f"기사 화면: 제목 '{typo}'가 본문에 없는데 대신할 문장도 못 찾음")
             if sent and len(sent) > QUOTE_MAX_CHARS:
-                note(f"기사 화면: 강조 문장이 {len(sent)}자라 제목으로 대신함")
-                sent = ""
+                if typo:
+                    # 제목이 틀렸으면 시청자는 대본과 다른 숫자를 본다. 길어도 본문을 쓴다.
+                    sent = _short_clause(sent, key) or sent
+                    note(f"기사 화면: 제목 '{typo}'가 본문에 없어 본문 문장을 씀({len(sent)}자)")
+                else:
+                    note(f"기사 화면: 강조 문장이 {len(sent)}자라 제목으로 대신함")
+                    sent = ""
             quote, is_title = (sent, False) if sent else (getattr(art, "title", ""), True)
             if quote:
                 q = _compose_quote_screen(shot, quote, getattr(art, "source", ""),

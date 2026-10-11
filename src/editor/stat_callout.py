@@ -156,6 +156,13 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         # 끊겨도 띄우지 않는다.
         if cand.replace(" ", "") == "1세대":
             continue
+        # "모아타운 1호", "제1호", "2호선"은 순서·이름이지 수량이 아니다. 10-11 초안이
+        # "1호"를 숫자 카드로 크게 띄웠다. 호는 10 이상이고 '제'·'선'이 안 붙을 때만 본다.
+        if cand.endswith("호") and (
+                int(re.sub(r"\D", "", cand) or 0) < 10
+                or phrase[:m.start()].rstrip().endswith("제")
+                or phrase[m.start() + len(cand):].startswith(("선", "기"))):
+            continue
         # "29일 국무회의", "다음 달 1일부터"의 일은 날짜다. "30일 만에"처럼
         # 기간일 때만 수치로 본다(09-29 일시적 2주택 영상 제작 중 확인).
         if cand.endswith("일") and not _DAY_SPAN_RE.match(phrase[m.start() + len(cand):]):
