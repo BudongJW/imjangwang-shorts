@@ -1251,30 +1251,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "서울역 역세권에 35층 아파트…준주거지 모아타운 483가구 공급",
-    "video_id": "rutpz7wRt88",
-    "date": "2026-10-11T02:14:54.136975",
-    "title_style": "주장",
-    "len_mode": "normal",
-    "script_chars": 353,
-    "source": "매일경제",
-    "topic_score": 0,
-    "recency_score": 0,
-    "media": [
-      "p34056451",
-      "p14949111",
-      "p32028723",
-      "v29918215"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "on",
-      "bg_mode": "graphic",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

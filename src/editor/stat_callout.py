@@ -156,6 +156,10 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         # 끊겨도 띄우지 않는다.
         if cand.replace(" ", "") == "1세대":
             continue
+        # "화곡6동", "상봉13구역"처럼 글자에 붙은 숫자는 이름의 일부다. 10-11 지정
+        # 영상에서 "화곡6동"의 "6동"이 숫자 카드로 떴다.
+        if m.start() > 0 and re.match(r"[가-힣A-Za-z]", phrase[m.start() - 1]):
+            continue
         # "모아타운 1호", "제1호", "2호선"은 순서·이름이지 수량이 아니다. 10-11 초안이
         # "1호"를 숫자 카드로 크게 띄웠다. 호는 10 이상이고 '제'·'선'이 안 붙을 때만 본다.
         if cand.endswith("호") and (
