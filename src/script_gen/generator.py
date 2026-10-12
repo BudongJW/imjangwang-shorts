@@ -363,11 +363,14 @@ def _banner_title(title: str, limit: int = 26) -> str:
     지원해야"(종합)'이 배너에서 '…HUG PF보증'으로 잘린 채 영상 내내 떴다.
     """
     t = re.sub(r"\((?:종합|상보|1보|2보|속보|단독)[^)]*\)|\[[^\]]*\]|【[^】]*】", " ", title or "")
+    # 곧은 따옴표로 열고 굽은 따옴표로 닫은 제목("10년 부은 통장도 깬다”)이 짝이
+    # 안 맞는 것으로 세어져 따옴표가 하나 더 붙었다(10-12 초안 배너). 한 가지로 맞춘다.
+    t = t.translate(str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'"}))
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) > limit and "…" in t:
         head = t.split("…")[0].strip()
         # 따옴표를 열고 '…'에서 끊겼으면 닫아 준다.
-        for o, c in (('"', '"'), ("'", "'"), ("“", "”"), ("‘", "’")):
+        for o, c in (('"', '"'), ("'", "'")):
             if head.count(o) % 2 == 1 if o == c else head.count(o) > head.count(c):
                 head += c
         if len(head) >= 8:
@@ -1109,6 +1112,49 @@ def _count_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 진행자가 "이제 ~가 아닙니다"로 내리는 판정. 10-12 초안: 기사는 청약통장이
+# "주거사다리였던" 것이고 청년층 사다리가 "흔들린다는 우려가 나온다"고 썼는데,
+# 대본은 "청약은 이제 내 집 마련 사다리가 아닙니다"로 못 박았다. 기사의 한 문장이
+# 같은 부정(아니)을 쓰고 낱말이 둘 이상 겹칠 때만 통과시킨다.
+_VERDICT_NEG_RE = re.compile(r"(?:이제|더\s?이상|더는)\s?[^.!?]{0,30}?아닙니다")
+VERDICT_MIN_SHARED = 2
+
+
+def _verdict_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if "아니" in x]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _VERDICT_NEG_RE.search(sent)
+        if not m:
+            continue
+        mine = _stems(sent)
+        if not any(len(mine & _stems(x)) >= VERDICT_MIN_SHARED for x in segs):
+            out.append((sent.strip()[:40], f"기사에 없는 판정 '{m.group(0)}'"))
+    return out
+
+
+# 기사의 금액 구간에서 위 끝을 뗀 문장. 10-12 초안: 기사는 "15억원 초과~25억원
+# 이하 주택의 대출 한도는 4억원"인데 대본은 "15억 이상 주택은 대출 한도 4억"이었다.
+# 25억 초과는 한도가 다르므로 틀린 안내가 된다.
+_AMT = r"(\d[\d,.]*\s?(?:조|억|천만|만)?(?:\s?\d[\d,]*\s?(?:억|천만|만))?)"
+_SRC_RANGE_RE = re.compile(
+    _AMT + r"\s?원?\s?(?:초과|이상)?\s?[~∼～]\s?" + _AMT + r"\s?원?\s?(?:이하|미만)")
+
+
+def _range_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    out = []
+    ranges = [(a.replace(" ", ""), b.replace(" ", ""))
+              for a, b in _SRC_RANGE_RE.findall(source_text or "")]
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        flat = sent.replace(" ", "")
+        for lo, hi in ranges:
+            if re.search(r"(?<![\d,.])" + re.escape(lo) + r"원?(?:이상|초과|넘는|넘으면|부터)", flat) \
+                    and hi not in flat:
+                out.append((sent.strip()[:40], f"기사는 {lo}~{hi} 구간인데 위 끝({hi})을 뺐다"))
+                break
+    return out
+
+
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     src = source_text or ""
     out = []
@@ -1215,6 +1261,7 @@ def generate(art) -> ShortPlan:
             pr = _pair_problems(text, hay)
             c = (_causal_problems(text, hay) + _hype_problems(text, hay)
                  + _year_problems(text, hay) + _count_problems(text, hay)
+                 + _verdict_problems(text, hay) + _range_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]

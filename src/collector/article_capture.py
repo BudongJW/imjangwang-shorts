@@ -621,6 +621,8 @@ def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
                fill=(160, 178, 204))
         y += 64
     from src.editor.fonts import fix_glyphs
+    # 연재 꼬리표("[청약, 선별의 시대③]")는 기사 내용이 아니다. 화면 4초 중 한 줄을 먹는다.
+    quote = re.sub(r"\s*(?:\[[^\]]*\]|【[^】]*】)\s*$", "", quote).strip() or quote
     quote = fix_glyphs(quote)
     # 남은 높이에 들어갈 때까지 글자를 줄인다. 원문을 자르지 않는다.
     inner = pw

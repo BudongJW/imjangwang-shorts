@@ -43,6 +43,8 @@ def font_regular() -> str:
 # 콜아웃이 폭은 60㎡만큼 잡힌 채 "60"만 찍혔다. 뜻이 같은 글자로 바꾼다.
 # 나눔고딕에 없는 글자. 기사 원문을 옮겨 쓰는 화면에서 '∼'(U+223C)가 빈칸으로 떴다(10-09).
 _MISSING_GLYPHS = {"㎡": "m²", "㎢": "km²", "∼": "~", "～": "~"}
+# 원 숫자(①~⑳)도 폰트에 없어 빈칸으로 찍혔다(10-12 기사 제목 "[청약, 선별의 시대③]").
+_MISSING_GLYPHS.update({chr(0x2460 + i): str(i + 1) for i in range(20)})
 
 
 def fix_glyphs(text: str) -> str:
