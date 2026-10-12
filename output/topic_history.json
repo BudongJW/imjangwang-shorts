@@ -1276,5 +1276,32 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"10년 부은 통장도 깬다”…치솟는 분양가에 '청약 무용론' 확산[청약, 선별의 시대③]",
+    "video_id": "iiQ3GzkTalY",
+    "date": "2026-10-12T02:08:32.366784",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 253,
+    "source": "뉴시스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p30484434",
+      "p34717351",
+      "p20130529",
+      "p10325487",
+      "p8296984",
+      "p7680680"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
