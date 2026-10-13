@@ -123,10 +123,24 @@ _OFFTOPIC_RE = re.compile(
 _FOREIGN_RE = re.compile(
     r"\b(?:china|chinese|beijing|shanghai|shenzhen|guangzhou|hong\s?kong|japan|tokyo|"
     r"osaka|vietnam|hanoi|saigon|bangkok|thailand|singapore|taipei|taiwan|dubai|"
-    r"new\s?york|manhattan|london|paris|malaysia|kuala|manila|jakarta)|"
+    r"new\s?york|manhattan|london|paris|malaysia|kuala|manila|jakarta|"
+    # 10-13 지정 영상: 실내 검색어("apartment door hallway")는 한국 지명 검사를 면하는데,
+    # 러시아 소치·상파울루 복도 사진이 영상 전체 배경이 됐다. 설명에 나라가 적힌
+    # 외국 컷은 실내라도 뺀다.
+    r"russia|moscow|sochi|brazil|s[ãa]o\s?paulo|mexico|india|mumbai|turkey|istanbul|"
+    r"italy|rome|milan|spain|madrid|barcelona|germany|berlin|france|portugal|lisbon|"
+    r"poland|ukraine|kyiv|canada|toronto|australia|sydney|argentina|colombia|chile|"
+    r"peru|egypt|cairo|europe|european|greece|netherlands|amsterdam|prague|budapest|"
+    r"vienna|georgia|tbilisi|baku|kazakhstan|uzbekistan|mongolia|nepal|iran|israel)|"
     r"중국|베이징|상하이|광저우|홍콩|일본|도쿄|오사카|베트남|하노이|호찌민|호치민|"
     r"태국|방콕|싱가포르|대만|타이베이|두바이|뉴욕|맨해튼|런던|말레이시아|"
-    r"쿠알라|필리핀|마닐라|인도네시아|자카르타", re.I)
+    r"쿠알라|필리핀|마닐라|인도네시아|자카르타|"
+    r"러시아|모스크바|소치|브라질|상파울루|멕시코|뭄바이|튀르키예|터키|이스탄불|"
+    r"이탈리아|(?<![가-힣])로마|밀라노|스페인|마드리드|바르셀로나|독일|베를린|프랑스|"
+    r"(?<![가-힣])파리(?!바게)|포르투갈|리스본|폴란드|우크라이나|키이우|캐나다|토론토|호주|시드니|"
+    r"아르헨티나|콜롬비아|칠레|페루|이집트|카이로|유럽|미국|영국|그리스|네덜란드|"
+    r"암스테르담|체코|프라하|헝가리|부다페스트|오스트리아|비엔나|조지아|트빌리시|바쿠|"
+    r"카자흐|우즈벡|몽골|네팔|이란|이스라엘", re.I)
 # 눈 덮인 겨울 사진은 겨울에만 쓴다(10-08 영상에 눈 쌓인 단지가 떴다).
 _WINTER_RE = re.compile(r"눈\s?(?:으로\s?)?덮인|눈이\s?(?:내리|쌓인|덮)|설경|겨울|snow|winter", re.I)
 
@@ -264,7 +278,7 @@ _TOPICS: list[tuple[re.Pattern, tuple[str, ...]]] = [
     (re.compile(r"빌라|다가구|다세대|비아파트"), ("seoul residential alley",
                                          "korean residential alley")),
     (re.compile(r"전세|월세|임대차|세입자|임차|보증금|집주인"), ("apartment keys hand", "moving boxes empty room",
-                                                  "apartment door hallway")),
+                                                  "seoul apartment complex aerial")),
     (re.compile(r"대출|LTV|DSR|금리|보금자리론|디딤돌|은행"), ("calculator house model", "signing contract desk",
                                                   "seoul apartment buildings")),
     (re.compile(r"세금|보유세|종부세|양도세|취득세|과세"), ("tax documents calculator", "paperwork desk calculator")),
