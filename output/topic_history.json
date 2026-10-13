@@ -1303,30 +1303,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "\"2027년 서울 부동산 대격변…공급 절벽에 전월세 올라 매매가 받쳐줄 것\"",
-    "video_id": "0FgSczQjgYU",
-    "date": "2026-10-13T02:08:25.413986",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 321,
-    "source": "뉴시스",
-    "age_days": 0.14992719630787038,
-    "topic_score": 10,
-    "recency_score": 4,
-    "media": [
-      "p2068947",
-      "p6342858",
-      "p6394543"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "graphic",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

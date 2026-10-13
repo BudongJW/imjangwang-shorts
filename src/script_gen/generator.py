@@ -1155,6 +1155,47 @@ def _range_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사에서는 한 사람의 의견(따옴표 안의 말)인데 대본이 누구 말인지 빼고 사실로 말한
+# 문장. 10-13 초안: 김경민 교수가 유튜브에서 "강남은 이미 고점을 찍고 하락으로 반전한
+# 것 같고"라고 한 말을 "강남은 이미 고점을 찍고 하락세로 전환했지만"으로, 제목의
+# 따옴표 속 "2027년 서울 부동산 대격변"을 "2027년, 서울 부동산 시장에 대격변이
+# 시작됩니다"로 옮겼다. 따옴표 속 말이 전망·추정(것 같다, ~ㄹ 것, 여력, 고점 …)이고
+# 대본 문장에 말한 사람이나 '분석·전망·설명' 같은 말이 없으면 문장을 지운다.
+_QUOTE_SPAN_RE = re.compile(r'["“]([^"”]{8,})["”]')
+_OPINION_MARK_RE = re.compile(
+    r"것\s?같|(?:[을를줄될할일갈올볼]|는)\s?것|수\s?있|전망|보인다|본다|예상|가능성|"
+    r"여력|고점|바닥|버블|거품|역할을\s?한|동력|타이밍|격변|서막")
+_SCRIPT_ATTR_RE = re.compile(
+    r"교수|전문가|위원|연구원|대표|소장|애널리스트|원장|장관|의원|센터장|랩장|팀장|"
+    r"분석|전망|진단|지적|주장|설명|말했|밝혔|경고|강조|조언|평가|따르면|라고|이라며|라며|"
+    r"고\s?봤|본다|봅니다|예상|규정|기대|우려|관계자|측은|내다봤|"
+    # 간접 인용으로 맺는 꼴과 직접 인용(따옴표)은 누구 말인지가 이미 드러난다.
+    r"다는\s?겁니다|라는\s?겁니다|다는\s?거죠|라고\s?합니다|답니다|랍니다|[\"“”]")
+OPINION_SHARED_STRONG = 5
+OPINION_SHARED_WEAK = 3
+
+
+def _opinion_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    spans = [m.group(1) for m in _QUOTE_SPAN_RE.finditer(source_text or "")
+             if _OPINION_MARK_RE.search(m.group(1))]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not sent or _SCRIPT_ATTR_RE.search(sent):
+            continue
+        mine = _stems(sent)
+        if not mine:
+            continue
+        hedged = bool(_HOST_READ_RE.search(sent))
+        for sp in spans:
+            k = len(mine & _stems(sp))
+            if k >= OPINION_SHARED_STRONG or (
+                    not hedged and k >= OPINION_SHARED_WEAK and k * 2 >= len(mine)):
+                out.append((sent[:40], f"기사에서는 따옴표 속 의견인데 누구 말인지 빼고 사실로 말했다: \"{sp[:30]}\""))
+                break
+    return out
+
+
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     src = source_text or ""
     out = []
@@ -1262,6 +1303,7 @@ def generate(art) -> ShortPlan:
             c = (_causal_problems(text, hay) + _hype_problems(text, hay)
                  + _year_problems(text, hay) + _count_problems(text, hay)
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
+                 + _opinion_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
