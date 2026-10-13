@@ -48,5 +48,5 @@ def narrate(speech_text: str, filename: str = "narration") -> tuple[Path, Path]:
         speech_text, filename=filename,
         voice=ANCHOR_VOICE, rate=ANCHOR_RATE, language="ko",
     )
-    log.info("  TTS: edge-tts")
+    log.info(f"  TTS: edge-tts ({_meta.get('endpoint', '')})")
     return audio_path, srt_path

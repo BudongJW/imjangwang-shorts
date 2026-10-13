@@ -4,9 +4,21 @@ import asyncio
 import random
 from pathlib import Path
 
+import aiohttp
 import edge_tts
+import edge_tts.communicate as _edge_comm
+from edge_tts.constants import TRUSTED_CLIENT_TOKEN
 
 from config.settings import AUDIO_DIR, SRT_DIR
+
+# 합성 웹소켓 주소. 2026-10-10부터 Microsoft가 옛 주소(speech.platform.bing.com)의
+# 합성 연결을 403으로 막았다(rany2/edge-tts#490). 10-13 정기 제작이 이 403으로 멈췄다.
+# Edge가 지금 쓰는 api.msedgeservices.com은 같은 토큰을 받는다(같은 저장소 PR #491).
+# 새 주소를 먼저 쓰고, 막히면 옛 주소로 한 번 더 간다. edge-tts가 새 판에서 주소를
+# 고치면 그 값이 옛 주소 자리에 들어오므로 그대로 둬도 된다.
+_EDGE_WSS = ("wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1"
+             f"?Ocp-Apim-Subscription-Key={TRUSTED_CLIENT_TOKEN}")
+WSS_CANDIDATES = tuple(dict.fromkeys((_EDGE_WSS, _edge_comm.WSS_URL)))
 
 # 한국어 음성 목록 (이름, 성별, 특성)
 KO_VOICES = [
@@ -59,21 +71,28 @@ async def _synthesize(
     if voice is None or rate is None:
         voice, rate = pick_voice(language=language)
 
-    communicate = edge_tts.Communicate(text, voice, rate=rate)
-    submaker = edge_tts.SubMaker()
-
     audio_path.parent.mkdir(parents=True, exist_ok=True)
     srt_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(audio_path, "wb") as f:
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                f.write(chunk["data"])
-            elif chunk["type"] in ("WordBoundary", "SentenceBoundary"):
-                submaker.feed(chunk)
-
-    srt_path.write_text(submaker.get_srt(), encoding="utf-8")
-    return {"voice": voice, "rate": rate}
+    last_err: Exception | None = None
+    for url in WSS_CANDIDATES:
+        _edge_comm.WSS_URL = url
+        communicate = edge_tts.Communicate(text, voice, rate=rate)
+        submaker = edge_tts.SubMaker()
+        try:
+            with open(audio_path, "wb") as f:
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        f.write(chunk["data"])
+                    elif chunk["type"] in ("WordBoundary", "SentenceBoundary"):
+                        submaker.feed(chunk)
+        except (aiohttp.WSServerHandshakeError, edge_tts.exceptions.NoAudioReceived) as e:
+            print(f"  edge-tts 연결 실패({url.split('/')[2]}): {type(e).__name__} {str(e)[:60]}")
+            last_err = e
+            continue
+        srt_path.write_text(submaker.get_srt(), encoding="utf-8")
+        return {"voice": voice, "rate": rate, "endpoint": url.split("/")[2]}
+    raise last_err or RuntimeError("edge-tts: 합성 주소가 없다")
 
 
 def synthesize(
