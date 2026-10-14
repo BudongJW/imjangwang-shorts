@@ -1360,5 +1360,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"정비사업 제한 시 매매·전세 폭등\"…학계, 국토부 '쿼터제' 경고",
+    "video_id": "FvtvwJof3us",
+    "date": "2026-10-14T20:25:16.650035",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 332,
+    "source": "아시아경제",
+    "age_days": 0.8836899494560185,
+    "topic_score": 11,
+    "recency_score": 4,
+    "media": [
+      "p13885592",
+      "p32437446",
+      "p7578852",
+      "p8549521",
+      "p8293654",
+      "p7647753",
+      "v40156288",
+      "v40156106",
+      "v40156105"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "on",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
