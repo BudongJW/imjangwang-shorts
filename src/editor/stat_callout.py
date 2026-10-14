@@ -177,6 +177,11 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
             continue
         # "660㎡ 이하에서 1,000㎡ 미만으로"는 바뀐 뒤 값이 뉴스다. 앞 값을
         # 띄우면 옛 기준을 새 기준처럼 보여준다(09-28 제작 중 확인).
+        # "최근 5년 평균", "1년 전보다"의 기간은 비교 기준이다. 혼자 띄우면 뜻 없는
+        # "5년"이 된다(10-14 초안). "87주 연속", "30일 만에"는 그 자체가 뉴스라 둔다.
+        if cand.endswith(_WEAK_UNITS) and re.match(
+                r"\s?(?:평균|대비|전보다|전\s?대비|전에\s?비해|기준)", phrase[m.start() + len(cand):]):
+            continue
         if cand.endswith(_WEAK_UNITS):
             if weak is None or "에서" in phrase[weak_end:m.start()]:
                 weak, weak_end = cand, m.end()

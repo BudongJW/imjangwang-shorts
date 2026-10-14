@@ -665,7 +665,9 @@ def _kor_num(tok: str) -> float | None:
     return total if seen else None
 
 
-_SENT_END_RE = re.compile(r"(?<=[다요죠])[.!?]+(?!\d)")
+# 위 _SENT_END_RE(종결어미 목록)와 다른 것이다. 10-01에 같은 이름으로 넣어 미완성 끝 문장
+# 자르기가 이 정규식을 쓰고 있었다(10-14에 발견).
+_SENT_STOP_RE = re.compile(r"(?<=[다요죠])[.!?]+(?!\d)")
 # 검사용 문장 나누기. '다·요·죠'로 끝나지 않는 토막 문장("…주원인이라는 지적.",
 # "시장 왜곡 심화!")도 따로 본다. 10-03 재생성본이 이런 토막으로 써서 앞뒤
 # 문장과 한 덩어리로 묶였고, 남의 말·과장 검사를 다 빠져나갔다.
@@ -676,7 +678,7 @@ _TAKE_PREV_RE = re.compile(r"\s*(?:이 중|이중|이 가운데|그중|그 중|�
 
 def _sentence_bounds(text: str, start: int, end: int) -> tuple[int, int]:
     """start~end가 들어 있는 문장의 범위. '이 중'으로 시작하면 앞 문장까지."""
-    bounds = [0] + [b.end() for b in _SENT_END_RE.finditer(text)] + [len(text)]
+    bounds = [0] + [b.end() for b in _SENT_STOP_RE.finditer(text)] + [len(text)]
     lo = max(b for b in bounds if b <= start)
     hi = min((b for b in bounds if b >= end), default=len(text))
     if _TAKE_PREV_RE.match(text, lo):
@@ -1035,6 +1037,9 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       # 10-09 재생성본: 분양가의 85~92%에 사들이는 제도를
                       # "공공이 비싸게 사주는 정책"이라고 했다. 값 판정은 기사에 있어야 한다.
                       r"비싸게|헐값|"
+                      # 10-14 초안 배너 "정책 부작용 입주절벽 / 분양권 몸값 역대급 상승".
+                      # 기사에는 정책도 부작용도 역대도 없었다("가파르게 상승").
+                      r"부작용|역대급|"
                       # 10-11 초안: 기사는 "제1호 준주거지 모아타운"이라고만 썼는데
                       # 대본은 "이례적인 준주거지 모아타운"이었다.
                       r"이례적")
@@ -1161,7 +1166,9 @@ def _range_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # 따옴표 속 "2027년 서울 부동산 대격변"을 "2027년, 서울 부동산 시장에 대격변이
 # 시작됩니다"로 옮겼다. 따옴표 속 말이 전망·추정(것 같다, ~ㄹ 것, 여력, 고점 …)이고
 # 대본 문장에 말한 사람이나 '분석·전망·설명' 같은 말이 없으면 문장을 지운다.
-_QUOTE_SPAN_RE = re.compile(r'["“]([^"”]{8,})["”]')
+# 이름이 위의 _QUOTE_SPAN_RE와 겹치면 안 된다. 10-13에 같은 이름으로 넣어 따옴표
+# 위조 검사의 작은따옴표·짧은 인용 검사가 하루 동안 꺼졌다(10-14에 발견).
+_OPINION_QUOTE_RE = re.compile(r'["“]([^"”]{8,})["”]')
 _OPINION_MARK_RE = re.compile(
     r"것\s?같|(?:[을를줄될할일갈올볼]|는)\s?것|수\s?있|전망|보인다|본다|예상|가능성|"
     r"여력|고점|바닥|버블|거품|역할을\s?한|동력|타이밍|격변|서막")
@@ -1176,7 +1183,7 @@ OPINION_SHARED_WEAK = 3
 
 
 def _opinion_problems(script: str, source_text: str) -> list[tuple[str, str]]:
-    spans = [m.group(1) for m in _QUOTE_SPAN_RE.finditer(source_text or "")
+    spans = [m.group(1) for m in _OPINION_QUOTE_RE.finditer(source_text or "")
              if _OPINION_MARK_RE.search(m.group(1))]
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
@@ -1192,6 +1199,79 @@ def _opinion_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             if k >= OPINION_SHARED_STRONG or (
                     not hedged and k >= OPINION_SHARED_WEAK and k * 2 >= len(mine)):
                 out.append((sent[:40], f"기사에서는 따옴표 속 의견인데 누구 말인지 빼고 사실로 말했다: \"{sp[:30]}\""))
+                break
+    return out
+
+
+# "이 영향으로"처럼 앞 문장을 원인으로 받는 문장. 10-14 초안: 기사는 입주 물량 감소와
+# "87주 연속 상승"을 따로 썼는데 대본은 "이 영향으로 서울 아파트 매매가격은 87주 연속
+# 상승세"라고 이었다. 같은 숫자가 든 기사 문장(숫자가 없으면 낱말이 둘 이상 겹치는
+# 문장)이나 그 앞 문장에 원인을 잇는 말이 없으면 지운다.
+_LINK_HEAD_RE = re.compile(
+    r"^(?:결국\s?)?(?:이\s?영향으로|이\s?때문에|이로\s?인해|그\s?결과|이\s?여파로|"
+    r"이에\s?따라|그\s?덕분에|이\s?덕분에|그\s?여파로|이런\s?영향으로)")
+_SRC_LINK_RE = re.compile(
+    r"영향|때문|여파|(?<!에\s)(?<!에)따라(?!서는)|인해|결과|맞물|겹치|겹쳐|덕분|이어지|이어져|"
+    r"밀어\s?올|끌어\s?올|이끌|부추|탓")
+_NUM_TOKEN_RE = re.compile(r"\d[\d,.]*")
+
+
+def _link_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        m = _LINK_HEAD_RE.match(sent)
+        if not m:
+            continue
+        body = sent[m.end():]
+        nums = [n.replace(",", "") for n in _NUM_TOKEN_RE.findall(body)]
+        mine = _stems(body)
+        hits = []
+        for i, seg in enumerate(segs):
+            flat = seg.replace(",", "")
+            if nums:
+                ok = all(n in flat for n in nums)
+            else:
+                ok = len(mine & _stems(seg)) >= 2
+            if ok:
+                hits.append(i)
+        if not hits:
+            continue
+        if not any(_SRC_LINK_RE.search(segs[i]) or (i and _SRC_LINK_RE.search(segs[i - 1]))
+                   for i in hits):
+            out.append((sent[:40], f"기사는 '{m.group(0)}'처럼 원인으로 잇지 않았다"))
+    return out
+
+
+# 기사는 전망으로 쓴 숫자를 대본이 이미 일어난 일로 말한 문장. 10-14 초안: 기사는
+# 올해 입주 물량이 지난해보다 "27.4% 줄어들 전망이다"였는데 대본은 "27.4% 줄었습니다".
+_PAST_DONE_RE = re.compile(r"(?:었|았|였|됐|했|졌)습니다|(?:었|았|였|됐|했|졌)죠")
+# 기사 숫자 바로 뒤(같은 절)에서 보는 전망 꼬리와 과거 꼬리.
+_SRC_FORECAST_TAIL_RE = re.compile(r"전망이다|전망됐다|예정이다|예상된다|예상했다|것으로\s?보인다|"
+                                   r"것으로\s?전망|것으로\s?예상|(?:할|될)\s?것이다")
+_SRC_PAST_TAIL_RE = re.compile(r"(?:었|았|였|됐|했|졌)다|기록|집계")
+TENSE_WINDOW = 45
+
+
+def _tense_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    flat_src = (source_text or "").replace(",", "")
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not _PAST_DONE_RE.search(sent):
+            continue
+        for m in _NUM_TOKEN_RE.finditer(sent):
+            n = m.group(0).replace(",", "").rstrip(".")
+            if len(n) < 3 or sent[m.end():m.end() + 1] == "년":
+                continue
+            tails = []
+            for h in re.finditer(r"(?<![\d.])" + re.escape(n) + r"(?![\d])", flat_src):
+                tail = re.split(r"(?<=다)\.", flat_src[h.end():h.end() + TENSE_WINDOW])[0]
+                tails.append(tail)
+            if tails and all(_SRC_FORECAST_TAIL_RE.search(t) and not _SRC_PAST_TAIL_RE.search(
+                    t[:_SRC_FORECAST_TAIL_RE.search(t).start()]) for t in tails):
+                out.append((sent[:40], f"기사는 '{n}'을 전망으로 썼는데 일어난 일로 말했다"))
                 break
     return out
 
@@ -1303,7 +1383,8 @@ def generate(art) -> ShortPlan:
             c = (_causal_problems(text, hay) + _hype_problems(text, hay)
                  + _year_problems(text, hay) + _count_problems(text, hay)
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
-                 + _opinion_problems(text, hay)
+                 + _opinion_problems(text, hay) + _link_problems(text, hay)
+                 + _tense_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
