@@ -1330,5 +1330,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"거래 줄었는데 신고가\"…입주절벽에 분양권·입주권 몸값 '껑충'",
+    "video_id": "c7qugpoDEd4",
+    "date": "2026-10-14T02:12:18.048430",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 242,
+    "source": "뉴시스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p35868120",
+      "p32103375",
+      "p3018978",
+      "p31737858",
+      "p11295863",
+      "p34717358",
+      "v37763965",
+      "v37500922",
+      "v39474349"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
