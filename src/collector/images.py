@@ -114,7 +114,11 @@ _OFFTOPIC_RE = re.compile(
     # 실명이 나오는 영상이 많아 한 사람이 찍힌 사진은 아예 뺀다.
     r"raccoon|wildlife|animal|squirrel|bird\b|너구리|동물|야생|다람쥐|조류|"
     r"\bman\b|\bwoman\b|businessman|businesswoman|남성|여성|남자|여자|"
-    r"past\s?due|overdue|bankrupt|foreclos|연체|파산|독촉", re.I)
+    r"past\s?due|overdue|bankrupt|foreclos|연체|파산|독촉|"
+    # 10-15 지정 영상: "korean construction site" b-roll로 경복궁·전통 대문이, 열쇠
+    # 검색어로 미국식 "SOLD" 매물 팻말이 왔다. 재건축 얘기에 궁궐이 뜨면 엉뚱하다.
+    r"palace|gyeongbokgung|changdeokgung|hanok|traditional|heritage|pagoda|\bsold\b|"
+    r"궁궐|경복궁|창덕궁|덕수궁|한옥|전통|문화재|유적|판매\s?완료", re.I)
 
 
 # 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을
