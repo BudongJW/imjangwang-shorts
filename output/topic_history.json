@@ -1387,30 +1387,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "[2026국감]최인호 HUG 사장 \"전월세 안심신탁으로 임대차불안 해소\"",
-    "video_id": "qPstayUzZdA",
-    "date": "2026-10-15T20:07:56.773503",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 165,
-    "source": "아시아경제",
-    "age_days": 0.7544146183101852,
-    "topic_score": 10,
-    "recency_score": 4,
-    "media": [
-      "p7642034",
-      "p7641905",
-      "p7578992"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "on",
-      "bg_mode": "photo",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

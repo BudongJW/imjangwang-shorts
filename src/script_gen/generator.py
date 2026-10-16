@@ -1174,8 +1174,12 @@ def _range_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # 위조 검사의 작은따옴표·짧은 인용 검사가 하루 동안 꺼졌다(10-14에 발견).
 _OPINION_QUOTE_RE = re.compile(r'["“]([^"”]{8,})["”]')
 _OPINION_MARK_RE = re.compile(
-    r"것\s?같|(?:[을를줄될할일갈올볼]|는)\s?것|수\s?있|전망|보인다|본다|예상|가능성|"
-    r"여력|고점|바닥|버블|거품|역할을\s?한|동력|타이밍|격변|서막")
+    r"것\s?같|(?:[을를줄될할일갈올볼]|는)\s?것|수\s?있(?:다|을\s?것|습니다)|전망|보인다|본다|"
+    r"예상|가능성|여력|고점|바닥|버블|거품|역할을\s?한|동력|타이밍|격변|서막")
+# 기관장의 계획·약속은 의견이 아니다. 10-16 초안: HUG 사장의 "사전심사제도를 도입하고
+# … 예방하겠다는 계획"이 '수 있'(확인할 수 있는) 때문에 의견으로 잡혀, 안심신탁을
+# 설명하던 문장이 지워지고 대본이 165자로 줄었다.
+_PLEDGE_RE = re.compile(r"겠다|계획|방침|추진|도입")
 _SCRIPT_ATTR_RE = re.compile(
     r"교수|전문가|위원|연구원|대표|소장|애널리스트|원장|장관|의원|센터장|랩장|팀장|"
     r"분석|전망|진단|지적|주장|설명|말했|밝혔|경고|강조|조언|평가|따르면|라고|이라며|라며|"
@@ -1188,7 +1192,7 @@ OPINION_SHARED_WEAK = 3
 
 def _opinion_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     spans = [m.group(1) for m in _OPINION_QUOTE_RE.finditer(source_text or "")
-             if _OPINION_MARK_RE.search(m.group(1))]
+             if _OPINION_MARK_RE.search(m.group(1)) and not _PLEDGE_RE.search(m.group(1))]
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
         sent = sent.strip()
@@ -1428,6 +1432,23 @@ def generate(art) -> ShortPlan:
                 data["script"] = _drop_sentences_with(str(data.get("script", "")), left)
                 note(f"대본: 사실 대조 실패 {len(left)}건 → 해당 문장 삭제 ({lwhy[0][:40]})")
                 log.info(f"  재요청도 실패 → 문장 {len(left)}건 삭제")
+                # 지우고 나니 너무 짧으면 한 번 더 쓰게 한다. 10-16 초안: 안심신탁을
+                # 설명하던 문장이 지워져 165자(24초)만 남았고, 제목의 주제가 영상에서 빠졌다.
+                cut = str(data.get("script", ""))
+                if len(cut) < SCRIPT_CHARS_MIN:
+                    raw4 = _gemini(
+                        prompt + f"\n\n[재작성 — 길이 부족] 기사와 안 맞는 문장을 지우니 "
+                        f"{len(cut)}자만 남았다. 지운 이유: " + " / ".join(lwhy[:3]) + ".\n"
+                        f"이 문제를 피해서 {SCRIPT_CHARS_MIN}~{SCRIPT_CHARS_MAX}자로 다시 써라. "
+                        "기사 제목의 주제를 빠뜨리지 말고, 기사에 있는 사실(숫자, 누가 무엇을 "
+                        "했는지)로 채운다. 남의 의견은 누구 말인지 밝힌다.")
+                    data4 = _parse_json(raw4) if raw4 else None
+                    s4 = str((data4 or {}).get("script", ""))
+                    if s4 and not _defects(s4)[0] and len(s4) >= SCRIPT_CHARS_MIN * 0.9:
+                        data = data4
+                        note(f"대본: 삭제 후 {len(cut)}자로 짧아 재요청으로 교체({len(s4)}자)")
+                    else:
+                        note(f"대본: 삭제 후 {len(cut)}자로 짧다(재요청도 실패)")
         if not str(data.get("script", "")).strip():
             log.info("대본: 인용 삭제 후 남은 문장이 없다 → 폴백")
             return _fallback_plan(art)
