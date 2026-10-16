@@ -1411,5 +1411,30 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "전세 가장 많이 줄어든 동대문구, 7000채 입주에도 2억 올라",
+    "video_id": "R9qwxvVbJ7I",
+    "date": "2026-10-16T05:14:59.369855",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 235,
+    "source": "동아일보",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p14452238",
+      "p20815238",
+      "p38650645",
+      "v29938300"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
