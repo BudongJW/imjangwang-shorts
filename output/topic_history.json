@@ -1412,5 +1412,31 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "SH, 고덕강일3단지 '토지임대부 분양주택' 본청약 시작",
+    "video_id": "mbJRwOHYLZE",
+    "date": "2026-10-17T02:07:26.768561",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 351,
+    "source": "아시아경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p37319814",
+      "p37947054",
+      "v4553200",
+      "v4553195",
+      "v4553290"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
