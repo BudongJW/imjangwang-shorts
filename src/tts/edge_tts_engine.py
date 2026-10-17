@@ -14,11 +14,12 @@ from config.settings import AUDIO_DIR, SRT_DIR
 # 합성 웹소켓 주소. 2026-10-10부터 Microsoft가 옛 주소(speech.platform.bing.com)의
 # 합성 연결을 403으로 막았다(rany2/edge-tts#490). 10-13 정기 제작이 이 403으로 멈췄다.
 # Edge가 지금 쓰는 api.msedgeservices.com은 같은 토큰을 받는다(같은 저장소 PR #491).
-# 새 주소를 먼저 쓰고, 막히면 옛 주소로 한 번 더 간다. edge-tts가 새 판에서 주소를
-# 고치면 그 값이 옛 주소 자리에 들어오므로 그대로 둬도 된다.
+# edge-tts 7.3.1은 옛 주소에 새 브라우저 판 값을 실어 다시 열었고, 10-17 제작에서는
+# 오히려 새 주소가 429를 냈다. 그래서 라이브러리 기본 주소를 먼저 쓰고, 막히면
+# 새 주소로 한 번 더 간다.
 _EDGE_WSS = ("wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1"
              f"?Ocp-Apim-Subscription-Key={TRUSTED_CLIENT_TOKEN}")
-WSS_CANDIDATES = tuple(dict.fromkeys((_EDGE_WSS, _edge_comm.WSS_URL)))
+WSS_CANDIDATES = tuple(dict.fromkeys((_edge_comm.WSS_URL, _EDGE_WSS)))
 
 # 한국어 음성 목록 (이름, 성별, 특성)
 KO_VOICES = [
