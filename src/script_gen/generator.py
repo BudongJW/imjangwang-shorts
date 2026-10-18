@@ -1049,7 +1049,11 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"반값|함정|"
                       # 10-11 초안: 기사는 "제1호 준주거지 모아타운"이라고만 썼는데
                       # 대본은 "이례적인 준주거지 모아타운"이었다.
-                      r"이례적")
+                      r"이례적|"
+                      # 10-18 초안: 기사는 8·13 대책 과제 145건 중 48건 완료, "97건은 정상
+                      # 추진 중"이라고 썼는데 대본은 "48건만 완료된 더딘 추진"이었고 첫머리는
+                      # "왜 이제서야 이런 대책이". 늦다는 판정은 기사에 있어야 한다.
+                      r"더딘|더디게|지지부진|늑장|이제서야|이제야|뒤늦")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1287,6 +1291,18 @@ def _tense_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
+# 26만8천호"라고만 썼는데(다른 매체로 보면 수도권 목표) 대본은 "전국 26만8천호"였다.
+_SCOPE_RE = re.compile(r"(?<![가-힣])전국")
+
+
+def _scope_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if _SCOPE_RE.search(source_text or ""):
+        return []
+    return [(sent.strip()[:40], "기사에 없는 범위 '전국'")
+            for sent in _CHECK_SPLIT_RE.split(script or "") if _SCOPE_RE.search(sent)]
+
+
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     src = source_text or ""
     out = []
@@ -1395,7 +1411,7 @@ def generate(art) -> ShortPlan:
                  + _year_problems(text, hay) + _count_problems(text, hay)
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
-                 + _tense_problems(text, hay)
+                 + _tense_problems(text, hay) + _scope_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
