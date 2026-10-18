@@ -1438,5 +1438,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "정부 \"착공·분양·입주 상황판 가동\"…주택공급 첫 정례브리핑",
+    "video_id": "eXfsB-qNxRA",
+    "date": "2026-10-18T02:15:25.765511",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 263,
+    "source": "연합뉴스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p19763828",
+      "p33093557",
+      "p34356905",
+      "p37384708",
+      "p20815236",
+      "p37384714",
+      "v39443157",
+      "v34676736"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
