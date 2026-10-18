@@ -208,6 +208,40 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
     return big, direction
 
 
+# 자막 줄이 범위 가운데서 끊기면 구절에는 뒤 값만 남는다. 10-18 지정 영상:
+# "연말까지 21만8천에서 / 23만5천호 이상 착공될"에서 숫자 카드에 23만5천호만 떠
+# 그게 전망치 전부처럼 보였다. 문장에서 앞 값을 찾아 붙인다. "A에서 B로"는
+# 바뀐 값이라 B만 둔다.
+_RANGE_PREV_RE = re.compile(
+    r"(?<![\d.,])(\d[\d,]*(?:\.\d+)?(?:\s?(?:조|억|천만|만|천)\s?\d*)*"
+    r"(?:%|퍼센트|호|가구|세대|건|명|채|원)?)\s?(?:에서|[~∼～])\s?$")
+
+
+def range_head(sentence: str, big: str, near: int = 0) -> str:
+    """big이 문장에서 'A에서 big'·'A~big' 범위의 뒤 값이면 A를, 아니면 ""."""
+    m0 = re.match(r"[\d,\.]+", big or "")
+    if not m0 or not sentence:
+        return ""
+    # 숫자 앞머리만으로 찾으면 "3억4000만에서 3억9000만"의 3이 앞 값에 걸린다.
+    # 카드 글자(단위 포함)로 먼저 찾고, 단위를 바꿔 적은 경우만 숫자로 찾는다.
+    alts = [big, big.replace("%", "퍼센트"), big.replace("㎡", "제곱미터")]
+    m = None
+    for pat in (re.compile(r"(?<![\d.,])(?:" + "|".join(re.escape(a) for a in dict.fromkeys(alts)) + ")"),
+                re.compile(r"(?<![\d.,])" + re.escape(m0.group(0).rstrip(".,")) + r"(?![\d])")):
+        m = pat.search(sentence, max(0, near)) or pat.search(sentence)
+        if m:
+            break
+    if not m:
+        return ""
+    # 바뀐 값인지는 숫자 어절 끝의 '로'로 본다. "67억 원으로"처럼 단위가
+    # 띄어 있으면 다음 어절까지 본다(10-14 지정 대본).
+    word = re.match(r"\S*(?:\s(?:원|만\s?원|억\s?원)\S*)?", sentence[m.start():]).group(0)
+    if re.search(r"로$", word.rstrip(",.")):
+        return ""
+    hm = _RANGE_PREV_RE.search(sentence[:m.start()])
+    return hm.group(1).replace("퍼센트", "%").strip() if hm else ""
+
+
 # 카드에 숫자만 크게 뜨면 무슨 숫자인지 모른다(10-08 "1%", "2%", "100%").
 # 대본에서 숫자 바로 앞 말을 그대로 따서 위에 작게 단다. 말을 새로 지으면
 # 틀릴 수 있어서 대본 글자만 쓴다.

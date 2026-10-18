@@ -505,7 +505,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     화면이라, 그 위에 210px 숫자 패널을 얹으면 둘 다 못 읽는다
     (2026-09-14 검증 프레임 12초 지점에서 실제로 그렇게 나왔다).
     """
-    from src.editor.stat_callout import (pick_stat, pick_keyword,
+    from src.editor.stat_callout import (pick_stat, pick_keyword, range_head,
                                           render_stat_card, is_weak, stat_context)
     if max_n is None:
         max_n = max(MIN_CALLOUT_N, round(total_sec / SEC_PER_CALLOUT))
@@ -547,7 +547,8 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         if st:
             sent, off = _sentence_at(ph_at if ph_at >= 0 else 0)
             label, direction = stat_context(sent, st[0], near=off) if sent else ("", "flat")
-            st = (st[0], direction, label)
+            head = "" if "~" in st[0] else range_head(sent, st[0], near=off)
+            st = (f"{head}~{st[0]}" if head else st[0], direction, label)
             n_stat += 1
             if in_article:
                 n_blocked += 1
