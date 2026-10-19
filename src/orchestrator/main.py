@@ -370,6 +370,7 @@ def run(skip_upload: bool = False) -> int:
     topic_text = f"{art.title} {art.title} {plan.caption_script}"
     media_seed = zlib.crc32((art.title or "").encode("utf-8"))
     queries = images.topic_queries(topic_text, seed=media_seed)
+    images.ARTICLE_TEXT = f"{art.title} {getattr(art, 'summary', '')} {plan.caption_script}"
     buildnotes.note(f"배경 검색어: {' / '.join(queries)}")
     bg_paths = images.collect_backgrounds(getattr(art, "image_url", ""), need=6,
                                           queries=queries, seed=media_seed)

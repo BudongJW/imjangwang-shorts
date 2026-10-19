@@ -1467,33 +1467,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "빌라까지 전월세대란…수도권 매물 36% 뚝",
-    "video_id": "zJrws40aESs",
-    "date": "2026-10-18T19:00:58.587367",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 321,
-    "source": "매일경제",
-    "age_days": 0.05086808018518518,
-    "topic_score": 11,
-    "recency_score": 4,
-    "media": [
-      "p11851192",
-      "p39979085",
-      "p32180313",
-      "p34056452",
-      "p36207535",
-      "p39979086"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "on",
-      "bg_mode": "graphic",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

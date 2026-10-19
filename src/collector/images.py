@@ -107,7 +107,8 @@ _OFFTOPIC_RE = re.compile(
     r"buddha|statue|sculpture|temple|shrine|church|cathedral|mosque|religio|"
     r"monk|pray|candle|portrait|selfie|food|dish|meal|cat\b|dog\b|pet\b|"
     r"flower|bouquet|wedding|bikini|model\b|"
-    r"불상|부처|불교|사찰|사원|성당|교회|성전|동상|조각상|기도|승려|스님|양초|촛불|"
+    # '기도'는 '경기도'에 걸려 경기도 사진이 다 빠졌다(10-17 파주 사진, 10-19 확인).
+    r"불상|부처|불교|사찰|사원|성당|교회|성전|동상|조각상|(?<!경)기도|승려|스님|양초|촛불|"
     r"음식|요리|고양이|강아지|반려|꽃다발|웨딩|결혼|셀카|초상|"
     # 10-08 LH 영상: "bank loan documents"로 너구리, 서양인 남성, 연체 독촉장이
     # 왔다. 서양인 얼굴은 "이성훈 LH 사장이" 자막 밑에 떠서 본인처럼 보였다.
@@ -120,7 +121,10 @@ _OFFTOPIC_RE = re.compile(
     r"palace|gyeongbokgung|changdeokgung|hanok|traditional|heritage|pagoda|\bsold\b|"
     r"궁궐|경복궁|창덕궁|덕수궁|한옥|전통|문화재|유적|판매\s?완료|"
     # 같은 날 재제작본: "판매 표지판"(미국식 HOME SOLD 팻말)과 정장 차림 남성이 남았다.
-    r"for\s?sale|판매\s?표지|매물\s?표지|비즈니스맨|정장\s?차림", re.I)
+    r"for\s?sale|판매\s?표지|매물\s?표지|비즈니스맨|정장\s?차림|"
+    # 10-19 초안: 수도권 빌라 기사에 부산 감천문화마을 골목이 사진 6장 중 4장이었다.
+    # 벽화 관광 마을은 사는 동네 사진이 아니다.
+    r"gamcheon|mural\s?village|감천|문화마을|벽화마을|이화마을", re.I)
 
 
 # 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을
@@ -174,9 +178,39 @@ def _not_korea(query: str, meta: dict) -> bool:
     return not _KOREA_RE.search(text)
 
 
+# 지방 도시 사진은 기사가 그 도시를 말할 때만 쓴다. 10-17·10-18 서울 기사에
+# 안개 낀 부산 사진이 떴고, 10-19 수도권 빌라 기사에는 부산 골목이 넷이었다.
+# 서울 사진은 전국 기사에도 어울려 거르지 않는다. 기사 글은 main이 넣는다.
+ARTICLE_TEXT = ""
+_REGION_PHOTO = [
+    ("부산", re.compile(r"busan|haeundae|gwangan|부산|해운대|광안", re.I)),
+    ("대구", re.compile(r"daegu|대구", re.I)),
+    ("대전", re.compile(r"daejeon|대전", re.I)),
+    ("광주", re.compile(r"gwangju|광주", re.I)),
+    ("울산", re.compile(r"ulsan|울산", re.I)),
+    ("제주", re.compile(r"jeju|제주", re.I)),
+    ("강원", re.compile(r"gangwon|gangneung|sokcho|chuncheon|강원|강릉|속초|춘천", re.I)),
+    ("경북", re.compile(r"gyeongju|pohang|경주|포항", re.I)),
+    ("경남", re.compile(r"changwon|창원", re.I)),
+    ("전북", re.compile(r"jeonju|전주", re.I)),
+    ("전남", re.compile(r"yeosu|여수", re.I)),
+]
+_REGION_ANY_RE = re.compile(r"지방|비수도권|전국")
+
+
+def _other_region(text: str) -> str:
+    art = ARTICLE_TEXT or ""
+    if not art or _REGION_ANY_RE.search(art):
+        return ""
+    for name, rx in _REGION_PHOTO:
+        if rx.search(text) and not rx.search(art) and name not in art:
+            return name
+    return ""
+
+
 def _offtopic(meta: dict) -> bool:
     text = f"{meta.get('alt') or ''} {meta.get('url') or ''}".replace("-", " ")
-    if _OFFTOPIC_RE.search(text) or _FOREIGN_RE.search(text):
+    if _OFFTOPIC_RE.search(text) or _FOREIGN_RE.search(text) or _other_region(text):
         return True
     from datetime import datetime, timezone, timedelta
     month = datetime.now(timezone(timedelta(hours=9))).month
