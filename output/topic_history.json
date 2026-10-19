@@ -1494,5 +1494,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“집값 급등 부추겼다” vs “밭 다시 일구는 중”…서울시 국감, 부동산 놓고 격돌",
+    "video_id": "gUQZPyKkAh8",
+    "date": "2026-10-19T21:25:19.553959",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 238,
+    "source": "매일경제",
+    "age_days": 0.229697934837963,
+    "topic_score": 9,
+    "recency_score": 4,
+    "media": [
+      "p17760623",
+      "p37384703",
+      "p17949765",
+      "p31872710",
+      "p12640886",
+      "p6647660"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
