@@ -980,9 +980,13 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         if hm and not re.search(r"다는\s?" + hm.group(1), src):
             out.append((needle, f"기사에 없는 '~다는 {hm.group(1)}'"))
             continue
-        lm = _LOADED_RE.search(sent) if am else None
-        if lm and lm.group(0) not in src:
-            out.append((needle, f"남의 말에 기사에 없는 평가어 '{lm.group(0)}'"))
+        # 진행자 말도 같다. 10-20 초안이 "규제를 풀었다 다시 묶는 땜질 정책이
+        # 시장을 흔들었습니다"로 열었다. 기사(서울시 국감)는 여야 공방이었고
+        # '땜질'이라는 말은 어느 쪽에도 없었다.
+        lm = _LOADED_RE.search(sent)
+        if lm and re.sub(r"\s", "", lm.group(0)) not in flat_src:
+            who = "남의 말에" if am else "진행자 말에"
+            out.append((needle, f"{who} 기사에 없는 평가어 '{lm.group(0)}'"))
             continue
         # 진행자 본인의 읽기만 인과 검사를 면한다. 남의 말로 옮긴 인과는
         # 기사에 그 말이 있더라도 내용까지 기사에 있어야 한다.
@@ -1303,13 +1307,80 @@ def _scope_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             for sent in _CHECK_SPLIT_RE.split(script or "") if _SCOPE_RE.search(sent)]
 
 
+# 시장 현상을 이름 붙이는 말. 기사에 없으면 대본이 현상을 지어낸 것이다.
+# 10-20 초안: "핀셋 규제가 거래 불안과 매물 잠김을 키운 것으로 저는 읽힙니다".
+# 기사에는 핀셋도 매물 잠김도 없었다. '읽힙니다'라서 인과 검사도 면했다.
+_JARGON_RE = re.compile(
+    r"매물\s?잠김|잠김\s?(?:현상|효과)|거래\s?절벽|패닉\s?바잉|풍선\s?효과|똘똘한\s?한\s?채|"
+    r"영끌|핀셋|규제\s?폭탄|세금\s?폭탄|불장|폭등장|하락장|상승장")
+
+
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     src = source_text or ""
+    flat = re.sub(r"\s", "", src)
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
         m = _HYPE_RE.search(sent)
-        if m and re.sub(r"\s", "", m.group(0)) not in re.sub(r"\s", "", src):
+        if m and re.sub(r"\s", "", m.group(0)) not in flat:
             out.append((sent.strip()[:40], f"기사에 없는 폭로형 단정 '{m.group(0)}'"))
+            continue
+        j = _JARGON_RE.search(sent)
+        if j and re.sub(r"\s", "", j.group(0)) not in flat:
+            out.append((sent.strip()[:40], f"기사에 없는 시장 용어 '{j.group(0)}'"))
+    return out
+
+
+# 기사에서 정치인이 공개·주장한 숫자를 출처 없이 사실로 옮긴 문장.
+# 10-20 초안: 기사는 "장(종태 민주당) 의원이 공개한 자료에 따르면 … 1106건에서
+# 3209건으로"였는데 대본은 "국감 자료에 따르면"이었고, 같은 의원이 문제 삼은
+# "비강남권 준공 물량 43% 감소"는 출처 없이 사실처럼 말했다. 반박한 서울시
+# 쪽 말은 하나도 없었다.
+_CLAIMANT_RE = re.compile(r"의원|야당|여당|민주당|국민의힘|조국혁신당|개혁신당|진보당")
+_CLAIM_VERB_RE = re.compile(r"지적|주장|문제\s?삼|비판|공격|따졌|질타|꼬집")
+# 의원실이 정부 기관에서 받은 자료는 기관 통계다. 10-08 지정 대본의 "30대 서울
+# 주택 매수액의 40.1%가 대출"(의원실이 국토부에서 제출받은 자금조달계획서)은 그대로 둔다.
+_OFFICIAL_SRC_RE = re.compile(
+    r"(?:국토교통부|국토부|한국부동산원|부동산원|통계청|한국은행|금융위원회|금융위|금융감독원|"
+    r"금감원|주택도시보증공사|HUG|한국토지주택공사|LH|서울시|행정안전부|행안부|국세청|법원)"
+    r"(?:로부터|으로부터|에서|이|가)?\s?(?:제출\s?받|받은|제출한)")
+# 바로 앞뒤 문장이 누구 말인지 밝히면 된다. 09-27 지정 대본: "3억원대에 강남 30평대
+# 아파트를 분양할 수 있다. 전현희 의원이 … 한 말입니다."
+_REPORTED_RE = re.compile(r"다는\s?겁니다|라는\s?겁니다|다는\s?거죠|라고\s?합니다|답니다|랍니다|[\"“”]")
+_NUM_UNIT_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s?(%|퍼센트|[가-힣])?")
+
+
+def _num_units(text: str) -> set[tuple[str, str]]:
+    out = set()
+    for n, u in _NUM_UNIT_RE.findall(text or ""):
+        n = n.replace(",", "")
+        if len(n) >= 2:
+            out.add((n, "%" if u == "퍼센트" else u))
+    return out
+
+
+def _claimant_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if x.strip()]
+    seg_nums = [_num_units(x) for x in segs]
+    sents = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x and x.strip()]
+    out = []
+    for k, sent in enumerate(sents):
+        mine = _num_units(sent)
+        if not mine or _CLAIMANT_RE.search(sent) or _REPORTED_RE.search(sent):
+            continue
+        if any(_CLAIMANT_RE.search(sents[j]) for j in (k - 1, k + 1) if 0 <= j < len(sents)):
+            continue
+        hits = [i for i, ns in enumerate(seg_nums) if mine & ns]
+        if not hits:
+            continue
+
+        def _claimed(i: int) -> bool:
+            if _OFFICIAL_SRC_RE.search(segs[i]):
+                return False
+            if _CLAIMANT_RE.search(segs[i]):
+                return True
+            return i > 0 and bool(_CLAIMANT_RE.search(segs[i - 1])) and bool(_CLAIM_VERB_RE.search(segs[i]))
+        if all(_claimed(i) for i in hits):
+            out.append((sent[:40], "기사에서는 정치인이 낸 자료·주장인데 누가 말했는지 뺐다"))
     return out
 
 
@@ -1412,6 +1483,7 @@ def generate(art) -> ShortPlan:
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
+                 + _claimant_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
