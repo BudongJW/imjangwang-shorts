@@ -1519,5 +1519,29 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "공사비 급등에 속수무책…분상제 지역도 분양가 1억원 가까이 '쑥'",
+    "video_id": "iPEluQb6ccU",
+    "date": "2026-10-21T02:17:23.307372",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 352,
+    "source": "한국경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p38975396",
+      "p34961617",
+      "p6670867"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
