@@ -541,8 +541,65 @@ _VERDICT_DROP_RE = re.compile(r"소용\s?없|무용지물|물거품|헛수고|�
 _FRAME_RE = re.compile(r"규제")
 
 
+# 기사가 '최고 분양가'·'1억원 가까이'처럼 꾸며 쓴 숫자를 꾸밈 없이 옮기면
+# 값이 달라진다. 10-21 초안: 기사는 "최고 분양가는 8억6719만원", "1억원
+# 가까이"였는데 대본은 "분양가는 8억 6719만원", 배너는 "1억 상승"이었다.
+# '최대 6억원'은 대출 한도처럼 상한 자체가 뉴스라 줄여 말해도 뜻이 같다(10-01 배너
+# "6억 대출 더 조이나"). 값이 부풀려지는 '최고·최저'만 본다.
+_QUAL_PRE_RE = re.compile(r"최고|최저")
+_APPROX_POST_RE = re.compile(r"\s?(?:원\s?)?(가까이|육박|안팎|남짓|근접)")
+_APPROX_WORD_RE = re.compile(r"가까이|육박|안팎|남짓|근접|약\s|가량|정도|쯤|대(?:로|에|의|를|가|는|\s)")
+_QNUM_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s?(조|억|천만|만|천|%|퍼센트|가구|세대|건|호|명|곳|배)")
+
+
+def _qnum_tokens(text: str) -> list[tuple[str, str, int, int]]:
+    out = []
+    for m in _QNUM_RE.finditer(text or ""):
+        n, u = m.group(1).replace(",", ""), m.group(2)
+        if len(n) < 2 and u not in ("조", "억"):
+            continue
+        out.append((n, "%" if u == "퍼센트" else u, m.start(), m.end()))
+    return out
+
+
+def _dropped_qualifier(line: str, source: str) -> str:
+    """line의 숫자가 기사에서는 늘 '최고'·'가까이' 같은 꾸밈과 함께 나오는데 line에
+    그 꾸밈이 없으면 그 꾸밈 낱말을, 아니면 ""."""
+    src = source or ""
+    src_toks = _qnum_tokens(src)
+    for n, u, _, _ in _qnum_tokens(line):
+        occ = [(a, b) for sn, su, a, b in src_toks if sn == n and su == u]
+        if not occ:
+            continue
+        pres, posts = [], []
+        for a, b in occ:
+            seg_start = max(src.rfind(".", 0, a), src.rfind("\n", 0, a)) + 1
+            # 꾸밈말과 숫자 사이는 "최고 분양가는 "처럼 짧고 다른 숫자가 없어야 한다.
+            win = src[max(seg_start, a - 12):a]
+            pm = list(_QUAL_PRE_RE.finditer(win))
+            pres.append(pm[-1].group(0) if pm and not re.search(r"\d", win[pm[-1].end():]) else "")
+            am = _APPROX_POST_RE.match(src, b)
+            posts.append(am.group(1) if am else "")
+        if all(pres) and not _QUAL_PRE_RE.search(line):
+            return pres[0]
+        if all(posts) and not _APPROX_WORD_RE.search(line + " "):
+            return posts[0]
+    return ""
+
+
+def _qualifier_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        q = _dropped_qualifier(sent, source_text)
+        if q:
+            out.append((sent.strip()[:40], f"기사는 숫자에 '{q}'를 붙였는데 대본은 뺐다"))
+    return out
+
+
 def _soften_verdict(line: str, source: str) -> str | None:
     """기사에 없는 단정 판정을 물음으로 바꾼다. 못 바꾸면 None."""
+    if _dropped_qualifier(line, source):
+        return None
     src = re.sub(r"\s+", "", source or "")
     for rx, q in _VERDICT_Q:
         m = rx.search(line)
@@ -1057,7 +1114,10 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       # 10-18 초안: 기사는 8·13 대책 과제 145건 중 48건 완료, "97건은 정상
                       # 추진 중"이라고 썼는데 대본은 "48건만 완료된 더딘 추진"이었고 첫머리는
                       # "왜 이제서야 이런 대책이". 늦다는 판정은 기사에 있어야 한다.
-                      r"더딘|더디게|지지부진|늑장|이제서야|이제야|뒤늦")
+                      r"더딘|더디게|지지부진|늑장|이제서야|이제야|뒤늦|"
+                      # 10-21 초안 배너 "분상제 무력화". 기사는 상한제 지역도 공사비 상승
+                      # 압력을 "피하지 못한다"였고 제도가 힘을 잃었다고 하지 않았다.
+                      r"무력화|유명무실")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1483,7 +1543,7 @@ def generate(art) -> ShortPlan:
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
-                 + _claimant_problems(text, hay)
+                 + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]

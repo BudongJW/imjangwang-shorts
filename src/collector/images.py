@@ -124,7 +124,9 @@ _OFFTOPIC_RE = re.compile(
     r"for\s?sale|판매\s?표지|매물\s?표지|비즈니스맨|정장\s?차림|"
     # 10-19 초안: 수도권 빌라 기사에 부산 감천문화마을 골목이 사진 6장 중 4장이었다.
     # 벽화 관광 마을은 사는 동네 사진이 아니다.
-    r"gamcheon|mural\s?village|감천|문화마을|벽화마을|이화마을", re.I)
+    r"gamcheon|mural\s?village|감천|문화마을|벽화마을|이화마을|"
+    # 10-21 초안: 'model house interior'로 카페 실내(유리 테이블, 접이식 의자)가 세 컷 떴다.
+    r"\bcaf[eé]\b|coffee|restaurant|카페|커피|레스토랑|식당", re.I)
 
 
 # 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을

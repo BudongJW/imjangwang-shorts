@@ -242,6 +242,25 @@ def range_head(sentence: str, big: str, near: int = 0) -> str:
     return hm.group(1).replace("퍼센트", "%").strip() if hm else ""
 
 
+# "1억원 가까이"를 카드에 "1억원"으로만 띄우면 딱 1억 오른 것처럼 보인다
+# (10-21 초안, 실제는 9430만원). 대본에서 숫자 바로 뒤 어림말을 함께 띄운다.
+_APPROX_TAIL_RE = re.compile(r"\s?(가까이|육박|안팎|남짓|가량|이상|이하|미만|초과)")
+
+
+def approx_tail(sentence: str, big: str, near: int = 0) -> str:
+    """big 뒤에 '가까이'·'안팎' 같은 어림말이 붙어 있으면 그 말을, 아니면 ""."""
+    m0 = re.match(r"[\d,\.]+", big or "")
+    if not m0 or not sentence:
+        return ""
+    alts = [big, big.replace("%", "퍼센트"), big.replace("㎡", "제곱미터"), big + "원", big + " 원"]
+    pat = re.compile(r"(?<![\d.,])(?:" + "|".join(re.escape(a) for a in sorted(set(alts), key=len, reverse=True)) + ")")
+    m = pat.search(sentence, max(0, near)) or pat.search(sentence)
+    if not m:
+        return ""
+    t = _APPROX_TAIL_RE.match(sentence, m.end())
+    return t.group(1) if t else ""
+
+
 # 카드에 숫자만 크게 뜨면 무슨 숫자인지 모른다(10-08 "1%", "2%", "100%").
 # 대본에서 숫자 바로 앞 말을 그대로 따서 위에 작게 단다. 말을 새로 지으면
 # 틀릴 수 있어서 대본 글자만 쓴다.
