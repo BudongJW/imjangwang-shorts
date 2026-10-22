@@ -1543,30 +1543,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "\"분양가 지금이 가장 싸다\"…청약·정책대출 문 두드려라",
-    "video_id": "ZmQE2kvxB4w",
-    "date": "2026-10-21T20:26:04.856104",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 228,
-    "source": "한국경제",
-    "age_days": 0.559159913576389,
-    "topic_score": 8,
-    "recency_score": 4,
-    "media": [
-      "p11851265",
-      "p2246789",
-      "p2246792"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "graphic",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

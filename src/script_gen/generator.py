@@ -999,6 +999,9 @@ def _rieul_final(ch: str) -> bool:
     o = ord(ch) - 0xAC00
     return 0 <= o < 11172 and o % 28 == 8
 CAUSE_MIN_SHARED = 2
+_EFFECT_RE = re.compile(
+    r"키우|키울|키운|키워|부추|집중시|쏠리게|자극|왜곡|부풀|끌어\s?올|밀어\s?올|억누|"
+    r"위축시|얼어붙게|불러올|불러온|낳|부작용")
 # 깎아내리는 평가어. 진행자 말로는 쓸 수 있지만, 남의 지적·분석으로 옮길
 # 때는 기사에 그 말이 있어야 한다. 09-28 초안: 기사의 "수급 불안 해소에
 # 한계가 있다는 지적"을 "찔끔 풀어주는 방식으로는 … 어렵다는 지적"으로 옮겼다.
@@ -1059,6 +1062,13 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
                 out.append((needle, f"기사에 없는 정책을 원인으로 댔다: '{miss[0]}'"))
                 continue
         if not am and _HOST_READ_RE.search(sent):
+            # 진행자 해석이라도 정책이 무엇을 '키운다·부추긴다'는 효과 주장은
+            # 기사에 그런 말이 있어야 한다. 10-22 초안: 청약·정책대출을 활용하라는
+            # 기사에 "이 정책은 특정 단지에 수요를 집중시켜 … 기대감만 키울 수
+            # 있다고 읽힙니다"가 붙었다.
+            pm2, em = _POLICY_RE.search(sent), _EFFECT_RE.search(sent)
+            if pm2 and em and not any(_POLICY_RE.search(w) and _EFFECT_RE.search(w) for w in windows):
+                out.append((needle, f"진행자 해석으로 기사에 없는 정책 효과를 말했다('{em.group(0)}')"))
             continue
         cc = None if am else _CONCLUDE_RE.search(sent)
         if cc and not (cc.group(1) and _rieul_final(cc.group(1))):
