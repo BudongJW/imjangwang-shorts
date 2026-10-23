@@ -378,8 +378,9 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
                        ) -> tuple[Path, float, float, str] | None:
     """(경로, 0, 끝, 띄운 값). 앞 문장들에 숫자가 없으면 None."""
     from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
-    sents = [x.strip() for x in re.split(r"(?<=[다요죠?])[.!?]*\s+", caption_script or "")
-             if x.strip()][:HOOK_SENTENCES]
+    all_sents = [x.strip() for x in re.split(r"(?<=[다요죠?])[.!?]*\s+", caption_script or "")
+                 if x.strip()]
+    sents = all_sents[:HOOK_SENTENCES]
     from src.editor.compare_card import _values
     from src.editor.stat_callout import _UP_DONE, _DOWN_DONE, stat_context, approx_tail
     best, best_sent = None, ""
@@ -405,8 +406,19 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
             break
         if not best and st:
             best, best_sent = st, sent
-    if not best:
-        return None
+    # 앞 두 문장에 '2년' 같은 기간만 있으면 첫 화면에 그것만 덩그러니 뜬다
+    # (10-23 지정 영상: 이름표 없는 "2년"). 뒤 문장의 센 숫자를 대신 쓰고,
+    # 그것도 없으면 첫 화면 카드를 띄우지 않는다.
+    if not best or is_weak(best[0]):
+        best = None
+        for sent in all_sents[HOOK_SENTENCES:]:
+            st = pick_stat(sent)
+            if st and not is_weak(st[0]):
+                best, best_sent = st, sent
+                break
+        if not best:
+            note("첫 화면 숫자 카드: 앞 문장에 기간 같은 약한 숫자뿐이라 생략")
+            return None
     label, direction = stat_context(best_sent, best[0])
     tail = approx_tail(best_sent, best[0])
     best = (f"{best[0]} {tail}" if tail else best[0], direction)
