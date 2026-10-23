@@ -243,7 +243,7 @@ def _recent_media() -> set[str]:
         return set()
 
 
-def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
+def _pexels(query: str, n: int, page: int = 1, allow_recent: bool = False) -> list[Image.Image]:
     if not PEXELS_API_KEY:
         return []
     try:
@@ -257,7 +257,7 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
         r.raise_for_status()
         imgs, kept = [], []
         skipped_nk = 0
-        avoid = _recent_media() | set(USED_MEDIA) | BANNED_MEDIA
+        avoid = (set() if allow_recent else _recent_media()) | set(USED_MEDIA) | BANNED_MEDIA
         for photo in r.json().get("photos", []):
             pid = f"p{photo.get('id')}"
             if pid in avoid:
@@ -289,6 +289,20 @@ def _pexels(query: str, n: int, page: int = 1) -> list[Image.Image]:
 # 주제와 상관없는 날에도 쓰이는 목록이라 건물·도시만 둔다. 10-10 공급 기사
 # 초안에 'moving boxes empty room'이 걸려 서양인 이삿짐 사진이 들어갔다
 # (실내 검색어는 한국 지명 필터를 안 거친다). 이삿짐은 전월세 주제 목록에만 둔다.
+# 주제·날짜 검색어로 한국 사진을 못 채웠을 때 더 훑는 검색어. 10-23 정기 제작:
+# 크레인·공사장 검색어가 외국 사진만 돌려줬고, 한국 사진은 최근 15편이 이미
+# 써서 빠졌다. 영상 전체가 그림 배경으로 나왔다. 설명에 서울이 잘 붙어 오는
+# 말들이다. 이것으로도 모자라면 최근에 쓴 사진이라도 쓴다(그림보다 낫다).
+KOREA_FALLBACK_QUERIES = (
+    "seoul apartment",
+    "seoul skyline",
+    "seoul cityscape",
+    "korea apartment complex",
+    "seoul residential area",
+    "han river seoul",
+)
+
+
 PEXELS_QUERIES = (
     "seoul apartment building",
     "korean city skyline night",
@@ -423,6 +437,13 @@ def collect_backgrounds(article_image_url: str = "", need: int = 3,
         if len(pool) < need:
             # 주제 검색어가 결과를 덜 줬으면 날짜 회전 검색어로 채운다.
             pool += _pexels(_today_query(seed), need - len(pool), 1)
+        for q in KOREA_FALLBACK_QUERIES:
+            for pg in (1, 2, 3):
+                if len(pool) >= need:
+                    break
+                pool += _pexels(q, need - len(pool), pg)
+        if len(pool) < need:
+            pool += _pexels(KOREA_FALLBACK_QUERIES[0], need - len(pool), 1, allow_recent=True)
 
     # 폴백 그라디언트도 날짜를 시작점으로 — 소스가 전부 실패한 날에도
     # 최소한 어제와 같은 색은 피한다.
