@@ -1594,5 +1594,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "[2026국감]홍지선 국토장관 \"집값 폭락·폭등 대비 대책 마련…전세난은 공급부족 탓\"",
+    "video_id": "F0P9656E3eM",
+    "date": "2026-10-23T20:10:36.966054",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 274,
+    "source": "아시아경제",
+    "age_days": 0.6284433840740741,
+    "topic_score": 16,
+    "recency_score": 4,
+    "media": [
+      "p36475843",
+      "p4568710",
+      "p4569338",
+      "p7464209",
+      "p4568698",
+      "p7464509",
+      "v40049384",
+      "v38489829"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
