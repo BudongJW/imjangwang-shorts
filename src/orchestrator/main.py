@@ -86,6 +86,10 @@ def _name_government(plan):
         if GOV_NAME.split()[0] not in t and not _PAST_CTX.search(t):
             t = _GOV_RE.sub(GOV_NAME, t, count=1)
         return orig if _BAD_NAMING_RE.search(t) else t
+    # 대본·제목·배너 중 하나라도 지난 정부를 말하면 어느 '정부'가 어느 정부인지
+    # 줄마다 따로 가릴 수 없다(배너 한 줄이 "前정부", 다른 줄이 "정부"인 식).
+    if _PAST_GOV_RE.search(" ".join([plan.caption_script, plan.youtube_title, *plan.headline])):
+        return plan
     plan.caption_script = ng(plan.caption_script)
     plan.speech_script = to_speech(plan.caption_script)
     plan.youtube_title = ng(plan.youtube_title)[:40]
