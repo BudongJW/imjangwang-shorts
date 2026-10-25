@@ -40,7 +40,14 @@ log = setup_logger("main")
 
 
 # 과거 정부/과거 연도 맥락 — 이 경우 '정부'에 현 정부명을 박으면 오귀속(오정보)이 됨
-_PAST_CTX = re.compile(r"(?:19|20)\d{2}|문재인|박근혜|이명박|노무현|전 정부|과거 정부|당시\s*정부")
+# 10-25 초안: LH 사장의 "지난 정부 3년 동안 수도권 착공 물량이 … 급감"이
+# "지난 이재명 정부 3년 동안"으로 나갈 뻔했다. '지난 정부'·'前정부'가 목록에 없었다.
+_PAST_GOV = (r"윤석열|문재인|박근혜|이명박|노무현|"
+             r"(?:지난|이전|직전|전임|과거|前|전)\s?정부|당시\s*정부")
+_PAST_CTX = re.compile(r"(?:19|20)\d{2}|" + _PAST_GOV)
+_PAST_GOV_RE = re.compile(_PAST_GOV)
+# 이름을 박은 뒤 "지난 이재명 정부"처럼 앞뒤가 안 맞으면 되돌린다.
+_BAD_NAMING_RE = re.compile(r"(?:지난|이전|직전|전임|과거|前|전)\s?" + re.escape(GOV_NAME.split()[0]))
 
 
 # '정부'가 단어의 일부일 때는 건드리면 안 된다. 그냥 re.sub(r"정부", ...)로
@@ -73,11 +80,12 @@ def _name_government(plan):
     과거 맥락이 감지된 문장에는 '정부'→'이재명 정부' 강제 치환을 하지 않는다(오정보 방지).
     """
     def ng(t: str) -> str:
+        orig = t
         t = t.replace("새 정부", GOV_NAME).replace("현 정부", GOV_NAME).replace("현정부", GOV_NAME)
         # 과거 맥락이 없을 때만 첫 '정부'에 현 정부명을 박음
         if GOV_NAME.split()[0] not in t and not _PAST_CTX.search(t):
             t = _GOV_RE.sub(GOV_NAME, t, count=1)
-        return t
+        return orig if _BAD_NAMING_RE.search(t) else t
     plan.caption_script = ng(plan.caption_script)
     plan.speech_script = to_speech(plan.caption_script)
     plan.youtube_title = ng(plan.youtube_title)[:40]
@@ -353,7 +361,10 @@ def run(skip_upload: bool = False) -> int:
         plan = generate(art)
         if POLITICIAN_FACE_ENABLED:          # 정책 비판 대상(이재명 정부) 명시
             src_text = f"{getattr(art, 'title', '')} {getattr(art, 'summary', '')}"
-            if _article_names_central_gov(src_text):
+            if _PAST_GOV_RE.search(src_text):
+                # 기사가 지난 정부를 말하면 대본의 '정부'가 어느 정부인지 기계로 못 가린다.
+                buildnotes.note("정부명 표기 생략: 기사가 지난 정부를 다룬다")
+            elif _article_names_central_gov(src_text):
                 plan = _name_government(plan)
             else:
                 buildnotes.note("정부명 표기 생략: 기사가 중앙정부를 주체로 다루지 않는다")

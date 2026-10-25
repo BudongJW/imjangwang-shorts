@@ -1624,33 +1624,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "LH 사장 \"집값 상승은 공급부족 탓…前정부 폭등 시한폭탄 설치\"",
-    "video_id": "H6PZXU9ijY8",
-    "date": "2026-10-24T19:05:49.012262",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 323,
-    "source": "연합뉴스",
-    "age_days": 1.3080166105902777,
-    "topic_score": 13,
-    "recency_score": 4,
-    "media": [
-      "p20839149",
-      "p18495178",
-      "p5581897",
-      "p2122443",
-      "p39521417",
-      "p18771718"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
