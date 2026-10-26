@@ -382,7 +382,7 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
                  if x.strip()]
     sents = all_sents[:HOOK_SENTENCES]
     from src.editor.compare_card import _values
-    from src.editor.stat_callout import _UP_DONE, _DOWN_DONE, stat_context, approx_tail
+    from src.editor.stat_callout import _UP_DONE, _DOWN_DONE, stat_context, approx_tail, with_tail
     best, best_sent = None, ""
     for sent in sents:
         # 바뀐 폭을 말하는 값을 먼저 쓴다("4424가구 감소", "1억 1000만 원 올랐").
@@ -421,7 +421,7 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
             return None
     label, direction = stat_context(best_sent, best[0])
     tail = approx_tail(best_sent, best[0])
-    best = (f"{best[0]} {tail}" if tail else best[0], direction)
+    best = (with_tail(best[0], tail), direction)
     end = min(HOOK_MAX_SEC, total_sec)
     if blocked and blocked[0] > 0:
         end = min(end, blocked[0] - 0.1)
@@ -518,7 +518,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
     화면이라, 그 위에 210px 숫자 패널을 얹으면 둘 다 못 읽는다
     (2026-09-14 검증 프레임 12초 지점에서 실제로 그렇게 나왔다).
     """
-    from src.editor.stat_callout import (pick_stat, pick_keyword, range_head, approx_tail,
+    from src.editor.stat_callout import (pick_stat, pick_keyword, range_head, approx_tail, with_tail,
                                           render_stat_card, is_weak, stat_context)
     if max_n is None:
         max_n = max(MIN_CALLOUT_N, round(total_sec / SEC_PER_CALLOUT))
@@ -563,7 +563,7 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
             head = "" if "~" in st[0] else range_head(sent, st[0], near=off)
             big = f"{head}~{st[0]}" if head else st[0]
             tail = approx_tail(sent, st[0], near=off)
-            st = (f"{big} {tail}" if tail else big, direction, label)
+            st = (with_tail(big, tail), direction, label)
             n_stat += 1
             if in_article:
                 n_blocked += 1

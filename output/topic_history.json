@@ -1651,32 +1651,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "“올파포 놓친 것, 땅치고 후회”…‘고분양가 논란’ 단지도 가격 급등했다",
-    "video_id": "peYyvk2n66o",
-    "date": "2026-10-26T02:20:01.306768",
-    "title_style": "주장",
-    "len_mode": "short",
-    "script_chars": 240,
-    "source": "매일경제",
-    "topic_score": 0,
-    "recency_score": 0,
-    "media": [
-      "p29795426",
-      "p7649503",
-      "p20130509",
-      "p37570649",
-      "p37384711",
-      "p2122447"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

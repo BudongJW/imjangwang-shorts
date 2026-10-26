@@ -245,6 +245,10 @@ def range_head(sentence: str, big: str, near: int = 0) -> str:
 # "1억원 가까이"를 카드에 "1억원"으로만 띄우면 딱 1억 오른 것처럼 보인다
 # (10-21 초안, 실제는 9430만원). 대본에서 숫자 바로 뒤 어림말을 함께 띄운다.
 _APPROX_TAIL_RE = re.compile(r"\s?(가까이|육박|안팎|남짓|가량|이상|이하|미만|초과)")
+# '23억원대'의 '대'도 같다. 10-26 재생성본: 대본 "최고 분양가 23억원대에서"가 카드에
+# "23억원"으로 떴다. 숫자에 바로 붙은 '대'만 본다('대비'·'대출'·'26.9대 1'은 뺀다).
+_BAND_TAIL_RE = re.compile(
+    r"(대)(?!\s?\d)(?=$|[\s,.?!…·]|에|의|로|를|가|는|이|인|까지|부터|였|초|중반|후반)")
 
 
 def approx_tail(sentence: str, big: str, near: int = 0) -> str:
@@ -257,8 +261,15 @@ def approx_tail(sentence: str, big: str, near: int = 0) -> str:
     m = pat.search(sentence, max(0, near)) or pat.search(sentence)
     if not m:
         return ""
-    t = _APPROX_TAIL_RE.match(sentence, m.end())
+    t = _BAND_TAIL_RE.match(sentence, m.end()) or _APPROX_TAIL_RE.match(sentence, m.end())
     return t.group(1) if t else ""
+
+
+def with_tail(big: str, tail: str) -> str:
+    """카드에 띄울 숫자. '대'는 붙여 쓰고 '가까이' 같은 말은 띄어 쓴다."""
+    if not tail:
+        return big
+    return f"{big}{tail}" if tail == "대" else f"{big} {tail}"
 
 
 # 카드에 숫자만 크게 뜨면 무슨 숫자인지 모른다(10-08 "1%", "2%", "100%").
