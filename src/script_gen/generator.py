@@ -587,18 +587,61 @@ def _dropped_qualifier(line: str, source: str) -> str:
     return ""
 
 
+# 거꾸로 기사에 없는 '넘는다'를 붙이는 것. 10-26 초안: 기사는 "지난 23일 30억에
+# 매매 거래됐다"였는데 대본은 "지금 30억이 넘습니다", 배너는 "지금 30억 넘는
+# 이유"였다. 기사에서 그 숫자가 한 번도 '넘'·'웃돌' 같은 말과 붙지 않았으면 잡는다.
+# 기사가 "70억2000만원"처럼 뒤에 자릿수를 더 붙였거나, 같은 문장에 더 큰 값이 있으면
+# ("2.50% 올라 2021년 6월(2.44%) 이후 최대") 넘는다고 말해도 맞다.
+_SENT_END_RE = re.compile(r"(?<!\d)\.|\.(?!\d)|\n")
+_OVER_POST_RE = re.compile(
+    r"\s?(?:원\s?)?(?:이|가|을|를|은|는|도)?\s?(넘|웃돌|웃돈|웃도|상회|이상|초과|돌파)")
+
+
+def _added_over(line: str, source: str) -> str:
+    """line의 숫자에 '넘'·'이상' 같은 말이 붙었는데 기사에서는 그 숫자가 그런 말 없이만
+    나오면 그 말을, 아니면 ""."""
+    src = source or ""
+    src_toks = _qnum_tokens(src)
+    for n, u, _, b in _qnum_tokens(line):
+        om = _OVER_POST_RE.match(line, b)
+        if not om:
+            continue
+        occ = [(sa, sb) for sn, su, sa, sb in src_toks if sn == n and su == u]
+        if not occ:
+            continue
+        ok = False
+        for sa, sb in occ:
+            if _OVER_POST_RE.match(src, sb) or re.match(r"\s?\d", src[sb:]):
+                ok = True
+                break
+            ends = [m.end() for m in _SENT_END_RE.finditer(src)]
+            lo = max([e for e in ends if e <= sa], default=0)
+            hi = min([e for e in ends if e > sb], default=len(src))
+            if any(su == u and float(sn) > float(n)
+                   for sn, su, xa, _ in src_toks if lo <= xa < hi):
+                ok = True
+                break
+        if not ok:
+            return om.group(1)
+    return ""
+
+
 def _qualifier_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
         q = _dropped_qualifier(sent, source_text)
         if q:
             out.append((sent.strip()[:40], f"기사는 숫자에 '{q}'를 붙였는데 대본은 뺐다"))
+            continue
+        o = _added_over(sent, source_text)
+        if o:
+            out.append((sent.strip()[:40], f"기사에 없는 '{o}'를 숫자에 붙였다"))
     return out
 
 
 def _soften_verdict(line: str, source: str) -> str | None:
     """기사에 없는 단정 판정을 물음으로 바꾼다. 못 바꾸면 None."""
-    if _dropped_qualifier(line, source):
+    if _dropped_qualifier(line, source) or _added_over(line, source):
         return None
     src = re.sub(r"\s+", "", source or "")
     for rx, q in _VERDICT_Q:
@@ -960,6 +1003,9 @@ _POLICY_RE = re.compile(
 _CAUSE_RE = re.compile(
     r"낳|부른|불러|초래|촉발|부추|밀어\s?올|끌어\s?올|밀어낸|내몰|역설|역효과|역풍|"
     r"부작용|탓|때문|결과입니다|여파|"
+    # 10-26 초안: "정부 규제로 인한 공급 부족 우려가 새 아파트 희소 가치를 치솟게
+    # 한 거죠". 기사는 '공급 부족 우려'만 썼고 정부도 규제도 없었는데 '인한'이 빠져 통과했다.
+    r"으?로\s?인(?:한|해)|"
     # 10-15 초안: "정부 정책은 시장을 왜곡하고 서민 주거비 부담만 가중시킵니다". 기사에는
     # 정부 정책 평가가 없었는데, 뒤에 붙는 정부명 표기가 "이재명 정부"로 바꿔 내보냈다.
     r"왜곡|가중|"
@@ -981,7 +1027,7 @@ _ATTRIB_RE = re.compile(
 # 여론처럼 키운 것이다. 10-10 초안: 기사는 장관이 "건설 금융이 걸림돌이 되지 않도록"
 # 당부했다고 썼는데 대본은 "건설 금융 걸림돌부터 없애야 한다는 지적이 컸습니다"였다.
 _CROWD_RE = re.compile(
-    r"(지적|비판|우려|목소리|불만)(?:이|가|도)\s?(?:컸|크|많|잇따|쏟아|높|거세|커지|나오|나왔|나옵|제기)")
+    r"(지적|비판|우려|목소리|불만)(?:이|가|도)\s?(?:컸|크|많|잇따|쏟아|높|거세|커지|나오|나왔|나옵|나온|나와|제기)")
 _HEARSAY_RE = re.compile(r"다는\s?(지적|비판|우려|목소리|분석|평가|관측)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 # 진행자 말로 맺는 원인 설명("~한 것이죠", "~때문입니다"). 기사가 그 내용을
@@ -990,7 +1036,7 @@ _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "�
 # 대본은 "서울 수요가 인접 지역으로 밀려온 것이죠"로 원인 하나만 단정했다.
 # '~할 것입니다'(전망·권유)는 맺음이 아니므로 앞 글자가 ㄹ받침이면 뺀다.
 _CONCLUDE_RE = re.compile(
-    r"([가-힣])\s?(?:것|셈)(?:이죠|입니다|이에요)|(?:때문|탓|결과)(?:이죠|입니다|이에요)")
+    r"([가-힣])\s?(?:(?:것|셈)(?:이죠|입니다|이에요)|거(?:죠|예요|에요))|(?:때문|탓|결과)(?:이죠|입니다|이에요)")
 _SAID_RE = re.compile(r"지적|분석|설명|말했|밝혔|전망|꼽았|봤다|강조|주장|진단|평가")
 CONCLUDE_MIN_SHARED = 3
 
@@ -1036,8 +1082,10 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             continue
         # "~다는 지적에"처럼 내용을 남의 지적으로 옮긴 꼴. 기사에 '지적했다'만
         # 있으면 통과하던 구멍이다(10-10 재생성본: "실수요자 피해가 컸다는 지적에").
+        # 기사 쪽은 '라는'도 같은 꼴이다. 10-26 초안: 기사의 "재현되는 것은 아니라는
+        # 지적도 나온다"를 옮긴 "재현되진 않는다는 지적"이 기사에 없는 지적으로 잡혔다.
         hm = _HEARSAY_RE.search(sent)
-        if hm and not re.search(r"다는\s?" + hm.group(1), src):
+        if hm and not re.search(r"[다라]는\s?" + hm.group(1), src):
             out.append((needle, f"기사에 없는 '~다는 {hm.group(1)}'"))
             continue
         # 진행자 말도 같다. 10-20 초안이 "규제를 풀었다 다시 묶는 땜질 정책이
@@ -1164,6 +1212,12 @@ def _direction_problems(script: str) -> list[tuple[str, str]]:
 # 8807가구"로 옮겼다. 숫자는 맞아서 다른 검사를 다 통과했다. 기사가 '올해'·
 # '지난해'로 쓴 해는 그 연도로 써도 된다.
 _YEAR_IN_SCRIPT_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})\s?년")
+# 'N년 전'처럼 지금부터 거꾸로 센 햇수. 10-26 초안: 기사는 "2022년 분양 당시
+# 13억2040만원"이었는데 대본은 "2년 전 13억대"로 열었다(실제로는 4년 전).
+# 기사에 같은 햇수가 있거나, 기사의 연도에서 셈한 값(올해 기준 그 해 또는 한 해
+# 덜)일 때만 통과시킨다.
+_REL_YEAR_RE = re.compile(
+    r"(?<![\d,.])(\d{1,2})\s?년\s?(?:만에|전(?=$|[\s,.?!…·]|에|엔|보다|만|의|까지|부터|과|와))")
 
 
 def _year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -1174,11 +1228,19 @@ def _year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         ok.add(str(now))
     if re.search(r"지난해|작년", src):
         ok.add(str(now - 1))
+    spans = {now - int(y) - d for y in ok for d in (0, 1)}
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
         for m in _YEAR_IN_SCRIPT_RE.finditer(sent):
             if m.group(1) not in ok:
                 out.append((sent.strip()[:40], f"기사에 없는 연도 '{m.group(1)}년'"))
+                break
+        else:
+            for m in _REL_YEAR_RE.finditer(sent):
+                n = m.group(1)
+                if int(n) in spans or re.search(r"(?<![\d,.])" + n + r"\s?년(?!\s?\d)", src):
+                    continue
+                out.append((sent.strip()[:40], f"기사의 연도와 안 맞는 햇수 '{m.group(0)}'"))
                 break
     return out
 
