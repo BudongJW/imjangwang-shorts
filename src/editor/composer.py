@@ -377,7 +377,7 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
                        full: bool = False
                        ) -> tuple[Path, float, float, str] | None:
     """(경로, 0, 끝, 띄운 값). 앞 문장들에 숫자가 없으면 None."""
-    from src.editor.stat_callout import pick_stat, render_stat_card, is_weak
+    from src.editor.stat_callout import pick_stat, render_stat_card, is_weak, is_bracket
     all_sents = [x.strip() for x in re.split(r"(?<=[다요죠?])[.!?]*\s+", caption_script or "")
                  if x.strip()]
     sents = all_sents[:HOOK_SENTENCES]
@@ -393,7 +393,7 @@ def _plan_hook_overlay(caption_script: str, total_sec: float,
             tail = sent[b:b + 8]
             up = bool(_UP_DONE.search(tail))
             down = bool(_DOWN_DONE.search(tail))
-            if (up or down) and not is_weak(v):
+            if (up or down) and not is_weak(v) and not is_bracket(sent, v):
                 best = (re.sub(r"\s*원$", "", v).replace("만 원", "만"), "up" if up else "down")
                 best_sent = sent
                 break

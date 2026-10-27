@@ -92,6 +92,20 @@ def is_weak(big: str) -> bool:
     return big.endswith(_WEAK_UNITS)
 
 
+# '하위 20%'·'상위 10%'는 잰 값이 아니라 무리를 가르는 이름이다. 10-27 초안의
+# 첫 화면 카드가 "지난해 자산 하위 / 20%"였다(기사의 값은 239만원·290.1배).
+_BRACKET_RE = re.compile(r"(?:상위|하위)\s?$")
+
+
+def is_bracket(sentence: str, big: str) -> bool:
+    """sentence에서 big이 늘 '상위·하위' 바로 뒤에 나오는지."""
+    m0 = re.match(r"[\d,\.]+", big or "")
+    if not m0 or not sentence:
+        return False
+    hits = [m.start() for m in re.finditer(r"(?<![\d.,])" + re.escape(m0.group(0)) + r"(?![\d])", sentence)]
+    return bool(hits) and all(_BRACKET_RE.search(sentence[max(0, a - 4):a]) for a in hits)
+
+
 # 대본 후반은 해석·결론이라 숫자가 없다. 기사의 숫자는 실거래가 문단에
 # 몰려 있고, 없는 숫자를 지어내라고 할 수는 없다(규칙 17). 그래서 후반
 # 구간은 숫자 대신 대본에 실제로 나온 핵심어를 띄운다. 화면을 채우면서
@@ -155,6 +169,9 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         # "1세대 1주택"은 세제 용어지 가구 수가 아니다. 자막 줄이 "1세대"에서
         # 끊겨도 띄우지 않는다.
         if cand.replace(" ", "") == "1세대":
+            continue
+        # '하위 20%'는 무리를 가르는 이름이지 잰 값이 아니다(is_bracket 참고).
+        if _BRACKET_RE.search(phrase[max(0, m.start() - 4):m.start()]):
             continue
         # "화곡6동", "상봉13구역"처럼 글자에 붙은 숫자는 이름의 일부다. 10-11 지정
         # 영상에서 "화곡6동"의 "6동"이 숫자 카드로 떴다.

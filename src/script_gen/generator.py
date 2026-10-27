@@ -592,7 +592,9 @@ def _dropped_qualifier(line: str, source: str) -> str:
 # 이유"였다. 기사에서 그 숫자가 한 번도 '넘'·'웃돌' 같은 말과 붙지 않았으면 잡는다.
 # 기사가 "70억2000만원"처럼 뒤에 자릿수를 더 붙였거나, 같은 문장에 더 큰 값이 있으면
 # ("2.50% 올라 2021년 6월(2.44%) 이후 최대") 넘는다고 말해도 맞다.
-_SENT_END_RE = re.compile(r"(?<!\d)\.|\.(?!\d)|\n")
+# 기사 쪽 문장 경계(소수점은 뺀다). 위 _SENT_END_RE(종결어미 목록)와 다르다. 10-26에
+# 같은 이름으로 넣어 미완성 끝 문장 자르기가 이것을 쓰게 됐다(10-27에 발견).
+_SRC_SENT_END_RE = re.compile(r"(?<!\d)\.|\.(?!\d)|\n")
 _OVER_POST_RE = re.compile(
     r"\s?(?:원\s?)?(?:이|가|을|를|은|는|도)?\s?(넘|웃돌|웃돈|웃도|상회|이상|초과|돌파)")
 
@@ -614,7 +616,7 @@ def _added_over(line: str, source: str) -> str:
             if _OVER_POST_RE.match(src, sb) or re.match(r"\s?\d", src[sb:]):
                 ok = True
                 break
-            ends = [m.end() for m in _SENT_END_RE.finditer(src)]
+            ends = [m.end() for m in _SRC_SENT_END_RE.finditer(src)]
             lo = max([e for e in ends if e <= sa], default=0)
             hi = min([e for e in ends if e > sb], default=len(src))
             if any(su == u and float(sn) > float(n)
@@ -624,6 +626,53 @@ def _added_over(line: str, source: str) -> str:
         if not ok:
             return om.group(1)
     return ""
+
+
+# 금액이 누구의 값인지 바꾼 것. 10-27 초안: 기사는 집이 없으면 "가격이 0원으로
+# 집계됐다"(거주 주택 가격)였는데 대본은 "자산이 0원으로 기록된다면"으로 열었다.
+# 숫자는 기사에 있어서 다른 검사를 다 통과했다. 대본에서 금액 바로 앞 주어가
+# 기사에 나오는 말인데, 기사에서 그 금액 바로 앞에는 한 번도 없으면 잡는다.
+_AMOUNT_RE = re.compile(
+    r"(?<![\d,.])\d[\d,]*(?:\.\d+)?\s?(?:조|억|천만|만|천)?"
+    r"(?:\s?\d[\d,]*\s?(?:억|천만|만|천))*\s?원")
+_AMOUNT_SUBJ_RE = re.compile(r"([가-힣]{2,})(?:이|가|은|는|도)\s?(?:무려\s|약\s|평균\s)?$")
+# '지금은 15억원 이하 주택에'처럼 때를 말하는 말은 주어가 아니다.
+_NOT_SUBJ = {"지금", "현재", "올해", "작년", "지난해", "내년", "당시", "이번", "최근", "이제", "앞으로"}
+
+
+def _amount_key(text: str) -> str:
+    return re.sub(r"[\s,]", "", text)
+
+
+def _subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    flat_src = re.sub(r"\s", "", src)
+    ends = [0] + [m.end() for m in _SRC_SENT_END_RE.finditer(src)]
+    src_hits: dict[str, list[int]] = {}
+    for m in _AMOUNT_RE.finditer(src):
+        src_hits.setdefault(_amount_key(m.group(0)), []).append(m.start())
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        for m in _AMOUNT_RE.finditer(sent):
+            starts = src_hits.get(_amount_key(m.group(0)))
+            sm = _AMOUNT_SUBJ_RE.search(sent[:m.start()])
+            if not starts or not sm:
+                continue
+            subj = sm.group(1)
+            # 기사에 없는 주어는 다른 검사 몫이다. 여기서는 기사의 다른 값을 가리키는 말만 본다.
+            if subj in _NOT_SUBJ or subj not in flat_src:
+                continue
+            # 기사 쪽은 그 금액이 든 문장의 앞부분과 바로 앞 문장까지 본다. 10-14 지정
+            # 대본의 "84㎡ 입주권은 52억 원에서"는 기사에서 앞 문장이 입주권 얘기였다.
+            # 낱말은 앞 두 글자로 본다('분양가'와 '분양 가격').
+            def _window(a: int) -> str:
+                prev = [e for e in ends if e <= a]
+                lo = prev[-2] if len(prev) >= 2 else 0
+                return src[lo:a]
+            if not any(subj[:2] in _window(a) for a in starts):
+                out.append((sent.strip()[:40], f"기사에서 '{m.group(0)}'은 '{subj}'의 값이 아니다"))
+                break
+    return out
 
 
 def _qualifier_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -924,6 +973,11 @@ def _qtys(text: str) -> list[tuple[tuple, int, int, str]]:
         v = _kor_num(m.group(1))
         if v is None:
             continue
+        # '하위 20%'는 무리의 이름이지 잰 값이 아니다. 10-27 초안: 기사의 "자산 1분위 중
+        # 거주 주택을 보유한 비율은 6.6%"를 "하위 20% 가운데 … 6.6%"로 옮긴 문장이
+        # 짝 검사에 걸려 지워졌다.
+        if re.search(r"(?:상위|하위)\s?$", (text or "")[max(0, m.start() - 4):m.start()]):
+            continue
         # 기사는 "0.25% 포인트"처럼 띄어 쓰기도 한다. 09-29 재생성본에서
         # 대본의 "0.25%포인트"(pp)와 기사의 "0.25% 포인트"(pct로 읽힘)가
         # 짝을 못 찾아, 기사 한 문장에 같이 있던 핵심 문장이 버려졌다.
@@ -1178,7 +1232,11 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"무력화|유명무실|"
                       # 10-23 초안: "임차인들이 대혼란에 빠졌습니다". 기사(올파포 전세 만기)는
                       # "긴장감이 감돌고", 세입자들이 "어려움을 겪고"였다.
-                      r"대혼란|혼란에\s?빠|아수라장")
+                      r"대혼란|혼란에\s?빠|아수라장|"
+                      # 10-27 초안: "집 없는 서민의 자산 가치를 통계적으로 낮춰 격차를 부풀린
+                      # 셈이죠". 기사(자산 분위별 거주 주택 가격)는 집계 방식을 설명했을 뿐
+                      # 격차가 부풀려졌다고 하지 않았다. 숫자가 과장됐다는 판정은 기사에 있어야 한다.
+                      r"부풀|과장")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1619,6 +1677,7 @@ def generate(art) -> ShortPlan:
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
+                 + _subject_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
