@@ -1678,5 +1678,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“고가 주택 가격 급등 영향”…자산 상하위 집값 격차 290배",
+    "video_id": "4iKDOIYHf5Y",
+    "date": "2026-10-27T02:42:51.627338",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 342,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p4540580",
+      "p20564050",
+      "p38009993",
+      "p37323647",
+      "p33093558",
+      "p6306918",
+      "v29918215"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "on",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
