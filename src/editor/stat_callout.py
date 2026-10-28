@@ -24,7 +24,7 @@ DARK = (16, 16, 20)
 # 빠졌다.
 _STAT_RE = re.compile(
     r"(\d[\d,\.]*)\s?"
-    r"(%p|%|퍼센트포인트|퍼센트|포인트|억원|억|만원|만|천|원|배|채|가구|세대(?!\s*\d?\s*주택)|"
+    r"(%\s?포인트|%p|%|퍼센트\s?포인트|퍼센트|포인트|억원|억|만원|만|천|원|배|채|가구|세대(?!\s*\d?\s*주택)|"
     r"세(?![대금입율])|호|실|동|곳|명|건|위|조|평|제곱미터|㎡|개월|주(?!택)|년|일|개\s?층|층|개)")
 # 연도는 수치가 아니라 날짜다. "2024년"을 화면 한복판에 210px로 띄우면
 # 숫자 임팩트가 아니라 잡음이 된다(2026-09-14 실측에서 2회 잡혔다).
@@ -389,6 +389,9 @@ def render_stat_card(big: str, direction: str, out: Path, label: str = "",
     (실험 bg_mode의 graphic 팔).
     """
     color = {"up": RED, "down": BLUE}.get(direction, YELLOW)
+    # "10.26%포인트"를 "10.26%"로 띄우면 비율 차이가 비율처럼 보인다(10-28 재생성본의
+    # 첫 화면 카드). 단위째 잡아 카드에는 짧게 %p로 쓴다.
+    big = re.sub(r"\s?(?:%\s?포인트|퍼센트\s?포인트)", "%p", big)
     if full:
         return _render_stat_slide(big, direction, color, out, label)
     img = Image.new("RGBA", (SHORTS_WIDTH, SHORTS_HEIGHT), (0, 0, 0, 0))
