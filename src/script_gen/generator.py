@@ -1488,6 +1488,32 @@ def _tense_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사는 가능성·전망으로 쓴 앞날을 대본이 단정한 문장. 10-28 초안: 기사는 전세난이
+# "2028년까지 이어질 가능성이 있다"였는데 대본은 "전세난 피크는 2028년입니다"였다.
+# 올해보다 뒤의 연도가 든 문장에 전망을 뜻하는 말이 없고, 기사에서 그 연도가 든 문장이
+# 모두 전망으로 쓰였으면 잡는다.
+_FUTURE_HEDGE_RE = re.compile(
+    r"전망|예상|가능성|듯|수\s?있|우려|관측|추산|예정|계획|목표|예측|것으로|(?:할|될|날|질|갈)\s?것|"
+    r"봅니다|보입니다|겠|경고|내다")
+
+
+def _future_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    now = datetime.now(timezone(timedelta(hours=9))).year
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        years = {y for y in re.findall(r"(?<!\d)(20\d{2})\s?년", sent) if int(y) > now}
+        if not years or _FUTURE_HEDGE_RE.search(sent) or _SCRIPT_ATTR_RE.search(sent):
+            continue
+        for y in sorted(years):
+            src = [x for x in segs if re.search(r"(?<!\d)" + y + r"\s?년", x)]
+            if src and all(_FUTURE_HEDGE_RE.search(x) for x in src):
+                out.append((sent[:40], f"기사는 {y}년을 전망으로 썼는데 대본은 단정했다"))
+                break
+    return out
+
+
 # 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
 # 26만8천호"라고만 썼는데(다른 매체로 보면 수도권 목표) 대본은 "전국 26만8천호"였다.
 _SCOPE_RE = re.compile(r"(?<![가-힣])전국")
@@ -1676,6 +1702,7 @@ def generate(art) -> ShortPlan:
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
+                 + _future_problems(text, hay)
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _subject_problems(text, hay)
                  + _direction_problems(text))
