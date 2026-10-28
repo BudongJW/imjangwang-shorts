@@ -1733,5 +1733,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "올파포 세입자 만기 보증금만 1조원…돌아온 집주인에 전세난민 1300건",
+    "video_id": "kWkKhJyYG5s",
+    "date": "2026-10-28T21:25:58.385944",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 366,
+    "source": "매일경제",
+    "age_days": -0.35240992416666667,
+    "topic_score": 11,
+    "recency_score": 4,
+    "media": [
+      "p3434533",
+      "p4553261",
+      "p4554249",
+      "p11851279",
+      "p37384702",
+      "p2246806"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
