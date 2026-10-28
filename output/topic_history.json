@@ -1706,5 +1706,32 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "지금 전월셋값 확 올랐는데 “아직 지옥이 아니다”…내후년이 전세난 피크",
+    "video_id": "le_6uhMU_nk",
+    "date": "2026-10-28T02:24:39.280862",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 240,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p7203775",
+      "p8962868",
+      "p4568695",
+      "p40559532",
+      "p39474791",
+      "p20849990"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
