@@ -1488,6 +1488,72 @@ def _tense_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 숫자가 가리키는 기간을 바꾼 문장. 10-29 초안: 기사는 "12월 298건을 시작으로 내년
+# 1월 342건, 2월 267건 등 석 달 동안 907건"이었는데 대본은 "내년 1, 2월에만 907건"이었다.
+# 숫자는 기사에 있어서 다른 검사를 다 통과했다. 대본이 숫자 바로 앞에 붙인 달과, 기사가
+# 그 숫자 바로 앞에 붙인 달·기간(석 달, 3개월)이 다르면 잡는다. "같은 기간"처럼 앞을
+# 받는 말만 있거나 기간 말이 없으면 넘어간다.
+_MONTHS_RE = re.compile(r"(?<![\d.])(\d{1,2})(?:\s?([,·~∼])\s?(\d{1,2}))?\s?월(?!세)")
+_SPAN_WORDS = {"한": 1, "두": 2, "세": 3, "석": 3, "네": 4, "넉": 4, "다섯": 5, "여섯": 6}
+_SPAN_RE = re.compile(r"(한|두|세|석|넉|네|다섯|여섯|\d{1,2})\s?(?:달|개월)")
+PERIOD_PAD = 15
+
+
+def _month_set(m: re.Match) -> set[int]:
+    a = int(m.group(1))
+    if not m.group(3):
+        return {a}
+    b = int(m.group(3))
+    if m.group(2) in "~∼":
+        # "12~2월"은 해를 넘긴다.
+        return set(range(a, b + 1)) if a <= b else set(range(a, 13)) | set(range(1, b + 1))
+    return {a, b}
+
+
+def _period_before(text: str, pos: int) -> tuple[set[int] | None, int | None]:
+    """pos 바로 앞(다른 숫자 없이)에 붙은 (달 묶음, 기간 길이)."""
+    lo = max(0, pos - PERIOD_PAD)
+    while lo > 0 and text[lo - 1].isdigit():   # "12월"을 "2월"로 자르지 않는다
+        lo -= 1
+    win = text[lo:pos]
+    months = list(_MONTHS_RE.finditer(win))
+    spans = list(_SPAN_RE.finditer(win))
+    cut = max([m.end() for m in months + spans], default=0)
+    # 기간 말과 숫자 사이에 다른 숫자가 끼면 그 숫자의 기간이다.
+    if re.search(r"\d", win[cut:]):
+        return None, None
+    ms = _month_set(months[-1]) if months and (not spans or months[-1].end() > spans[-1].end()) else None
+    sp = None
+    if spans and (not months or spans[-1].end() > months[-1].end()):
+        g = spans[-1].group(1)
+        sp = int(g) if g.isdigit() else _SPAN_WORDS.get(g)
+    return ms, sp
+
+
+def _period_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    src_q = _qtys(src)
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        for key, a, _, raw in _qtys(sent):
+            mine, _ = _period_before(sent, a)
+            if not mine:
+                continue
+            occ = [sa for k, sa, _, _ in src_q if k == key]
+            if not occ:
+                continue
+            clash = 0
+            for sa in occ:
+                ms, sp = _period_before(src, sa)
+                if (ms is not None and ms != mine) or (sp is not None and sp != len(mine)):
+                    clash += 1
+            if clash == len(occ):
+                out.append((sent[:40], f"기사에서 '{raw}'는 대본이 붙인 달({'·'.join(map(str, sorted(mine)))}월)의 수치가 아니다"))
+                break
+    return out
+
+
 # 기사는 가능성·전망으로 쓴 앞날을 대본이 단정한 문장. 10-28 초안: 기사는 전세난이
 # "2028년까지 이어질 가능성이 있다"였는데 대본은 "전세난 피크는 2028년입니다"였다.
 # 올해보다 뒤의 연도가 든 문장에 전망을 뜻하는 말이 없고, 기사에서 그 연도가 든 문장이
@@ -1702,7 +1768,7 @@ def generate(art) -> ShortPlan:
                  + _verdict_problems(text, hay) + _range_problems(text, hay)
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
-                 + _future_problems(text, hay)
+                 + _future_problems(text, hay) + _period_problems(text, hay)
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _subject_problems(text, hay)
                  + _direction_problems(text))
