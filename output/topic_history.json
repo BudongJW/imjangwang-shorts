@@ -1788,5 +1788,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"공급 의지 긍정적\" vs “당장 전세난 못풀어\"",
+    "video_id": "o3FqYAsMuZI",
+    "date": "2026-10-30T21:08:51.674413",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 372,
+    "source": "매일경제",
+    "age_days": 0.13975164479166666,
+    "topic_score": 9,
+    "recency_score": 4,
+    "media": [
+      "p10375958",
+      "p7768228",
+      "p12012435",
+      "p8815915",
+      "p1591158",
+      "p7642006",
+      "v6781912",
+      "v7247861",
+      "v7688135"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "on",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
