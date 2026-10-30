@@ -1760,5 +1760,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "강남 집값 주춤한 사이 외곽은 급등… 서민 주거 부담 가중",
+    "video_id": "oKkqZMH4Xn8",
+    "date": "2026-10-30T02:15:35.268152",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 236,
+    "source": "국민일보",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p37769571",
+      "p14452237",
+      "p5039003",
+      "p37384707",
+      "p14264277",
+      "p17448981",
+      "v39474349"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
