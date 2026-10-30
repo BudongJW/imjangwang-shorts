@@ -632,16 +632,25 @@ def _added_over(line: str, source: str) -> str:
 # 집계됐다"(거주 주택 가격)였는데 대본은 "자산이 0원으로 기록된다면"으로 열었다.
 # 숫자는 기사에 있어서 다른 검사를 다 통과했다. 대본에서 금액 바로 앞 주어가
 # 기사에 나오는 말인데, 기사에서 그 금액 바로 앞에는 한 번도 없으면 잡는다.
+# 억·만 단위가 붙으면 '원'이 없어도 금액이다("51억", "6억 9341만원").
 _AMOUNT_RE = re.compile(
-    r"(?<![\d,.])\d[\d,]*(?:\.\d+)?\s?(?:조|억|천만|만|천)?"
-    r"(?:\s?\d[\d,]*\s?(?:억|천만|만|천))*\s?원")
-_AMOUNT_SUBJ_RE = re.compile(r"([가-힣]{2,})(?:이|가|은|는|도)\s?(?:무려\s|약\s|평균\s)?$")
-# '지금은 15억원 이하 주택에'처럼 때를 말하는 말은 주어가 아니다.
-_NOT_SUBJ = {"지금", "현재", "올해", "작년", "지난해", "내년", "당시", "이번", "최근", "이제", "앞으로"}
+    r"(?<![\d,.])\d[\d,]*(?:\.\d+)?\s?"
+    r"(?:(?:조|억|천만|만)(?:\s?\d[\d,]*\s?(?:억|천만|만|천))*(?:\s?원)?|천?\s?원)(?![\d])"
+    r"(?!\s?(?:가구|세대|명|건|호|채|곳|개|평|㎡|배|%|좌|대))")
+# 10-30 초안: "강남 집값 10억 하락". 기사에서 10억은 압구정 현대5차 한 건의 거래가
+# 차이였고 상위 20% 평균값은 0.46% 올랐다. 조사 없이 바로 금액이 붙은 꼴도 주어로 본다.
+_AMOUNT_SUBJ_RE = re.compile(r"([가-힣]{2,}?)(이|가|은|는|도)?\s?(?:무려\s|약\s|평균\s)?$")
+# 조사 없이 붙은 말이 부사어·목적어로 끝나면 주어가 아니다("1년 6개월 만에 1억원").
+AMOUNT_GEN_PAD = 10
+_NOT_SUBJ_TAIL_RE = re.compile(r"(?:에|에서|로|으로|부터|까지|와|과|의|을|를|만|며|고|면|서)$")
+# '지금은 15억원 이하 주택에'처럼 때를 말하는 말과 꾸밈말은 주어가 아니다.
+_NOT_SUBJ = {"지금", "현재", "올해", "작년", "지난해", "내년", "당시", "이번", "최근", "이제", "앞으로",
+             "지난달", "이달", "지난주", "내달", "최대", "최고", "최저", "최소", "평균", "무려",
+             "각각", "모두", "기준", "가량", "이상", "이하", "미만", "초과", "에서", "부터", "까지"}
 
 
 def _amount_key(text: str) -> str:
-    return re.sub(r"[\s,]", "", text)
+    return re.sub(r"원$", "", re.sub(r"[\s,]", "", text))
 
 
 def _subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -659,16 +668,23 @@ def _subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             if not starts or not sm:
                 continue
             subj = sm.group(1)
+            if not sm.group(2) and _NOT_SUBJ_TAIL_RE.search(subj):
+                continue
             # 기사에 없는 주어는 다른 검사 몫이다. 여기서는 기사의 다른 값을 가리키는 말만 본다.
             if subj in _NOT_SUBJ or subj not in flat_src:
                 continue
             # 기사 쪽은 그 금액이 든 문장의 앞부분과 바로 앞 문장까지 본다. 10-14 지정
             # 대본의 "84㎡ 입주권은 52억 원에서"는 기사에서 앞 문장이 입주권 얘기였다.
-            # 낱말은 앞 두 글자로 본다('분양가'와 '분양 가격').
+            # 낱말은 앞 두 글자로 본다('분양가'와 '분양 가격'). 기사가 "월 3000억원의
+            # 금융 비용"처럼 '~의' 뒤에 주어를 쓰면 그 뒤 몇 글자까지 본다.
             def _window(a: int) -> str:
                 prev = [e for e in ends if e <= a]
                 lo = prev[-2] if len(prev) >= 2 else 0
-                return src[lo:a]
+                am = _AMOUNT_RE.match(src, a)
+                hi = a
+                if am and src[am.end():am.end() + 1] == "의":
+                    hi = am.end() + 1 + AMOUNT_GEN_PAD
+                return src[lo:hi]
             if not any(subj[:2] in _window(a) for a in starts):
                 out.append((sent.strip()[:40], f"기사에서 '{m.group(0)}'은 '{subj}'의 값이 아니다"))
                 break
