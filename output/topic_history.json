@@ -1818,5 +1818,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "지방 비아파트 임대차거래 8건중 7건이 월세",
+    "video_id": "Cb1L4AvO1_c",
+    "date": "2026-10-31T20:24:04.188746",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 244,
+    "source": "아시아경제",
+    "age_days": 1.9724648614930556,
+    "topic_score": 8,
+    "recency_score": 4,
+    "media": [
+      "p7578992",
+      "p8470846",
+      "p7579197",
+      "p40591841",
+      "p34056454",
+      "p40591851"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "photo",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
