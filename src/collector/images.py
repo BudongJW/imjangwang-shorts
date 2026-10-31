@@ -126,7 +126,10 @@ _OFFTOPIC_RE = re.compile(
     # 벽화 관광 마을은 사는 동네 사진이 아니다.
     r"gamcheon|mural\s?village|감천|문화마을|벽화마을|이화마을|"
     # 10-21 초안: 'model house interior'로 카페 실내(유리 테이블, 접이식 의자)가 세 컷 떴다.
-    r"\bcaf[eé]\b|coffee|restaurant|카페|커피|레스토랑|식당", re.I)
+    r"\bcaf[eé]\b|coffee|restaurant|카페|커피|레스토랑|식당|"
+    # 10-31 초안: 'apartment keys hand'로 "미소를 띤 수염 난 부동산 중개인이 정장을 입고"가
+    # "한문도 명지대 겸임교수는" 자막 밑에 떴고, "판매된 표지판"(미국식 SOLD 팻말)도 남았다.
+    r"중개인|중개사|에이전트|\bagent\b|realtor|미소를\s?(?:띤|짓)|수염|판매된|팔린", re.I)
 
 
 # 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을

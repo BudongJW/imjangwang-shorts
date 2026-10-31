@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -461,12 +462,28 @@ def render_headline_banner(headline: list[str], hook_word: str,
     return out
 
 
+# "7만 6700가구"는 띄어 써도 한 수다. 10-31 지정 영상의 배너가 "10·29 공급대책 7만 /
+# 6700가구 전문가 평가 엇갈려"로 숫자 가운데서 줄이 갈렸다. 자릿수로 끝난 어절과
+# 숫자로 시작하는 다음 어절은 한 덩어리로 다룬다.
+_NUM_HEAD_RE = re.compile(r"\d[\d,.]*(?:조|억|만|천)$")
+
+
+def _tokens(text: str) -> list[str]:
+    out: list[str] = []
+    for w in text.split():
+        if out and _NUM_HEAD_RE.search(out[-1]) and w[:1].isdigit():
+            out[-1] += " " + w
+        else:
+            out.append(w)
+    return out
+
+
 def _wrap_to_width(text: str, draw, font, max_w: float) -> list[str]:
     """어절 단위로 폭에 맞춰 접는다. 어절은 쪼개지 않는다 — 쪼개면 hook_word가
     두 줄로 갈려 강조색이 사라진다."""
     lines: list[str] = []
     cur = ""
-    for word in text.split():
+    for word in _tokens(text):
         trial = f"{cur} {word}".strip()
         if cur and draw.textlength(trial, font=font) > max_w:
             lines.append(cur)
@@ -521,8 +538,9 @@ def _balance_lines(lines: list[str], draw, font, max_w: float) -> list[str]:
     if len(lines) != 2:
         return lines
     a, b = lines
-    while " " in a:
-        head, _, tail = a.rpartition(" ")
+    while len(_tokens(a)) > 1:
+        toks = _tokens(a)
+        head, tail = " ".join(toks[:-1]), toks[-1]
         cand_b = f"{tail} {b}"
         if draw.textlength(cand_b, font=font) > max_w:
             break
