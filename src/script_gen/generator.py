@@ -1570,6 +1570,65 @@ def _period_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사에 없는 햇수(기간). 10-31 초안: "신규 택지는 토지 보상만도 최소 10년이 걸리는 장기
+# 사업입니다". 기사는 "2030년까지 토지 보상을 마무리할 수 있을지도 불확실하다"뿐이었고 '10년'은
+# 어디에도 없었다. "2년 계약", "2년 실거주"처럼 기사에 안 써도 맞는 햇수가 많아서, 걸리는
+# 시간을 대는 꼴("최소 N년", "N년이 걸리는", "N년 이상 소요")만 본다.
+_SPAN_YEAR_RE = re.compile(
+    r"(?:최소|최대|적어도|무려)\s?(\d{1,2})\s?년"
+    r"|(?<![\d.,])(\d{1,2})\s?년\s?(?:이상|넘게|가량|씩|이나|은|이|도)?\s?(?:걸[리릴린려립렸]|소요|필요|기다)")
+
+
+def _duration_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    have = {m.group(1) for m in re.finditer(r"(?<![\d.,])(\d{1,2})\s?년", src)}
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        for m in _SPAN_YEAR_RE.finditer(sent):
+            n = m.group(1) or m.group(2)
+            if n in have:
+                continue
+            out.append((sent.strip()[:40], f"기사에 없는 소요 햇수 '{m.group(0)}'"))
+            break
+    return out
+
+
+# 따옴표 말의 주인을 빼거나 바꾼 것. 10-31 초안: 기사는 김학렬 소장이 "공급은 2033년에 오지만
+# 전세난은 올겨울에 온다"고 했다고 썼는데 대본은 "부동산 전문가들의 경고입니다"로 여럿의 말로
+# 돌렸다. 기사에서 그 따옴표 말이 든 문장의 '이름 … 직함은' 앞말들 가운데 하나라도 대본의
+# 따옴표 앞뒤에 있어야 한다.
+_TITLE_WORDS = (r"(?:교수|소장|랩장|대표|위원|연구원|장관|차관|사장|원장|센터장|팀장|애널리스트|"
+                r"이사|실장|본부장|부장|회장|의원|총재|청장|시장|관계자|전문가|중개사)")
+_SPEAKER_RE = re.compile(
+    r"((?:[^\s\"“”]{1,20}\s){1,6}?)[^\s\"“”]{0,12}?" + _TITLE_WORDS + r"(?:은|는|이|가)\s")
+SPEAKER_PAD = 60
+
+
+def _quote_speaker_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for m in _QUOTE_SPAN_RE.finditer(script or ""):
+        span = next((g for g in m.groups() if g), "")
+        n = _norm_quote(span)
+        if len(n) < QUOTE_CHECK_MIN:
+            continue
+        names: set[str] = set()
+        for sg in segs:
+            if n not in _norm_quote(sg):
+                continue
+            q = sg.find("\"") if "\"" in sg else sg.find("“")
+            sm = _SPEAKER_RE.search(sg[:q] if q > 0 else sg)
+            if sm:
+                names |= {re.sub(r"\(.*?\)", "", w) for w in sm.group(1).split()
+                          if 2 <= len(re.sub(r"\(.*?\)", "", w)) <= 4}
+        if not names:
+            continue
+        near = (script or "")[max(0, m.start() - SPEAKER_PAD):m.end() + SPEAKER_PAD]
+        if not any(nm in near for nm in names):
+            out.append((span[:40], f"따옴표 말의 주인({'·'.join(sorted(names))})을 빼거나 바꿨다"))
+    return out
+
+
 # 기사는 가능성·전망으로 쓴 앞날을 대본이 단정한 문장. 10-28 초안: 기사는 전세난이
 # "2028년까지 이어질 가능성이 있다"였는데 대본은 "전세난 피크는 2028년입니다"였다.
 # 올해보다 뒤의 연도가 든 문장에 전망을 뜻하는 말이 없고, 기사에서 그 연도가 든 문장이
@@ -1785,6 +1844,7 @@ def generate(art) -> ShortPlan:
                  + _opinion_problems(text, hay) + _link_problems(text, hay)
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
                  + _future_problems(text, hay) + _period_problems(text, hay)
+                 + _duration_problems(text, hay) + _quote_speaker_problems(text, hay)
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _subject_problems(text, hay)
                  + _direction_problems(text))
