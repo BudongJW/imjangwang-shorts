@@ -32,6 +32,7 @@ from src.uploader.youtube import get_credentials
 KST = timezone(timedelta(hours=9))
 ROOT = Path(__file__).parent.parent
 SNAPSHOT_PATH = ROOT / "output" / "performance_history.json"
+METRICS_PATH = ROOT / "output" / "video_metrics.json"
 TOPIC_HISTORY_PATH = ROOT / "output" / "topic_history.json"
 
 _ISO_DUR = re.compile(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?")
@@ -332,6 +333,43 @@ def _retention_section(ret: dict, videos: list[dict]) -> list[str]:
     out.append("편수가 적을 때는 방향만 본다.")
     out.append("")
     return out
+
+
+def save_video_metrics(creds, videos: list[dict]) -> None:
+    """영상별 지표를 한 파일로 남긴다(output/video_metrics.json).
+
+    리포트는 표 몇 개만 찍고 영상별 시청률·넘김 통과·유입경로는 버렸다. 2026-11-01
+    사용자가 "그간 영상 성적에서 뭐가 잘 되나"를 물었을 때 로컬에는 조회수·좋아요밖에
+    없어 답할 수 없었다. 게시 이후 전체 기간 값으로 남겨 다음 분석이 바로 쓰게 한다.
+    """
+    pub = [v for v in videos if v["privacy"] == "public"]
+    ids = [v["video_id"] for v in pub]
+    start, end = "2025-01-01", datetime.now(KST).date().isoformat()
+    life: dict = {}
+    traffic: dict = {}
+    for i in range(0, len(ids), 200):
+        chunk = ids[i:i + 200]
+        a = fetch_analytics(creds, chunk, start, end)
+        if "error" not in a:
+            life.update(a)
+        t = fetch_traffic_by_video(creds, chunk, start, end)
+        if "error" not in t:
+            traffic.update(t)
+    rows = []
+    for v in pub:
+        a = life.get(v["video_id"], {})
+        rows.append({
+            "video_id": v["video_id"], "title": v["title"], "published_kst": v["published_kst"],
+            "duration_s": v["duration_s"], "views": v["views"], "likes": v["likes"],
+            "comments": v["comments"],
+            **{k: a.get(k) for k in ("averageViewDuration", "averageViewPercentage",
+                                     "subscribersGained", "shares", "engagedViews",
+                                     "estimatedMinutesWatched")},
+            "traffic": traffic.get(v["video_id"], {}),
+        })
+    METRICS_PATH.write_text(json.dumps({"taken_at": datetime.now(timezone.utc).isoformat(),
+                                        "videos": rows}, ensure_ascii=False, indent=1),
+                            encoding="utf-8")
 
 
 def load_snapshots() -> list[dict]:
@@ -1187,6 +1225,10 @@ def main() -> int:
     if not args.no_save:
         save_snapshot([v for v in videos if v["privacy"] == "public"], snapshots,
                       channel=channel)
+        try:
+            save_video_metrics(creds, videos)
+        except Exception as e:  # noqa: BLE001
+            print(f"[analyze] 영상별 지표 저장 실패: {e}", file=sys.stderr)
 
     print(report)
     summary = os.getenv("GITHUB_STEP_SUMMARY")
