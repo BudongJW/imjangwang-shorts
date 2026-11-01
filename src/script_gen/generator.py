@@ -1076,6 +1076,9 @@ _CAUSE_RE = re.compile(
     # 10-26 초안: "정부 규제로 인한 공급 부족 우려가 새 아파트 희소 가치를 치솟게
     # 한 거죠". 기사는 '공급 부족 우려'만 썼고 정부도 규제도 없었는데 '인한'이 빠져 통과했다.
     r"으?로\s?인(?:한|해)|"
+    # 11-01 초안: "전세사기 불안, 임대차법 등 정책이 월세 전환을 가속했습니다". 기사는 전세사기
+    # 우려·1인 가구 증가·임대인 수익 추구를 들었고 임대차법도 정책도 없었다.
+    r"가속|부채질|앞당|촉진|"
     # 10-15 초안: "정부 정책은 시장을 왜곡하고 서민 주거비 부담만 가중시킵니다". 기사에는
     # 정부 정책 평가가 없었는데, 뒤에 붙는 정부명 표기가 "이재명 정부"로 바꿔 내보냈다.
     r"왜곡|가중|"
@@ -1629,6 +1632,30 @@ def _quote_speaker_problems(script: str, source_text: str) -> list[tuple[str, st
     return out
 
 
+# 기사의 '지난달'은 기사가 나온 달 기준이다. 11-01 초안: 10월 30일 기사의 "지난달(9월)
+# 월세 비중 69.7%"를 11월에 올릴 영상이 "지난달 전국 임대차 월세 비중 69.7%"로 옮겼다.
+# 기사가 지난달에 나왔으면 대본의 '지난달·이달'은 다른 달을 가리킨다.
+_REL_MONTH_RE = re.compile(r"지난달|지난 달|이달|이번\s?달|전달")
+
+
+def _stale_month_problems(script: str, published: str) -> list[tuple[str, str]]:
+    try:
+        from email.utils import parsedate_to_datetime
+        kst = timezone(timedelta(hours=9))
+        pub = parsedate_to_datetime(published).astimezone(kst)
+    except Exception:
+        return []
+    now = datetime.now(timezone(timedelta(hours=9)))
+    if (pub.year, pub.month) == (now.year, now.month):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _REL_MONTH_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사는 {pub.month}월에 나와 '{m.group(0)}'이 지금과 다른 달이다"))
+    return out
+
+
 # 기사는 가능성·전망으로 쓴 앞날을 대본이 단정한 문장. 10-28 초안: 기사는 전세난이
 # "2028년까지 이어질 가능성이 있다"였는데 대본은 "전세난 피크는 2028년입니다"였다.
 # 올해보다 뒤의 연도가 든 문장에 전망을 뜻하는 말이 없고, 기사에서 그 연도가 든 문장이
@@ -1845,6 +1872,7 @@ def generate(art) -> ShortPlan:
                  + _tense_problems(text, hay) + _scope_problems(text, hay)
                  + _future_problems(text, hay) + _period_problems(text, hay)
                  + _duration_problems(text, hay) + _quote_speaker_problems(text, hay)
+                 + _stale_month_problems(text, getattr(art, "published", ""))
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _subject_problems(text, hay)
                  + _direction_problems(text))
