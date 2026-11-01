@@ -378,13 +378,39 @@ _UNIT_BRIEF_RE = re.compile(r"\d+(?:[.,]\d+)?\s*(?:㎡|m2|제곱미터)")
 BRIEF_PENALTY = 8
 
 
+# 2026-11-01 성적 분석(9월 이후 49편, 게시 48시간 조회수). 이 점수는 실제 조회수와
+# 거꾸로 움직이고 있었다(순위 상관 -0.14). 아래 셋을 더하면 +0.05가 된다.
+#   기관 인사 발언·행사성 발표(LH 사장, 장관, 국감, 정부 상황판, 매입확약) 11편: 중앙값 109회,
+#     나머지 341회. 하위 14편 중 7편이었다. 배제가 아니라 감점이다(국토장관 PF 보증 1,167회).
+#   대비가 뚜렷한 기사(격차, ~한 사이, 통장 해지) 6편: 중앙값 520회.
+#   제도·조건이 바뀌는 기사(대출·청약·보증·세금의 대상·한도·시행): 피드보다 검색으로 오래
+#     들어온다. "청년 전세대출 보증 만 39세까지 확대, 조건 정리"는 629회 중 94%가 검색이었다.
+_OFFICIAL_RE = re.compile(
+    r"사장|장관|차관|청장|위원장|국감|국정감사|간담회|협약|정례브리핑|상황판|매입확약|발언|정부\s?[\"“]")
+_CONTRAST_RE = re.compile(r"격차|사이|대비|만에|껑충|해지|깬다|배(?![가-힣])|보다\s")
+_RULE_CHANGE_RE = re.compile(
+    r"(?:대출|보증|청약|특공|특별공급|디딤돌|버팀목|보금자리|세액공제|취득세|양도세|종부세|재산세|"
+    r"임대차|갱신|월세\s?지원).{0,15}(?:확대|완화|강화|변경|개편|시행|부터|문턱|자격|대상|조건|기준|한도)")
+OFFICIAL_PENALTY = 5
+CONTRAST_BONUS = 2
+RULE_CHANGE_BONUS = 3
+
+
+def is_rule_change(title: str) -> bool:
+    """대출·청약·보증·세금처럼 시청자에게 적용되는 제도·조건이 바뀌는 기사인가."""
+    return bool(_RULE_CHANGE_RE.search(title or ""))
+
+
 def topic_score(title: str) -> int:
-    """영상 소재 점수 = 관련성 + 정책 비판 + '가격 폭등 고통' 강가점(대박 패턴 편향)."""
+    """영상 소재 점수 = 관련성 + 정책 비판 + '가격 폭등 고통' 가점 + 성적 분석 보정."""
     t = title or ""
     crit = sum(1 for k in _CRIT_KW if k in t)
     pain = sum(1 for k in _PAIN_KW if k in t)
     brief = BRIEF_PENALTY if _UNIT_BRIEF_RE.search(t) else 0
-    return relatability_score(t) + crit * 2 + pain * 3 - brief
+    tuned = ((CONTRAST_BONUS if _CONTRAST_RE.search(t) else 0)
+             + (RULE_CHANGE_BONUS if is_rule_change(t) else 0)
+             - (OFFICIAL_PENALTY if _OFFICIAL_RE.search(t) else 0))
+    return relatability_score(t) + crit * 2 + pain * 3 - brief + tuned
 
 
 def _age_days(published: str) -> float | None:

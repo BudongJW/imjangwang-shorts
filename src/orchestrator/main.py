@@ -32,7 +32,7 @@ from src.editor.title_card import (render_title_card, resolve_face, face_credit,
                                    layout_by_name,
                                    render_headline_banner, pick_accent)
 from src.editor.composer import compose, LAYOUT_VERSION
-from src.experiments import current_arms
+from src.experiments import current_arms, arm as exp_arm
 from src.utils.logger import setup_logger
 from src.utils.text import strip_links
 
@@ -94,6 +94,31 @@ def _name_government(plan):
     plan.speech_script = to_speech(plan.caption_script)
     plan.youtube_title = ng(plan.youtube_title)[:40]
     plan.headline = [ng(h) for h in plan.headline]
+    return plan
+
+
+def _apply_outro_arm(plan):
+    """실험 '끝맺음 질문'. 질문 팔인 날 대본이 질문으로 끝나지 않으면 짧은 질문을 붙인다.
+
+    대본 생성기는 프롬프트로 질문을 요청하지만, 사람이 쓴 지정 대본은 그 요청을 거치지
+    않는다. 지정 대본이 잦아서 여기서 맞추지 않으면 질문 팔 표본에 질문 없는 영상이 섞인다.
+    붙이는 질문은 시청자 자신의 상황만 묻고 사실을 말하지 않는다.
+    """
+    if exp_arm("outro_q") != "on":
+        return plan
+    cap = plan.caption_script.rstrip()
+    if cap.endswith("?"):
+        return plan
+    t = f"{getattr(plan, 'youtube_title', '')} {cap}"
+    if re.search(r"전세|월세|임대|세입자", t):
+        q = "여러분이 사는 곳 전월세는 어떤가요? 댓글로 알려 주세요."
+    elif re.search(r"청약|분양", t):
+        q = "여러분 동네 분양 분위기는 어떤가요? 댓글로 알려 주세요."
+    else:
+        q = "여러분 동네 분위기는 어떤가요? 댓글로 알려 주세요."
+    plan.caption_script = f"{cap} {q}"
+    plan.speech_script = to_speech(plan.caption_script)
+    buildnotes.note(f"실험 끝맺음 질문: 대본 끝에 질문을 붙임({q[:20]})")
     return plan
 
 
@@ -372,6 +397,8 @@ def run(skip_upload: bool = False) -> int:
                 plan = _name_government(plan)
             else:
                 buildnotes.note("정부명 표기 생략: 기사가 중앙정부를 주체로 다루지 않는다")
+
+    plan = _apply_outro_arm(plan)
 
     # 3) TTS
     audio, srt = narrate(plan.speech_script)

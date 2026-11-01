@@ -74,14 +74,31 @@ def _story_tokens(title: str) -> set[str]:
     return out
 
 
-def is_recent_same_story(title: str, history: list[dict] | None = None,
-                         days: int = STORY_DAYS) -> str | None:
-    """최근 days일 안에 같은 사건을 다룬 기록이 있으면 그 제목, 없으면 None."""
-    if history is None:
-        history = load_history()
-    mine = _story_tokens(title)
-    if len(mine) < STORY_MIN_SHARED:
-        return None
+# 같은 단지·같은 소재를 며칠 간격으로 되풀이한 경우. 위 규칙(3일·낱말 셋)으로는 안
+# 잡힌다. 10-23 "전세 만기 앞둔 올파포, 인근 전세난 우려"(48시간 210회) 뒤에 10-29
+# "올파포 세입자 만기 보증금만 1조원"(56회)을 또 골랐다. 겹친 낱말은 '올파포·만기' 둘뿐이었다.
+# 그래서 기록 전체에서 드물게 나온 낱말(SUBJECT_MAX_FREQ번 이하)만 세어, 최근 7일 안
+# 기록과 둘 이상 겹치면 같은 소재로 본다. 지난 134편에 돌려 9편이 걸렸고 모두 실제 반복이었다.
+SUBJECT_DAYS = 7
+SUBJECT_MIN_SHARED = 2
+SUBJECT_MAX_FREQ = 3
+_VERBISH_RE = re.compile(r"(?:다|요|죠|까|나|고|며|서|면|게|던|한|된|할|될|운|린|른|진|친|킨|힌|낸|온|간|인)$")
+_SUBJECT_STOP = set("가장 지금 이유 절반 본격화 완화 올라 이후 결과 사설 주춤 전망 만에".split())
+_freq_cache: dict = {}
+
+
+def _token_freq(history: list[dict]) -> dict:
+    key = (id(history), len(history))
+    if _freq_cache.get("key") != key:
+        freq: dict = {}
+        for e in history:
+            for w in _story_tokens(e.get("title", "")):
+                freq[w] = freq.get(w, 0) + 1
+        _freq_cache.update(key=key, freq=freq)
+    return _freq_cache["freq"]
+
+
+def _recent_entries(history: list[dict], days: int):
     cutoff = datetime.now() - timedelta(days=days)
     for entry in history:
         if not entry.get("video_id"):
@@ -90,10 +107,29 @@ def is_recent_same_story(title: str, history: list[dict] | None = None,
             when = datetime.fromisoformat(str(entry.get("date", ""))[:26])
         except ValueError:
             continue
-        if when < cutoff:
-            continue
-        if len(mine & _story_tokens(entry.get("title", ""))) >= STORY_MIN_SHARED:
-            return entry.get("title", "")
+        if when >= cutoff:
+            yield entry
+
+
+def is_recent_same_story(title: str, history: list[dict] | None = None,
+                         days: int = STORY_DAYS) -> str | None:
+    """최근 같은 사건(days일)이나 같은 소재(SUBJECT_DAYS일)를 다룬 기록이 있으면 그 제목."""
+    if history is None:
+        history = load_history()
+    mine = _story_tokens(title)
+    if len(mine) >= STORY_MIN_SHARED:
+        for entry in _recent_entries(history, days):
+            if len(mine & _story_tokens(entry.get("title", ""))) >= STORY_MIN_SHARED:
+                return entry.get("title", "")
+    freq = _token_freq(history)
+    rare = {w for w in mine if not w[0].isdigit() and not _VERBISH_RE.search(w)
+            and w not in _SUBJECT_STOP and freq.get(w, 0) <= SUBJECT_MAX_FREQ}
+    if len(rare) >= SUBJECT_MIN_SHARED:
+        for entry in _recent_entries(history, SUBJECT_DAYS):
+            if entry.get("title") == title:
+                continue
+            if len(rare & _story_tokens(entry.get("title", ""))) >= SUBJECT_MIN_SHARED:
+                return entry.get("title", "")
     return None
 
 

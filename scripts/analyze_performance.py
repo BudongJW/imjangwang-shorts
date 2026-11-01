@@ -600,6 +600,9 @@ def _video_metrics(v: dict, analytics: dict, snapshots: list[dict]) -> dict[str,
             out["pass_rate"] = r
         if m.get("averageViewPercentage"):
             out["avg_pct"] = m["averageViewPercentage"]
+        # 끝맺음 질문 실험(11-01)에서 같이 본다. 좋아요는 몇 개뿐이라 판정 지표로는 안 쓴다.
+        if m.get("likes") is not None and m.get("views"):
+            out["like_rate"] = 1000 * m["likes"] / m["views"]
     return out
 
 
@@ -610,6 +613,8 @@ def _fmt_metric(metric: str, x: float | None) -> str:
         return f"{x * 100:.0f}%"
     if metric == "avg_pct":
         return f"{x:.0f}%"
+    if metric == "like_rate":
+        return f"{x:.1f}"
     return f"{x:,.0f}"
 
 

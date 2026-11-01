@@ -51,6 +51,12 @@ REGISTRY: list[dict] = [
      "control": "photo", "metric": "avg_pct", "also": ["views_48h", "pass_rate"],
      "pinned": True,
      "about": "숫자·비교 카드를 사진 위에 얹는지, 남색 정보 화면 전체로 띄우는지"},
+    # 11-01 성적 분석 뒤 사용자 승인으로 넣었다. 좋아요 비율이 8월 0.91%에서 10월 0.30%로
+    # 떨어졌고, 9월 이후 48시간 1,250회를 넘긴 영상이 없다. 다음 빈 칸에 먼저 연다.
+    {"key": "outro_q", "title": "끝맺음 질문", "arms": ["off", "on"],
+     "control": "off", "metric": "views_48h", "also": ["like_rate", "avg_pct"],
+     "pinned": True,
+     "about": "대본 마지막 문장을 시청자에게 묻는 짧은 질문으로 끝내는지"},
     {"key": "bgm", "title": "배경음", "arms": ["on", "off"],
      "control": "on", "metric": "avg_pct", "also": ["views_48h"],
      "pinned": True,
@@ -66,7 +72,7 @@ MAX_RUNNING = 3
 # 두 배가 모여도 넘으면 '차이 없음'으로 닫는다.
 MIN_N = 10
 METRIC_LABEL = {"views_48h": "게시 48시간 조회수", "pass_rate": "첫 화면 통과율",
-                "avg_pct": "평균 시청률"}
+                "avg_pct": "평균 시청률", "like_rate": "조회 천 회당 좋아요"}
 
 # 상태 파일이 없을 때의 시작점. 길이 실험은 10-02부터 날짜 홀짝으로 돌고
 # 있었다(그날 config/settings.py의 ab). 첫 화면 카드는 10-02부터 늘 켜져
