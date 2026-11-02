@@ -701,6 +701,33 @@ def _subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# '두 배에 가까운'을 '두 배에 달한다'로 옮긴 것. 11-02 초안: 기사는 월세 상승률 7.68%가
+# "지난해 연간 상승률(3.94%)의 두 배에 가까운 수준"이라고 했는데 대본은 "두 배에 달하죠"였다.
+# 숫자 꾸밈 검사(_dropped_qualifier)는 아라비아 숫자만 봐서 '두 배'를 못 읽었다.
+_MULT = r"(\d+(?:\.\d+)?|두|세|네|다섯|여섯|일곱|여덟|아홉|열)\s?배"
+_MULT_APPROX_RE = re.compile(_MULT + r"(?:에|로|가|를)?\s?(가까|육박|가량|안팎|남짓|근접)")
+_MULT_RE = re.compile(_MULT)
+_APPROX_NEAR_RE = re.compile(r"가까|육박|가량|안팎|남짓|근접|약\s|정도|쯤|수준")
+
+
+def _multiple_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    approx = {m.group(1) for m in _MULT_APPROX_RE.finditer(src)}
+    plain = {m.group(1) for m in _MULT_RE.finditer(src)
+             if not _MULT_APPROX_RE.match(src, m.start())}
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        for m in _MULT_RE.finditer(sent):
+            k = m.group(1)
+            if k not in approx or k in plain:
+                continue
+            around = sent[max(0, m.start() - 4):m.end() + 8]
+            if not _APPROX_NEAR_RE.search(around):
+                out.append((sent.strip()[:40], f"기사는 '{k} 배에 가까운'인데 대본은 꾸밈을 뺐다"))
+                break
+    return out
+
+
 def _qualifier_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
@@ -711,7 +738,7 @@ def _qualifier_problems(script: str, source_text: str) -> list[tuple[str, str]]:
         o = _added_over(sent, source_text)
         if o:
             out.append((sent.strip()[:40], f"기사에 없는 '{o}'를 숫자에 붙였다"))
-    return out
+    return out + _multiple_problems(script, source_text)
 
 
 def _soften_verdict(line: str, source: str) -> str | None:
