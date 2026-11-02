@@ -1845,5 +1845,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "노원 국평 월세 210만원⋯서울 중하위권 ‘매매·전세·월세’ 동반 급등",
+    "video_id": "P3tNg2ELJhI",
+    "date": "2026-11-02T02:57:38.038546",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 349,
+    "source": "국민일보",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p8482859",
+      "p32437446",
+      "p7578852",
+      "p12640884",
+      "p20837362",
+      "p20849999",
+      "v7710753",
+      "v6964001",
+      "v6266437"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
