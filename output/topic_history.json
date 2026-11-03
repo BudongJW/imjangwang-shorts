@@ -1876,5 +1876,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"향후 집값, 세제·금리에 달렸다\"…대출규제·공급도 가늠자[연말 부동산 전망]",
+    "video_id": "rY3e92VhcEs",
+    "date": "2026-11-03T02:15:42.867309",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 216,
+    "source": "아시아경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p19763828",
+      "p14452238",
+      "p37384714",
+      "p15176013",
+      "p7654590",
+      "p8297220",
+      "v37500922"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
