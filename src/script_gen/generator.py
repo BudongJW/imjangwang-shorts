@@ -416,6 +416,8 @@ def _clean_script(text: str) -> str:
     text = _STAGE_RE.sub(" ", text)
     text = re.sub(r"[\*#>`\_]+", "", text)                 # 마크다운 잔여
     text = re.sub(r"[\U0001F000-\U0001FAFF☀-➿]", "", text)  # 이모지
+    # "최고칩니다"는 "최고치입니다"의 줄임인데 TTS가 "최고 칩니다"로 읽는다(11-03 초안).
+    text = re.sub(r"(최고|최저|최대|최소|역대)칩니다", r"\1치입니다", text)
     text = re.sub(r"\s+([,.!?])", r"\1", text)
     text = re.sub(r"\s{2,}", " ", text).strip()
     return text
@@ -1719,6 +1721,115 @@ def _future_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사가 개편안·방안으로 쓴 숫자를 이미 바뀐 일로 말한 문장. 11-03 초안: 기사는 "종합부동산세
+# 과세 기준을 주택가액 14억원으로 상향하는 내용의 세제개편안을 내놓은 바 있다", "여야는 이달부터
+# 본격적인 세제개편 작업에 착수한다"였는데 대본은 "종부세 기준을 14억으로 높였지만"이었다.
+# 숫자는 기사에 있고 '내놓은'이 과거라 시제 검사도 통과했다. 대본에서 숫자 바로 뒤에 끝난
+# 동작(높였·올렸·바꿨)이 오고 문장에 계획을 뜻하는 말이 없는데, 기사에서 그 숫자 뒤 같은
+# 문장에는 매번 개편안·방안·추진이 오면 잡는다.
+_PLAN_NUM_RE = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s?(조|억|만|천|%|퍼센트|배|가구|세대|호)")
+_DONE_AFTER_NUM_RE = re.compile(
+    r"[^.,!?]{0,20}?(?:였|렸|췄|웠|꿨|했|됐|었|았|졌)(?:습니다|지만|고|죠|는데|으며|어요|다)")
+_SRC_PLAN_RE = re.compile(
+    r"(?:개편|개정|법|방|정부|수정|대책|계획)안|추진|검토|입법\s?예고|발의|하기로|키로|방침|예정")
+_SRC_ENACTED_RE = re.compile(r"통과|시행|확정|공포|의결|국회를\s?넘")
+_SCRIPT_PLAN_RE = re.compile(
+    r"(?:개편|개정|법|방|정부|수정|최종|대책)안|추진|계획|발표|내놓|내놨|예정|검토|하기로|하겠|"
+    r"입법|발의|제안|논의|방침")
+PLAN_WINDOW = 60
+
+
+def _proposal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = (source_text or "").replace(",", "")
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not sent or _SCRIPT_PLAN_RE.search(sent):
+            continue
+        flat = sent.replace(",", "")
+        for m in _PLAN_NUM_RE.finditer(flat):
+            if not _DONE_AFTER_NUM_RE.match(flat, m.end()):
+                continue
+            n, u = m.group(1), m.group(2)
+            tails = []
+            for h in re.finditer(r"(?<![\d.])" + re.escape(n) + r"\s?" + re.escape(u), src):
+                tails.append(re.split(r"(?<=다)\.", src[h.end():h.end() + PLAN_WINDOW])[0])
+            if tails and all(_SRC_PLAN_RE.search(t) and not _SRC_ENACTED_RE.search(t)
+                             for t in tails):
+                out.append((sent[:40], f"기사는 '{n}{u}'을 개편안으로 썼는데 이미 바뀐 일로 말했다"))
+                break
+    return out
+
+
+# 기사가 전망으로 쓴 내용을 대본이 사실로 맺은 문장. 11-03 초안: 기사는 "금리 인상은 상당수
+# 차주에게 부담이 될 것으로 예상된다"였고 바로 뒤에 "영향이 줄어들었을 것이란 전망도 있다"를
+# 붙였는데 대본은 "금리 인상은 변동금리 차주들에게 큰 부담을 줍니다"였다. 숫자가 없어 숫자
+# 기준인 시제 검사를 피했다. 대본 문장과 낱말이 가장 많이 겹치는 기사 문장이 모두 전망 꼬리로
+# 끝나고, 그 앞에 일어난 일(했다·기록)이 없으면 잡는다.
+FORECAST_MIN_SHARED = 3
+_SRC_SPLIT_RE = re.compile(r"(?<=다)\.\s*|\n")
+_CLAUSE_SPLIT_RE = re.compile(r",|(?:돼|되어|되며|되고|하며|하고|면서|지만|는데|으며)\s")
+
+
+def _forecast_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_st = [(x, _stems(x)) for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if (not sent or _FUTURE_HEDGE_RE.search(sent) or _SCRIPT_ATTR_RE.search(sent)
+                or _HOST_READ_RE.search(sent) or re.search(r"세요|십시오|까요|나요|\?", sent)):
+            continue
+        st = _stems(sent)
+        scored = [(len(st & ss), x) for x, ss in src_st]
+        best = max((k for k, _ in scored), default=0)
+        if best < FORECAST_MIN_SHARED:
+            continue
+        tops = [x for k, x in scored if k == best]
+        def _forecast_only(x: str) -> bool:
+            x = x.strip().rstrip(".")
+            f = _SRC_FORECAST_TAIL_RE.search(x[-25:])
+            if not f or _SRC_PAST_TAIL_RE.search(x[:len(x) - 25 + f.start()]):
+                return False
+            # 겹치는 낱말이 전망이 걸린 마지막 절에 있어야 한다. 10-11 지정 대본 "정비사업도
+            # 함께 진행됩니다"는 기사 "정비사업이 함께 진행돼 일대가 … 변모할 전망이다"의
+            # 앞 절(사실)을 옮긴 것이라 맞다.
+            last = _CLAUSE_SPLIT_RE.split(x)[-1]
+            return len(st & _stems(last)) >= FORECAST_MIN_SHARED
+        if all(_forecast_only(x) for x in tops):
+            out.append((sent[:40], "기사는 전망으로 썼는데 대본은 사실로 맺었다"))
+    return out
+
+
+# 기사에 없는 전부·단정. 11-03 초안: 기사는 집값 변수로 세제·금리를 가장 많이 꼽았고 대출
+# 규제·공급도 꼽혔다고 썼는데 대본은 "연말 국회와 한국은행 결정에 모든 것이 달렸습니다"였다.
+_ALL_RE = re.compile(r"모든\s?(?:것|게)")
+
+
+def _absolute_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if _ALL_RE.search(source_text or ""):
+        return []
+    return [(sent.strip()[:40], "기사에 없는 단정 '모든 것'")
+            for sent in _CHECK_SPLIT_RE.split(script or "") if _ALL_RE.search(sent)]
+
+
+# 기사 내용 없이 묻기만 하는 첫 문장. 11-03 초안이 "여러분은 무엇을 주목하시나요."로
+# 열었다. 첫 화면에서 넘길지 정하는 문장인데 숫자도 기사 낱말도 없다. 사실 대조로 앞 문장이
+# 지워져 남은 것으로 보인다. 걸리면 재요청하고, 그래도 남으면 그 문장을 버린다.
+_EMPTY_ASK_RE = re.compile(r"(?:나요|까요|가요|습니까|ㄹ까)\??$|\?$")
+_EMPTY_WORD_RE = re.compile(r"여러분|무엇|뭘|어떻게|어디|알고\s?계|아시나요|궁금")
+
+
+def _empty_open_problems(script: str) -> list[tuple[str, str]]:
+    parts = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    if not parts:
+        return []
+    first = parts[0]
+    if (len(first) <= 30 and not re.search(r"\d", first)
+            and _EMPTY_ASK_RE.search(first) and _EMPTY_WORD_RE.search(first)):
+        return [(first[:40], "첫 문장이 기사 내용 없는 물음")]
+    return []
+
+
 # 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
 # 26만8천호"라고만 썼는데(다른 매체로 보면 수도권 목표) 대본은 "전국 26만8천호"였다.
 _SCOPE_RE = re.compile(r"(?<![가-힣])전국")
@@ -1927,7 +2038,9 @@ def generate(art) -> ShortPlan:
                  + _duration_problems(text, hay) + _quote_speaker_problems(text, hay)
                  + _stale_month_problems(text, getattr(art, "published", ""))
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
-                 + _subject_problems(text, hay)
+                 + _subject_problems(text, hay) + _proposal_problems(text, hay)
+                 + _forecast_problems(text, hay) + _absolute_problems(text, hay)
+                 + _empty_open_problems(text)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
