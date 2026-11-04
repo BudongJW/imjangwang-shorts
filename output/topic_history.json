@@ -1905,5 +1905,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“고덕 신축이 3억대?”…미친 서울 집값에 ‘월 51만원 토지임대부’ 통할까",
+    "video_id": "k1v9_GTmS0Q",
+    "date": "2026-11-04T02:18:09.134762",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 355,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p40591840",
+      "p34356905",
+      "p40591853",
+      "p38650645",
+      "p14949111",
+      "p38650642",
+      "v37763965",
+      "v29938300"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "on",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
