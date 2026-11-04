@@ -1830,6 +1830,35 @@ def _empty_open_problems(script: str) -> list[tuple[str, str]]:
     return []
 
 
+# 기사에서 말한 적 없는 기관을 말한 사람으로 세운 문장. 11-04 초안: "정부는 낮은 분양가로
+# 서민 주거 안정을 돕는다고 하지만, 이 토지임대부 주택은 …". 기사에서 '정부'는 "정부의
+# '뉴홈' 정책 기준에 따라 … 대출이 지원되어"에만 나왔고 무엇을 말한 적이 없다. 분양가를
+# 낮춘 것도 SH였다. 대본이 기관을 주어로 "~다고 하지만"을 썼는데, 기사에서 그 기관이 나오는
+# 문장에 말하는 동사가 하나도 없으면 잡는다.
+_ORG = r"정부|당국|국토부|국토교통부|서울시|금융위|금융당국|한국은행|한은|기재부|기획재정부"
+_ORG_CLAIM_RE = re.compile(
+    r"(" + _ORG + r")(?:는|은|가|이|에서는|측은)\s?[^.!?]{0,50}?(?:[다라]고|이라고)\s?"
+    r"(?:하지만|하는데|하나|말하지만|주장하지만|강조하지만|설명하지만|밝혔지만|홍보하지만|"
+    r"합니다|했습니다|하죠|했죠)")
+_ORG_SAID_RE = re.compile(
+    r"밝혔|밝히|설명했|설명하|강조했|강조하|말했|주장했|주장하|발표|홍보|라고|다고|이라며|라며|다며|"
+    r"에\s?따르면|브리핑|자료를\s?내|보도자료")
+
+
+def _org_claim_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    segs = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _ORG_CLAIM_RE.search(sent)
+        if not m:
+            continue
+        org = m.group(1)
+        hits = [x for x in segs if re.search(r"(?<![가-힣])" + org, x)]
+        if not any(_ORG_SAID_RE.search(x) for x in hits):
+            out.append((sent.strip()[:40], f"기사에서 '{org}'가 한 말이 아닌데 그렇게 말했다"))
+    return out
+
+
 # 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
 # 26만8천호"라고만 썼는데(다른 매체로 보면 수도권 목표) 대본은 "전국 26만8천호"였다.
 _SCOPE_RE = re.compile(r"(?<![가-힣])전국")
@@ -2040,7 +2069,7 @@ def generate(art) -> ShortPlan:
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _subject_problems(text, hay) + _proposal_problems(text, hay)
                  + _forecast_problems(text, hay) + _absolute_problems(text, hay)
-                 + _empty_open_problems(text)
+                 + _empty_open_problems(text) + _org_claim_problems(text, hay)
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]

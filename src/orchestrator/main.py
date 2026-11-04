@@ -46,6 +46,11 @@ _PAST_GOV = (r"윤석열|문재인|박근혜|이명박|노무현|"
              r"(?:지난|이전|직전|전임|과거|前|전)\s?정부|당시\s*정부")
 _PAST_CTX = re.compile(r"(?:19|20)\d{2}|" + _PAST_GOV)
 _PAST_GOV_RE = re.compile(_PAST_GOV)
+# 지난 정부가 만든 정책 이름. 대본에 있으면 '정부'에 현 정부명을 박지 않는다.
+# 11-04 초안: 기사는 "정부의 '뉴홈' 정책 기준에 따라 … 전용 모기지 대출이 지원"이었는데
+# 이름을 박아 "이재명 정부의 뉴홈 정책으로"가 됐다. 뉴홈은 2022년 윤석열 정부가 내놓은
+# 공공분양 브랜드다. 임대차 3법은 2020년 문재인 정부, 청년원가주택·역세권 첫집은 윤석열 정부.
+_PAST_POLICY_RE = re.compile(r"뉴홈|청년\s?원가\s?주택|역세권\s?첫\s?집|임대차\s?3법")
 # 이름을 박은 뒤 "지난 이재명 정부"처럼 앞뒤가 안 맞으면 되돌린다.
 _BAD_NAMING_RE = re.compile(r"(?:지난|이전|직전|전임|과거|前|전)\s?" + re.escape(GOV_NAME.split()[0]))
 
@@ -88,7 +93,11 @@ def _name_government(plan):
         return orig if _BAD_NAMING_RE.search(t) else t
     # 대본·제목·배너 중 하나라도 지난 정부를 말하면 어느 '정부'가 어느 정부인지
     # 줄마다 따로 가릴 수 없다(배너 한 줄이 "前정부", 다른 줄이 "정부"인 식).
-    if _PAST_GOV_RE.search(" ".join([plan.caption_script, plan.youtube_title, *plan.headline])):
+    joined = " ".join([plan.caption_script, plan.youtube_title, *plan.headline])
+    if _PAST_GOV_RE.search(joined):
+        return plan
+    if _PAST_POLICY_RE.search(joined):
+        buildnotes.note(f"정부명 표기 생략: 지난 정부 정책 '{_PAST_POLICY_RE.search(joined).group(0)}'")
         return plan
     plan.caption_script = ng(plan.caption_script)
     plan.speech_script = to_speech(plan.caption_script)
