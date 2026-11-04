@@ -1935,5 +1935,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "‘집값 하락’이 의아한 서울 외곽⋯ 전세난이 매매가 떠받쳤다",
+    "video_id": "Q4bhDBOUxD8",
+    "date": "2026-11-04T22:16:58.693567",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 255,
+    "source": "국민일보",
+    "age_days": -0.47878984490740745,
+    "topic_score": 13,
+    "recency_score": 4,
+    "media": [
+      "p8293654",
+      "p7680691",
+      "p6283223",
+      "p6863175",
+      "p7580753",
+      "p7680752"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "on",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
