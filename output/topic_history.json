@@ -1963,5 +1963,37 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"세제 감면에 연 4.35% 수익\"…HUG '전월세 안심신탁', 임대인 모집",
+    "video_id": "len2na-nOtQ",
+    "date": "2026-11-05T22:25:00.841322",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 296,
+    "source": "아시아경제",
+    "age_days": 1.8222394975578704,
+    "topic_score": 10,
+    "recency_score": 4,
+    "media": [
+      "p8970297",
+      "p8962453",
+      "p6863331",
+      "p8927456",
+      "p8970289",
+      "p8970295",
+      "v6927320",
+      "v8926982",
+      "v6781916"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
