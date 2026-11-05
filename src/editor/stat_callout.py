@@ -313,6 +313,9 @@ _DATE_WORD_RE = re.compile(r"^(?:\d{4}(?:\s?[~∼～-]\s?\d{4})?년|\d{1,2}(?:\s
                            r"(?:부터|까지|에|엔|의|말|초)?$")
 
 
+_DATE_TAIL_RE = re.compile(r"^(?:말|초|중순|상순|하순|기준|대비|이후|이전)(?:보다|에|에는|과|와|까지|부터|의|엔)?$")
+
+
 def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
     """문장에서 big 숫자 앞의 이름표와 방향(up/down/flat)을 찾는다.
 
@@ -345,6 +348,7 @@ def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
     # 뜻이 바뀌므로 이름표를 버린다. "3.3제곱미터당"처럼 단위 기준만 예외.
     words = sentence[:ws].split()
     label: list[str] = []
+    at_date = False
     for w in reversed(words):
         if len(label) >= LABEL_MAX_WORDS or len(" ".join([w] + label)) > LABEL_MAX_CHARS:
             break
@@ -352,6 +356,7 @@ def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
             break
         # 날짜("2026~2030년", "9월")는 앞말과 끊긴 곳이라 거기서 멈추고 모은 말은 쓴다.
         if _DATE_WORD_RE.match(w):
+            at_date = True
             break
         if re.search(r"\d", w):
             if w.endswith("당") and not label:
@@ -367,6 +372,11 @@ def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
                      or label[0] in ("이하", "이상", "미만", "초과", "이내", "동안", "정도", "가량")
                      or label[0] in _BOUND_LEAD):
         label.pop(0)
+    # 날짜에서 멈췄으면 그 날짜에 붙는 말("6월 말보다"의 '말보다')을 뗀다. 11-05 영상의
+    # 31.8% 카드 이름표가 "말보다"만 남았다.
+    if at_date:
+        while label and _DATE_TAIL_RE.match(label[0]):
+            label.pop(0)
     # 방향: 숫자 어절 뒤 두 어절. 숫자가 든 어절이 나오면 거기서 멈춘다.
     after = []
     for w in sentence[we:].split()[:2]:
