@@ -530,6 +530,7 @@ _QUOTE_NORM_RE = re.compile(r"[^0-9A-Za-z가-힣%]")
 # 그 낱말이 그대로 없어도 문제가 아니라서 검사하지 않는다. 사람의 말을
 # 옮긴 인용은 이보다 길다.
 QUOTE_CHECK_MIN = 12
+QUOTE_SENT_MIN = 8
 
 
 def _norm_quote(s: str) -> str:
@@ -781,7 +782,11 @@ def _fake_quotes(text: str, source_text: str) -> list[str]:
     for m in _QUOTE_SPAN_RE.finditer(text or ""):
         span = next((g for g in m.groups() if g), "")
         n = _norm_quote(span)
-        if len(n) < QUOTE_CHECK_MIN or n in hay:
+        # 짧아도 "~산다", "~했다"로 끝나는 따옴표는 남의 말을 옮긴 문장이다. 11-05 초안:
+        # 기사는 중개업소 대표의 "전세 매물이 없으니 대출받는 김에 조금 더 보태서 매매하는
+        # 사람이 많다"였는데 대본은 '전세 없어 대출받아 산다'였다(정규화 11자라 문턱 아래).
+        sentence_like = len(n) >= QUOTE_SENT_MIN and re.search(r"[다요죠]$", n)
+        if (len(n) < QUOTE_CHECK_MIN and not sentence_like) or n in hay:
             continue
         if span not in bad:
             bad.append(span)
@@ -1063,6 +1068,12 @@ def _pair_problems(script: str, source_text: str) -> list[tuple[str, str]]:
                 continue
             for j in range(max(0, i - 1), min(len(segs), i + 2)):
                 if b in seg_keys[j]:
+                    return True
+            # 사이에 숫자 없는 문장 하나만 끼면 같은 대비다. 11-05 초안: 기사는 "매매 매물은
+            # … 31.8% 늘었다. 반면 전세 매물은 매매 대비 증가세가 더디다. 전세 매물은 …
+            # 7.8% 증가했다"였는데 두 숫자를 한 문장에 묶은 대본이 지워져 핵심 대비가 빠졌다.
+            for j in (i - 2, i + 2):
+                if 0 <= j < len(segs) and b in seg_keys[j] and not seg_keys[(i + j) // 2]:
                     return True
         return False
 
@@ -1859,6 +1870,53 @@ def _org_claim_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사가 '~할 수 있다는 분석'으로 쓴 것을 '~한다는 분석'으로 맺은 문장. 11-05 초안: 기사는
+# "전세 부족에 따른 매수가 이어지며 집값 하락을 제약할 수 있다는 분석이 나온다"였는데
+# 대본은 "이 심각한 전세난이 실수요자를 매매로 떠밀며 집값 하락을 제약한다는 분석입니다".
+# 누구 말인지는 붙였지만 가능성을 단정으로 바꿨다.
+_SAYING_END_RE = re.compile(r"(?:다는|라는|란)\s?(?:분석|전망|관측|지적|평가|예상|우려|진단|얘기|이야기)")
+_SCRIPT_MAYBE_RE = re.compile(r"수\s?있|가능|듯|[을ㄹ]지\s?모|[을ㄹ]\s?것|겠")
+_SRC_MAYBE_RE = re.compile(r"수\s?있(?:다는|을\s?것|다고|으리)|가능성이\s?있다는")
+HEDGE_MIN_SHARED = 3
+
+
+def _hedge_drop_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_st = [(x, _stems(x)) for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not _SAYING_END_RE.search(sent) or _SCRIPT_MAYBE_RE.search(sent):
+            continue
+        st = _stems(sent)
+        scored = [(len(st & ss), x) for x, ss in src_st]
+        best = max((k for k, _ in scored), default=0)
+        if best < HEDGE_MIN_SHARED:
+            continue
+        tops = [x for k, x in scored if k == best]
+        if all(_SRC_MAYBE_RE.search(x) for x in tops):
+            out.append((sent[:40], "기사는 '~할 수 있다'인데 대본은 단정했다"))
+    return out
+
+
+# 기사 제목이 따옴표로 단 말을 따옴표 없이 옮긴 문장. 11-05 초안: 제목 "'집값 하락'이 의아한
+# 서울 외곽"은 대통령이 강조한 집값 하락이 외곽에선 안 맞는다는 뜻인데, 대본 첫 문장은
+# "서울 외곽에선 집값 하락이 의아한 현실입니다"로 집값이 떨어지는 것처럼 읽혔다.
+_TITLE_QUOTED_RE = re.compile(r"[‘'“\"]([^’'”\"]{2,20})[’'”\"]\s?([가-힣]{1,2})?\s([가-힣]{2,})")
+
+
+def _dequoted_title_problems(script: str, title: str) -> list[tuple[str, str]]:
+    out = []
+    for m in _TITLE_QUOTED_RE.finditer(title or ""):
+        phrase, josa, nxt = m.group(1), m.group(2) or "", m.group(3)
+        pat = (r"\s?".join(re.escape(w) for w in phrase.split()) + r"\s?" + re.escape(josa)
+               + r"\s?" + re.escape(nxt[:2]))
+        for sent in _CHECK_SPLIT_RE.split(script or ""):
+            h = re.search(pat, sent)
+            if h and not re.search(r"[‘'“\"]\s?$", sent[:h.start()]):
+                out.append((sent.strip()[:40], f"제목이 따옴표로 단 '{phrase}'를 따옴표 없이 사실처럼 썼다"))
+    return out
+
+
 # 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
 # 26만8천호"라고만 썼는데(다른 매체로 보면 수도권 목표) 대본은 "전국 26만8천호"였다.
 _SCOPE_RE = re.compile(r"(?<![가-힣])전국")
@@ -2070,6 +2128,8 @@ def generate(art) -> ShortPlan:
                  + _subject_problems(text, hay) + _proposal_problems(text, hay)
                  + _forecast_problems(text, hay) + _absolute_problems(text, hay)
                  + _empty_open_problems(text) + _org_claim_problems(text, hay)
+                 + _hedge_drop_problems(text, hay)
+                 + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
                     [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
