@@ -352,9 +352,17 @@ def save_video_metrics(creds, videos: list[dict]) -> None:
         a = fetch_analytics(creds, chunk, start, end)
         if "error" not in a:
             life.update(a)
-        t = fetch_traffic_by_video(creds, chunk, start, end)
-        if "error" not in t:
+    # 유입경로는 10편씩 묻는다. 200편을 한 번에 물으면 실패하는데 오류를 삼켜 11-01부터
+    # 11-05까지 모든 영상의 traffic이 {}로 저장됐다. 리포트의 최근 10편 표는 같은 함수로 잘 나온다.
+    errs = []
+    for i in range(0, len(ids), 10):
+        t = fetch_traffic_by_video(creds, ids[i:i + 10], start, end)
+        if "error" in t:
+            errs.append(t["error"])
+        else:
             traffic.update(t)
+    if errs:
+        print(f"[analyze] 영상별 유입경로 저장 일부 실패 {len(errs)}건: {errs[0][:120]}", file=sys.stderr)
     rows = []
     for v in pub:
         a = life.get(v["video_id"], {})
