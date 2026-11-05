@@ -1,12 +1,28 @@
 {
- "taken_at": "2026-11-05T02:08:07.106450+00:00",
+ "taken_at": "2026-11-05T22:41:36.115463+00:00",
  "videos": [
+  {
+   "video_id": "fjCJQEfYRTo",
+   "title": "서울 외곽 전셋값 6.9% 매매가 4.6% 올라…전세 매물 부족 #전세 #서울아파트 #노원",
+   "published_kst": "2026-11-05 19:00",
+   "duration_s": 34,
+   "views": 13,
+   "likes": 0,
+   "comments": 0,
+   "averageViewDuration": null,
+   "averageViewPercentage": null,
+   "subscribersGained": null,
+   "shares": null,
+   "engagedViews": null,
+   "estimatedMinutesWatched": null,
+   "traffic": {}
+  },
   {
    "video_id": "k1v9_GTmS0Q",
    "title": "고덕강일3단지 건물값 2억8천부터…토지임대료 월 51만원 조건 정리 #토지임대부 #고덕강일 #SH",
    "published_kst": "2026-11-04 19:00",
    "duration_s": 60,
-   "views": 23,
+   "views": 35,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": null,
@@ -22,39 +38,44 @@
    "title": "집값 변수 1위 세제개편 55.6%…주담대 금리 14년여 만에 최고 #부동산 #집값 #세제개편",
    "published_kst": "2026-11-03 19:00",
    "duration_s": 34,
-   "views": 8,
+   "views": 11,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": null,
-   "averageViewPercentage": null,
-   "subscribersGained": null,
-   "shares": null,
-   "engagedViews": null,
-   "estimatedMinutesWatched": null,
-   "traffic": {}
+   "averageViewDuration": 20,
+   "averageViewPercentage": 59.589999999999996,
+   "subscribersGained": 0,
+   "shares": 0,
+   "engagedViews": 2,
+   "estimatedMinutesWatched": 0,
+   "traffic": {
+    "SHORTS": 8
+   }
   },
   {
    "video_id": "P3tNg2ELJhI",
    "title": "노원 국평 월세 210만원…매매·전세·월세 모두 10% 넘게 올라 #월세 #노원 #서울아파트",
    "published_kst": "2026-11-02 19:00",
    "duration_s": 56,
-   "views": 21,
+   "views": 28,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 13,
-   "averageViewPercentage": 23.4,
+   "averageViewDuration": 25,
+   "averageViewPercentage": 45.05,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 6,
-   "estimatedMinutesWatched": 1,
-   "traffic": {}
+   "engagedViews": 8,
+   "estimatedMinutesWatched": 3,
+   "traffic": {
+    "SHORTS": 16,
+    "YT_SEARCH": 4
+   }
   },
   {
    "video_id": "B4bvVltAxB8",
    "title": "지방 비아파트 임대차 87.6%가 월세…8건 중 7건꼴 #월세 #비아파트 #임대차",
    "published_kst": "2026-11-01 19:00",
    "duration_s": 39,
-   "views": 852,
+   "views": 853,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 24,
@@ -63,14 +84,20 @@
    "shares": 0,
    "engagedViews": 146,
    "estimatedMinutesWatched": 77,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 829,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 8,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Mz3F-2M-dKo",
    "title": "10·29 공급대책 7만 6700가구…전문가 평가 엇갈려 #공급대책 #신규택지 #김포",
    "published_kst": "2026-10-31 19:00",
    "duration_s": 50,
-   "views": 250,
+   "views": 251,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 25,
@@ -79,14 +106,19 @@
    "shares": 0,
    "engagedViews": 57,
    "estimatedMinutesWatched": 28,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 219,
+    "YT_SEARCH": 23,
+    "YT_OTHER_PAGE": 9,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "oKkqZMH4Xn8",
    "title": "강남 주춤한 사이 외곽 급등…하위 20% 아파트 11.87% 올라 #서울아파트 #집값격차 #외곽",
    "published_kst": "2026-10-30 19:00",
    "duration_s": 41,
-   "views": 1083,
+   "views": 1084,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 18,
@@ -95,14 +127,20 @@
    "shares": 0,
    "engagedViews": 257,
    "estimatedMinutesWatched": 99,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1056,
+    "YT_SEARCH": 22,
+    "YT_OTHER_PAGE": 4,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "WK08C1tHPRs",
    "title": "올파포 전월세 1301건 만기…보증금 9157억원 #올림픽파크포레온 #올파포 #실거주의무",
    "published_kst": "2026-10-29 19:00",
    "duration_s": 53,
-   "views": 71,
+   "views": 72,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 22,
@@ -111,7 +149,12 @@
    "shares": 0,
    "engagedViews": 25,
    "estimatedMinutesWatched": 10,
-   "traffic": {}
+   "traffic": {
+    "YT_SEARCH": 48,
+    "SHORTS": 19,
+    "NOTIFICATION": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "le_6uhMU_nk",
@@ -127,7 +170,11 @@
    "shares": 0,
    "engagedViews": 7,
    "estimatedMinutesWatched": 1,
-   "traffic": {}
+   "traffic": {
+    "YT_SEARCH": 13,
+    "SHORTS": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "4iKDOIYHf5Y",
@@ -143,7 +190,13 @@
    "shares": 0,
    "engagedViews": 159,
    "estimatedMinutesWatched": 165,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 956,
+    "YT_SEARCH": 28,
+    "YT_OTHER_PAGE": 5,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "1fQ8a0cDPeE",
@@ -159,7 +212,12 @@
    "shares": 0,
    "engagedViews": 21,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "YT_SEARCH": 53,
+    "SHORTS": 11,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "uAwMw7y2ETk",
@@ -175,23 +233,31 @@
    "shares": 0,
    "engagedViews": 38,
    "estimatedMinutesWatched": 14,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 77,
+    "YT_SEARCH": 5
+   }
   },
   {
    "video_id": "lFBNAGp-OPQ",
    "title": "올파포 첫 전세 만기…집주인 실거주에 59㎡ 전세 13억 #올림픽파크포레온 #전세 #전세난",
    "published_kst": "2026-10-23 19:00",
    "duration_s": 48,
-   "views": 452,
+   "views": 454,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 36,
-   "averageViewPercentage": 75.51,
+   "averageViewPercentage": 75.07,
    "subscribersGained": 1,
    "shares": 0,
-   "engagedViews": 155,
+   "engagedViews": 156,
    "estimatedMinutesWatched": 99,
-   "traffic": {}
+   "traffic": {
+    "YT_SEARCH": 359,
+    "SHORTS": 90,
+    "SUBSCRIBER": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "5USyuFdQsYU",
@@ -207,7 +273,11 @@
    "shares": 0,
    "engagedViews": 205,
    "estimatedMinutesWatched": 77,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 544,
+    "YT_SEARCH": 23,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "iPEluQb6ccU",
@@ -223,7 +293,12 @@
    "shares": 0,
    "engagedViews": 30,
    "estimatedMinutesWatched": 15,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 216,
+    "YT_SEARCH": 13,
+    "NO_LINK_OTHER": 1,
+    "YT_OTHER_PAGE": 0
+   }
   },
   {
    "video_id": "NXx5Aszf3RI",
@@ -239,7 +314,11 @@
    "shares": 0,
    "engagedViews": 18,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 100,
+    "YT_SEARCH": 3,
+    "YT_OTHER_PAGE": 2
+   }
   },
   {
    "video_id": "h5UFpn701UE",
@@ -255,7 +334,11 @@
    "shares": 0,
    "engagedViews": 43,
    "estimatedMinutesWatched": 21,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 99,
+    "YT_SEARCH": 14,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "jUyGAYk2974",
@@ -271,23 +354,32 @@
    "shares": 0,
    "engagedViews": 14,
    "estimatedMinutesWatched": 3,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 34,
+    "YT_SEARCH": 2
+   }
   },
   {
    "video_id": "mbJRwOHYLZE",
    "title": "강동 3억대 새 아파트…매달 토지임대료 51만원 #고덕강일 #토지임대부 #SH",
    "published_kst": "2026-10-17 19:00",
    "duration_s": 52,
-   "views": 1378,
+   "views": 1397,
    "likes": 8,
    "comments": 3,
-   "averageViewDuration": 38,
-   "averageViewPercentage": 74.3,
+   "averageViewDuration": 39,
+   "averageViewPercentage": 76.81,
    "subscribersGained": 2,
    "shares": 5,
-   "engagedViews": 438,
-   "estimatedMinutesWatched": 298,
-   "traffic": {}
+   "engagedViews": 441,
+   "estimatedMinutesWatched": 310,
+   "traffic": {
+    "YT_SEARCH": 1265,
+    "SHORTS": 99,
+    "YT_CHANNEL": 2,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "R9qwxvVbJ7I",
@@ -303,7 +395,13 @@
    "shares": 0,
    "engagedViews": 164,
    "estimatedMinutesWatched": 131,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 562,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ULQ9dCAB9PE",
@@ -319,7 +417,12 @@
    "shares": 0,
    "engagedViews": 59,
    "estimatedMinutesWatched": 21,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 261,
+    "YT_SEARCH": 14,
+    "YT_OTHER_PAGE": 6,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "c7qugpoDEd4",
@@ -335,23 +438,36 @@
    "shares": 0,
    "engagedViews": 50,
    "estimatedMinutesWatched": 11,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 134,
+    "YT_SEARCH": 7,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "rFHicLUKGhM",
    "title": "2027년 서울 입주 물량 바닥…김경민 교수 '격변의 서막' #김경민 #서울아파트 #입주물량",
    "published_kst": "2026-10-13 19:00",
    "duration_s": 53,
-   "views": 1262,
+   "views": 1267,
    "likes": 11,
    "comments": 0,
    "averageViewDuration": 42,
-   "averageViewPercentage": 80.86,
+   "averageViewPercentage": 80.68,
    "subscribersGained": 2,
    "shares": 1,
-   "engagedViews": 554,
-   "estimatedMinutesWatched": 412,
-   "traffic": {}
+   "engagedViews": 558,
+   "estimatedMinutesWatched": 414,
+   "traffic": {
+    "SHORTS": 1109,
+    "YT_SEARCH": 143,
+    "YT_OTHER_PAGE": 6,
+    "NOTIFICATION": 2,
+    "YT_CHANNEL": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "iiQ3GzkTalY",
@@ -367,7 +483,12 @@
    "shares": 0,
    "engagedViews": 366,
    "estimatedMinutesWatched": 250,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 869,
+    "YT_SEARCH": 16,
+    "YT_OTHER_PAGE": 7,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "aX6mSJwY0ms",
@@ -383,7 +504,12 @@
    "shares": 0,
    "engagedViews": 97,
    "estimatedMinutesWatched": 39,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 280,
+    "YT_SEARCH": 51,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "zh9I1lysuS8",
@@ -399,7 +525,13 @@
    "shares": 3,
    "engagedViews": 601,
    "estimatedMinutesWatched": 305,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1140,
+    "YT_SEARCH": 38,
+    "YT_OTHER_PAGE": 8,
+    "NOTIFICATION": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "mzYVoyeaLwg",
@@ -415,7 +547,10 @@
    "shares": 0,
    "engagedViews": 17,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 54,
+    "YT_SEARCH": 8
+   }
   },
   {
    "video_id": "gDwS1rP-B-4",
@@ -431,7 +566,14 @@
    "shares": 0,
    "engagedViews": 169,
    "estimatedMinutesWatched": 103,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 335,
+    "YT_SEARCH": 36,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 3,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "5Z-XFO5lMPc",
@@ -447,7 +589,13 @@
    "shares": 0,
    "engagedViews": 40,
    "estimatedMinutesWatched": 36,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 81,
+    "YT_CHANNEL": 7,
+    "YT_SEARCH": 4,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "KuGYvm6VQMQ",
@@ -463,7 +611,12 @@
    "shares": 0,
    "engagedViews": 68,
    "estimatedMinutesWatched": 27,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 344,
+    "YT_SEARCH": 21,
+    "YT_CHANNEL": 2,
+    "YT_OTHER_PAGE": 0
+   }
   },
   {
    "video_id": "ZopysldeIoE",
@@ -479,7 +632,12 @@
    "shares": 0,
    "engagedViews": 65,
    "estimatedMinutesWatched": 85,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 340,
+    "YT_SEARCH": 13,
+    "NO_LINK_OTHER": 1,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "8N5VLEAJRTQ",
@@ -495,7 +653,13 @@
    "shares": 0,
    "engagedViews": 65,
    "estimatedMinutesWatched": 21,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 105,
+    "YT_SEARCH": 3,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "hmXqmCcMYvw",
@@ -511,7 +675,13 @@
    "shares": 1,
    "engagedViews": 114,
    "estimatedMinutesWatched": 63,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 315,
+    "YT_SEARCH": 49,
+    "YT_CHANNEL": 1,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "zElBoYqMA7o",
@@ -527,7 +697,13 @@
    "shares": 0,
    "engagedViews": 292,
    "estimatedMinutesWatched": 260,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 946,
+    "YT_SEARCH": 40,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "7WUIgNgeojk",
@@ -543,7 +719,13 @@
    "shares": 0,
    "engagedViews": 74,
    "estimatedMinutesWatched": 64,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 428,
+    "YT_SEARCH": 19,
+    "YT_OTHER_PAGE": 3,
+    "NO_LINK_OTHER": 1,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "RKOQgHAIj4g",
@@ -559,7 +741,14 @@
    "shares": 0,
    "engagedViews": 382,
    "estimatedMinutesWatched": 335,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 933,
+    "YT_SEARCH": 27,
+    "YT_OTHER_PAGE": 23,
+    "HASHTAGS": 5,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_ybbdJNAT_k",
@@ -575,7 +764,12 @@
    "shares": 0,
    "engagedViews": 63,
    "estimatedMinutesWatched": 39,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 157,
+    "YT_SEARCH": 34,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "DS1w8j_6HYk",
@@ -591,7 +785,13 @@
    "shares": 0,
    "engagedViews": 428,
    "estimatedMinutesWatched": 203,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1020,
+    "YT_SEARCH": 73,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "uv55fayUmgE",
@@ -607,23 +807,34 @@
    "shares": 0,
    "engagedViews": 49,
    "estimatedMinutesWatched": 21,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 109,
+    "YT_SEARCH": 30,
+    "YT_CHANNEL": 1,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "YxT66edptts",
    "title": "청년 전세대출 보증 만 39세까지 확대, 조건 정리 #청년전세대출 #전세대출 #청년특례보증",
    "published_kst": "2026-10-01 12:00",
    "duration_s": 57,
-   "views": 682,
+   "views": 705,
    "likes": 2,
    "comments": 0,
-   "averageViewDuration": 40,
-   "averageViewPercentage": 70.52,
+   "averageViewDuration": 39,
+   "averageViewPercentage": 69.89,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 300,
-   "estimatedMinutesWatched": 208,
-   "traffic": {}
+   "engagedViews": 309,
+   "estimatedMinutesWatched": 212,
+   "traffic": {
+    "YT_SEARCH": 633,
+    "SHORTS": 27,
+    "EXT_URL": 7,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ZIykfOh-3Y0",
@@ -639,7 +850,13 @@
    "shares": 0,
    "engagedViews": 111,
    "estimatedMinutesWatched": 62,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 259,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 2,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "lrvSd8XshnI",
@@ -655,14 +872,20 @@
    "shares": 0,
    "engagedViews": 174,
    "estimatedMinutesWatched": 195,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 347,
+    "YT_SEARCH": 29,
+    "YT_CHANNEL": 1,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "CJ2TzSTDsqk",
    "title": "서울 대학가 원룸 월세 70만원 돌파…서울대 인근 26% 뛰어 #부동산 #월세 #원룸",
    "published_kst": "2026-09-29 19:59",
    "duration_s": 53,
-   "views": 336,
+   "views": 340,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 31,
@@ -671,7 +894,14 @@
    "shares": 1,
    "engagedViews": 126,
    "estimatedMinutesWatched": 71,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 230,
+    "YT_SEARCH": 103,
+    "YT_CHANNEL": 1,
+    "YT_OTHER_PAGE": 1,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Y09eREHTCF8",
@@ -687,14 +917,18 @@
    "shares": 3,
    "engagedViews": 146,
    "estimatedMinutesWatched": 120,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 306,
+    "YT_SEARCH": 39,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "AQgjs74YZso",
    "title": "2년 안 됐는데 보증금 인상 요구? 동의부터 하지 마세요 #부동산 #전세 #월세",
    "published_kst": "2026-09-29 11:00",
    "duration_s": 54,
-   "views": 1160,
+   "views": 1161,
    "likes": 12,
    "comments": 0,
    "averageViewDuration": 71,
@@ -703,23 +937,34 @@
    "shares": 12,
    "engagedViews": 602,
    "estimatedMinutesWatched": 733,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1119,
+    "YT_SEARCH": 32,
+    "YT_OTHER_PAGE": 8,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "KkKCFk_rkXI",
    "title": "빌라 규모 44년 만에 확대…다가구 4층까지 허용 #부동산 #빌라 #다가구주택",
    "published_kst": "2026-09-28 17:45",
    "duration_s": 56,
-   "views": 562,
+   "views": 580,
    "likes": 3,
    "comments": 0,
-   "averageViewDuration": 39,
-   "averageViewPercentage": 69.67,
+   "averageViewDuration": 40,
+   "averageViewPercentage": 73.03,
    "subscribersGained": 0,
-   "shares": 1,
-   "engagedViews": 179,
-   "estimatedMinutesWatched": 122,
-   "traffic": {}
+   "shares": 3,
+   "engagedViews": 207,
+   "estimatedMinutesWatched": 148,
+   "traffic": {
+    "SHORTS": 297,
+    "YT_SEARCH": 258,
+    "YT_OTHER_PAGE": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "yyBHwXfaVtM",
@@ -735,7 +980,11 @@
    "shares": 0,
    "engagedViews": 54,
    "estimatedMinutesWatched": 38,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 116,
+    "YT_SEARCH": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "72_x_kElZ64",
@@ -751,14 +1000,21 @@
    "shares": 0,
    "engagedViews": 427,
    "estimatedMinutesWatched": 232,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1124,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 1,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "lr6ZzEMTcts",
    "title": "\"강남 30평대 3억에 가능\"? 마곡은 건물값만 4억 #부동산 #토지임대부 #반값아파트",
    "published_kst": "2026-09-27 15:30",
    "duration_s": 61,
-   "views": 224,
+   "views": 225,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 144,
@@ -767,7 +1023,13 @@
    "shares": 0,
    "engagedViews": 88,
    "estimatedMinutesWatched": 215,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 182,
+    "YT_SEARCH": 39,
+    "YT_OTHER_PAGE": 2,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "4kpkeZzsl14",
@@ -783,7 +1045,11 @@
    "shares": 0,
    "engagedViews": 96,
    "estimatedMinutesWatched": 35,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 479,
+    "YT_SEARCH": 7,
+    "YT_OTHER_PAGE": 2
+   }
   },
   {
    "video_id": "Lkg_8qIRo5I",
@@ -799,7 +1065,13 @@
    "shares": 0,
    "engagedViews": 311,
    "estimatedMinutesWatched": 173,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 676,
+    "YT_SEARCH": 37,
+    "YT_OTHER_PAGE": 11,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ToaPY1MVeJQ",
@@ -815,7 +1087,14 @@
    "shares": 0,
    "engagedViews": 394,
    "estimatedMinutesWatched": 357,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1008,
+    "YT_SEARCH": 24,
+    "YT_OTHER_PAGE": 6,
+    "YT_CHANNEL": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "b-sHoeyS-cM",
@@ -831,7 +1110,13 @@
    "shares": 1,
    "engagedViews": 97,
    "estimatedMinutesWatched": 71,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 235,
+    "YT_SEARCH": 41,
+    "YT_OTHER_PAGE": 2,
+    "NO_LINK_OTHER": 1,
+    "HASHTAGS": 1
+   }
   },
   {
    "video_id": "JW5IICawOt4",
@@ -847,7 +1132,15 @@
    "shares": 0,
    "engagedViews": 348,
    "estimatedMinutesWatched": 323,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 960,
+    "YT_SEARCH": 33,
+    "YT_OTHER_PAGE": 13,
+    "YT_CHANNEL": 1,
+    "PLAYLIST": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "EgJYpIdX-SY",
@@ -863,7 +1156,13 @@
    "shares": 0,
    "engagedViews": 29,
    "estimatedMinutesWatched": 11,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 178,
+    "YT_SEARCH": 23,
+    "YT_OTHER_PAGE": 2,
+    "NO_LINK_OTHER": 0,
+    "YT_CHANNEL": 0
+   }
   },
   {
    "video_id": "szkwiMExQWY",
@@ -879,7 +1178,13 @@
    "shares": 0,
    "engagedViews": 371,
    "estimatedMinutesWatched": 206,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 852,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "1GWtMyDh3Ic",
@@ -895,7 +1200,13 @@
    "shares": 1,
    "engagedViews": 225,
    "estimatedMinutesWatched": 123,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 643,
+    "YT_SEARCH": 10,
+    "YT_CHANNEL": 4,
+    "YT_OTHER_PAGE": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "6irA70AiJCU",
@@ -911,7 +1222,13 @@
    "shares": 0,
    "engagedViews": 66,
    "estimatedMinutesWatched": 36,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 110,
+    "YT_SEARCH": 16,
+    "YT_CHANNEL": 5,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ws0IiHGe8WI",
@@ -927,7 +1244,15 @@
    "shares": 0,
    "engagedViews": 60,
    "estimatedMinutesWatched": 23,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 108,
+    "YT_SEARCH": 29,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 2,
+    "EXT_URL": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "wEISC_YCaW0",
@@ -943,7 +1268,14 @@
    "shares": 0,
    "engagedViews": 89,
    "estimatedMinutesWatched": 80,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 193,
+    "YT_SEARCH": 5,
+    "NOTIFICATION": 4,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "8gCW0FU_yys",
@@ -959,7 +1291,12 @@
    "shares": 0,
    "engagedViews": 74,
    "estimatedMinutesWatched": 107,
-   "traffic": {}
+   "traffic": {
+    "YT_SEARCH": 311,
+    "SHORTS": 165,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "0-uirS2qVYE",
@@ -975,7 +1312,13 @@
    "shares": 2,
    "engagedViews": 483,
    "estimatedMinutesWatched": 362,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1077,
+    "YT_SEARCH": 89,
+    "YT_OTHER_PAGE": 21,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "UCoeoEBysPI",
@@ -991,7 +1334,14 @@
    "shares": 0,
    "engagedViews": 343,
    "estimatedMinutesWatched": 249,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 745,
+    "YT_SEARCH": 23,
+    "YT_CHANNEL": 5,
+    "YT_OTHER_PAGE": 3,
+    "EXT_URL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "XrzdOJ_cbfg",
@@ -1007,7 +1357,15 @@
    "shares": 0,
    "engagedViews": 807,
    "estimatedMinutesWatched": 698,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1583,
+    "YT_SEARCH": 76,
+    "YT_CHANNEL": 4,
+    "YT_OTHER_PAGE": 4,
+    "HASHTAGS": 2,
+    "SUBSCRIBER": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "I1OJyPMmtE0",
@@ -1023,7 +1381,13 @@
    "shares": 4,
    "engagedViews": 816,
    "estimatedMinutesWatched": 381,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1356,
+    "YT_SEARCH": 48,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "diRBIdXFvLw",
@@ -1039,7 +1403,15 @@
    "shares": 0,
    "engagedViews": 460,
    "estimatedMinutesWatched": 308,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 931,
+    "YT_SEARCH": 51,
+    "YT_OTHER_PAGE": 12,
+    "YT_CHANNEL": 4,
+    "EXT_URL": 2,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "6xmK7htIFZY",
@@ -1055,7 +1427,14 @@
    "shares": 0,
    "engagedViews": 675,
    "estimatedMinutesWatched": 392,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1123,
+    "YT_SEARCH": 34,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 5,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Fpe2uiVBws8",
@@ -1071,7 +1450,16 @@
    "shares": 0,
    "engagedViews": 822,
    "estimatedMinutesWatched": 392,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1245,
+    "YT_SEARCH": 57,
+    "YT_OTHER_PAGE": 17,
+    "YT_CHANNEL": 3,
+    "NOTIFICATION": 1,
+    "HASHTAGS": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "bhW0PmfYiho",
@@ -1087,7 +1475,17 @@
    "shares": 0,
    "engagedViews": 866,
    "estimatedMinutesWatched": 456,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1353,
+    "YT_SEARCH": 23,
+    "YT_OTHER_PAGE": 13,
+    "YT_CHANNEL": 6,
+    "SUBSCRIBER": 3,
+    "PLAYLIST": 2,
+    "HASHTAGS": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "c-Gt4PfJ3Ww",
@@ -1103,7 +1501,15 @@
    "shares": 0,
    "engagedViews": 912,
    "estimatedMinutesWatched": 562,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1706,
+    "YT_SEARCH": 22,
+    "YT_OTHER_PAGE": 12,
+    "YT_CHANNEL": 2,
+    "SUBSCRIBER": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_49Rh7rSjdI",
@@ -1119,7 +1525,18 @@
    "shares": 6,
    "engagedViews": 1941,
    "estimatedMinutesWatched": 1473,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 3115,
+    "YT_SEARCH": 85,
+    "YT_OTHER_PAGE": 20,
+    "HASHTAGS": 5,
+    "YT_CHANNEL": 3,
+    "EXT_URL": 2,
+    "SUBSCRIBER": 1,
+    "PLAYLIST": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "OE9iuB1hXI8",
@@ -1135,7 +1552,13 @@
    "shares": 0,
    "engagedViews": 1269,
    "estimatedMinutesWatched": 931,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1837,
+    "YT_SEARCH": 138,
+    "YT_OTHER_PAGE": 37,
+    "YT_CHANNEL": 6,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "-DWoKeSITro",
@@ -1151,7 +1574,14 @@
    "shares": 1,
    "engagedViews": 1229,
    "estimatedMinutesWatched": 1106,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2143,
+    "YT_SEARCH": 88,
+    "YT_OTHER_PAGE": 19,
+    "YT_CHANNEL": 2,
+    "HASHTAGS": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "UuYdiMQBOXM",
@@ -1167,7 +1597,14 @@
    "shares": 0,
    "engagedViews": 340,
    "estimatedMinutesWatched": 168,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1006,
+    "YT_SEARCH": 15,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 2,
+    "PLAYLIST": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "O0hWaiaYuu4",
@@ -1183,7 +1620,17 @@
    "shares": 0,
    "engagedViews": 1862,
    "estimatedMinutesWatched": 1369,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 3212,
+    "YT_SEARCH": 47,
+    "YT_OTHER_PAGE": 29,
+    "YT_CHANNEL": 4,
+    "NOTIFICATION": 3,
+    "SOUND_PAGE": 3,
+    "SUBSCRIBER": 2,
+    "HASHTAGS": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_nYSpCiJBWc",
@@ -1199,7 +1646,13 @@
    "shares": 0,
    "engagedViews": 122,
    "estimatedMinutesWatched": 106,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 322,
+    "YT_SEARCH": 5,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "lHOFdJ_brds",
@@ -1215,7 +1668,13 @@
    "shares": 2,
    "engagedViews": 593,
    "estimatedMinutesWatched": 448,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1190,
+    "YT_SEARCH": 28,
+    "YT_OTHER_PAGE": 14,
+    "NO_LINK_OTHER": 1,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "VrND_YTp2sw",
@@ -1231,7 +1690,15 @@
    "shares": 0,
    "engagedViews": 373,
    "estimatedMinutesWatched": 196,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1203,
+    "YT_SEARCH": 23,
+    "YT_OTHER_PAGE": 18,
+    "YT_CHANNEL": 3,
+    "NOTIFICATION": 1,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "JiIIzkaS3eo",
@@ -1247,7 +1714,15 @@
    "shares": 1,
    "engagedViews": 1125,
    "estimatedMinutesWatched": 1039,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2457,
+    "YT_SEARCH": 34,
+    "YT_OTHER_PAGE": 25,
+    "YT_CHANNEL": 4,
+    "NOTIFICATION": 2,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "gLiS5Ibk0Yc",
@@ -1263,7 +1738,13 @@
    "shares": 0,
    "engagedViews": 530,
    "estimatedMinutesWatched": 376,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1364,
+    "YT_SEARCH": 20,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "PtGtVrjyhLU",
@@ -1279,7 +1760,13 @@
    "shares": 0,
    "engagedViews": 330,
    "estimatedMinutesWatched": 231,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 909,
+    "YT_SEARCH": 16,
+    "YT_OTHER_PAGE": 7,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "3RA6-I_vZi0",
@@ -1295,7 +1782,15 @@
    "shares": 1,
    "engagedViews": 591,
    "estimatedMinutesWatched": 364,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1639,
+    "YT_SEARCH": 64,
+    "YT_OTHER_PAGE": 23,
+    "YT_CHANNEL": 4,
+    "NOTIFICATION": 1,
+    "HASHTAGS": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "-Du9Yz_P9UM",
@@ -1311,14 +1806,22 @@
    "shares": 0,
    "engagedViews": 592,
    "estimatedMinutesWatched": 320,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1164,
+    "YT_SEARCH": 21,
+    "YT_OTHER_PAGE": 14,
+    "YT_CHANNEL": 5,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0,
+    "SOUND_PAGE": 0
+   }
   },
   {
    "video_id": "P-OAfaG4y7A",
    "title": "충격! 세금 폭탄, 집값 대신 이걸 잡았다? 임장왕의 진짜 분석! #부동산 #집값 #세금폭탄",
    "published_kst": "2026-08-15 08:48",
    "duration_s": 68,
-   "views": 1916,
+   "views": 1918,
    "likes": 39,
    "comments": 0,
    "averageViewDuration": 53,
@@ -1327,7 +1830,14 @@
    "shares": 1,
    "engagedViews": 867,
    "estimatedMinutesWatched": 794,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1833,
+    "YT_SEARCH": 51,
+    "YT_OTHER_PAGE": 27,
+    "YT_CHANNEL": 4,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "jaJ5Rm-XU5I",
@@ -1343,7 +1853,13 @@
    "shares": 0,
    "engagedViews": 376,
    "estimatedMinutesWatched": 246,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 739,
+    "YT_SEARCH": 23,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "lQhjjrVCAfw",
@@ -1359,7 +1875,14 @@
    "shares": 1,
    "engagedViews": 535,
    "estimatedMinutesWatched": 467,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1059,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 2,
+    "NOTIFICATION": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "IQ-q8DvGVDQ",
@@ -1375,7 +1898,13 @@
    "shares": 0,
    "engagedViews": 558,
    "estimatedMinutesWatched": 350,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1111,
+    "YT_SEARCH": 29,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "xMF_DmPR1QQ",
@@ -1391,7 +1920,13 @@
    "shares": 0,
    "engagedViews": 315,
    "estimatedMinutesWatched": 333,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 744,
+    "YT_SEARCH": 11,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "VgaS0i2DTqk",
@@ -1407,7 +1942,13 @@
    "shares": 0,
    "engagedViews": 521,
    "estimatedMinutesWatched": 366,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1129,
+    "YT_OTHER_PAGE": 10,
+    "YT_SEARCH": 8,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "VOuTpsrVo6M",
@@ -1423,7 +1964,13 @@
    "shares": 0,
    "engagedViews": 555,
    "estimatedMinutesWatched": 586,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1172,
+    "YT_SEARCH": 20,
+    "YT_OTHER_PAGE": 10,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "3PXS3xmwLf4",
@@ -1439,7 +1986,13 @@
    "shares": 1,
    "engagedViews": 562,
    "estimatedMinutesWatched": 370,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1231,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 17,
+    "YT_CHANNEL": 6,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "lKeZNrHCsGQ",
@@ -1455,7 +2008,14 @@
    "shares": 0,
    "engagedViews": 383,
    "estimatedMinutesWatched": 210,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 980,
+    "YT_SEARCH": 36,
+    "YT_OTHER_PAGE": 15,
+    "YT_CHANNEL": 5,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "f7clXP0gVZo",
@@ -1471,7 +2031,14 @@
    "shares": 1,
    "engagedViews": 533,
    "estimatedMinutesWatched": 494,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1025,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 17,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 1,
+    "SOUND_PAGE": 1
+   }
   },
   {
    "video_id": "rTRcIrdg9JA",
@@ -1487,7 +2054,13 @@
    "shares": 0,
    "engagedViews": 212,
    "estimatedMinutesWatched": 248,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 400,
+    "YT_SEARCH": 7,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "wvVIvBAGunA",
@@ -1503,7 +2076,13 @@
    "shares": 0,
    "engagedViews": 508,
    "estimatedMinutesWatched": 411,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1264,
+    "YT_OTHER_PAGE": 14,
+    "YT_SEARCH": 6,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_g3IF-p7jFQ",
@@ -1519,7 +2098,14 @@
    "shares": 0,
    "engagedViews": 596,
    "estimatedMinutesWatched": 359,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1174,
+    "YT_OTHER_PAGE": 14,
+    "YT_SEARCH": 13,
+    "YT_CHANNEL": 6,
+    "HASHTAGS": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "HZ1PDDOwEAg",
@@ -1535,7 +2121,14 @@
    "shares": 1,
    "engagedViews": 488,
    "estimatedMinutesWatched": 357,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1212,
+    "YT_OTHER_PAGE": 24,
+    "YT_CHANNEL": 7,
+    "YT_SEARCH": 5,
+    "NOTIFICATION": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Fp4TzmECPDE",
@@ -1551,7 +2144,14 @@
    "shares": 3,
    "engagedViews": 559,
    "estimatedMinutesWatched": 343,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1228,
+    "YT_SEARCH": 16,
+    "YT_OTHER_PAGE": 12,
+    "YT_CHANNEL": 2,
+    "HASHTAGS": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "fHhcN3UExwg",
@@ -1567,7 +2167,12 @@
    "shares": 0,
    "engagedViews": 286,
    "estimatedMinutesWatched": 191,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 697,
+    "YT_OTHER_PAGE": 10,
+    "YT_SEARCH": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ll3X77mv1Gw",
@@ -1583,7 +2188,13 @@
    "shares": 0,
    "engagedViews": 349,
    "estimatedMinutesWatched": 100,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1228,
+    "YT_SEARCH": 8,
+    "YT_CHANNEL": 3,
+    "YT_OTHER_PAGE": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "pXL5WCQaXaI",
@@ -1599,7 +2210,13 @@
    "shares": 0,
    "engagedViews": 216,
    "estimatedMinutesWatched": 115,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 905,
+    "YT_OTHER_PAGE": 9,
+    "YT_SEARCH": 6,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "F4VXBdlwWgs",
@@ -1615,7 +2232,12 @@
    "shares": 0,
    "engagedViews": 19,
    "estimatedMinutesWatched": 7,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 189,
+    "YT_SEARCH": 4,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "mHUqTN69UJQ",
@@ -1631,7 +2253,13 @@
    "shares": 0,
    "engagedViews": 388,
    "estimatedMinutesWatched": 318,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 859,
+    "YT_SEARCH": 12,
+    "YT_CHANNEL": 5,
+    "YT_OTHER_PAGE": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "mPDN2IEuqaI",
@@ -1647,7 +2275,12 @@
    "shares": 0,
    "engagedViews": 11,
    "estimatedMinutesWatched": 10,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 141,
+    "YT_SEARCH": 1,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "p7zm_nQ3Obw",
@@ -1663,7 +2296,13 @@
    "shares": 3,
    "engagedViews": 367,
    "estimatedMinutesWatched": 261,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1151,
+    "YT_OTHER_PAGE": 18,
+    "YT_SEARCH": 7,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "SWZ1IEUJNaY",
@@ -1679,7 +2318,12 @@
    "shares": 2,
    "engagedViews": 329,
    "estimatedMinutesWatched": 198,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 943,
+    "YT_OTHER_PAGE": 25,
+    "YT_SEARCH": 11,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_9n-SpV9Dws",
@@ -1695,7 +2339,12 @@
    "shares": 0,
    "engagedViews": 341,
    "estimatedMinutesWatched": 355,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 950,
+    "YT_SEARCH": 42,
+    "YT_OTHER_PAGE": 14,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "uWQNAZFNk38",
@@ -1711,7 +2360,13 @@
    "shares": 1,
    "engagedViews": 364,
    "estimatedMinutesWatched": 244,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 702,
+    "YT_SEARCH": 41,
+    "YT_OTHER_PAGE": 10,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "CdColiHlq-A",
@@ -1727,7 +2382,12 @@
    "shares": 0,
    "engagedViews": 340,
    "estimatedMinutesWatched": 167,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 880,
+    "YT_SEARCH": 22,
+    "YT_OTHER_PAGE": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "dLB7taXKhwE",
@@ -1743,7 +2403,10 @@
    "shares": 0,
    "engagedViews": 14,
    "estimatedMinutesWatched": 4,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 89,
+    "YT_SEARCH": 4
+   }
   },
   {
    "video_id": "0qgCYg1ZxEg",
@@ -1759,7 +2422,11 @@
    "shares": 0,
    "engagedViews": 23,
    "estimatedMinutesWatched": 8,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 223,
+    "YT_SEARCH": 5,
+    "YT_OTHER_PAGE": 5
+   }
   },
   {
    "video_id": "FoBqgE52hvQ",
@@ -1775,7 +2442,11 @@
    "shares": 0,
    "engagedViews": 18,
    "estimatedMinutesWatched": 19,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 134,
+    "YT_SEARCH": 3,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "EWh8-jgoeNs",
@@ -1791,7 +2462,12 @@
    "shares": 0,
    "engagedViews": 315,
    "estimatedMinutesWatched": 144,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1235,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 6,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "aJu6kO7Ufkk",
@@ -1807,7 +2483,12 @@
    "shares": 0,
    "engagedViews": 344,
    "estimatedMinutesWatched": 149,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1113,
+    "YT_SEARCH": 12,
+    "YT_OTHER_PAGE": 11,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "tfvhr3QeUgI",
@@ -1823,7 +2504,13 @@
    "shares": 3,
    "engagedViews": 439,
    "estimatedMinutesWatched": 191,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 909,
+    "YT_SEARCH": 31,
+    "YT_OTHER_PAGE": 13,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ADINVH_6PYQ",
@@ -1839,7 +2526,12 @@
    "shares": 0,
    "engagedViews": 36,
    "estimatedMinutesWatched": 14,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 284,
+    "YT_SEARCH": 4,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "q46LL5WN7T0",
@@ -1855,7 +2547,13 @@
    "shares": 2,
    "engagedViews": 322,
    "estimatedMinutesWatched": 171,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 956,
+    "YT_SEARCH": 12,
+    "YT_OTHER_PAGE": 4,
+    "NO_LINK_OTHER": 0,
+    "YT_CHANNEL": 0
+   }
   },
   {
    "video_id": "rTLAP6d9jZ8",
@@ -1871,7 +2569,12 @@
    "shares": 0,
    "engagedViews": 318,
    "estimatedMinutesWatched": 151,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 906,
+    "YT_SEARCH": 11,
+    "YT_OTHER_PAGE": 6,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "8y1q_C_Xlnw",
@@ -1887,7 +2590,13 @@
    "shares": 0,
    "engagedViews": 404,
    "estimatedMinutesWatched": 150,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 804,
+    "YT_OTHER_PAGE": 11,
+    "YT_SEARCH": 3,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "mYlIdpwy5QE",
@@ -1903,7 +2612,14 @@
    "shares": 0,
    "engagedViews": 343,
    "estimatedMinutesWatched": 173,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 811,
+    "YT_SEARCH": 18,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0,
+    "SUBSCRIBER": 0
+   }
   },
   {
    "video_id": "ulaohWKQLrU",
@@ -1919,7 +2635,12 @@
    "shares": 0,
    "engagedViews": 378,
    "estimatedMinutesWatched": 298,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 896,
+    "YT_SEARCH": 11,
+    "YT_OTHER_PAGE": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "GH7Sdt9RL6w",
@@ -1935,7 +2656,12 @@
    "shares": 0,
    "engagedViews": 21,
    "estimatedMinutesWatched": 10,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 164,
+    "YT_OTHER_PAGE": 4,
+    "YT_SEARCH": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "-HTQhUJyC6c",
@@ -1951,7 +2677,13 @@
    "shares": 0,
    "engagedViews": 333,
    "estimatedMinutesWatched": 160,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1019,
+    "YT_SEARCH": 3,
+    "YT_OTHER_PAGE": 3,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "GLcTsWSERoI",
@@ -1967,7 +2699,13 @@
    "shares": 0,
    "engagedViews": 457,
    "estimatedMinutesWatched": 205,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 983,
+    "YT_SEARCH": 21,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ZhqH4eK-9Ao",
@@ -1983,7 +2721,13 @@
    "shares": 0,
    "engagedViews": 361,
    "estimatedMinutesWatched": 130,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 920,
+    "YT_SEARCH": 33,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "3f-TeQq2loA",
@@ -1999,7 +2743,13 @@
    "shares": 1,
    "engagedViews": 389,
    "estimatedMinutesWatched": 219,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 984,
+    "YT_SEARCH": 21,
+    "YT_OTHER_PAGE": 10,
+    "YT_CHANNEL": 7,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "z3itO43FtMk",
@@ -2015,7 +2765,14 @@
    "shares": 4,
    "engagedViews": 581,
    "estimatedMinutesWatched": 421,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1283,
+    "YT_SEARCH": 17,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 4,
+    "HASHTAGS": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "gvbOFVXgAWc",
@@ -2031,7 +2788,13 @@
    "shares": 0,
    "engagedViews": 43,
    "estimatedMinutesWatched": 19,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 248,
+    "HASHTAGS": 3,
+    "YT_SEARCH": 2,
+    "YT_CHANNEL": 1,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "uGMNOgitPHE",
@@ -2047,7 +2810,13 @@
    "shares": 1,
    "engagedViews": 419,
    "estimatedMinutesWatched": 232,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 977,
+    "YT_SEARCH": 11,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "GS7kFkwPkbU",
@@ -2063,7 +2832,14 @@
    "shares": 0,
    "engagedViews": 593,
    "estimatedMinutesWatched": 291,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1145,
+    "YT_SEARCH": 34,
+    "YT_OTHER_PAGE": 17,
+    "SUBSCRIBER": 1,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Wc-Se5Z4UJQ",
@@ -2079,7 +2855,13 @@
    "shares": 0,
    "engagedViews": 407,
    "estimatedMinutesWatched": 338,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1013,
+    "YT_SEARCH": 11,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "AEPYLgzCfeA",
@@ -2095,7 +2877,13 @@
    "shares": 0,
    "engagedViews": 311,
    "estimatedMinutesWatched": 158,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 927,
+    "YT_SEARCH": 18,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "m5DZ0DnnlAQ",
@@ -2111,7 +2899,13 @@
    "shares": 7,
    "engagedViews": 53,
    "estimatedMinutesWatched": 22,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 266,
+    "YT_OTHER_PAGE": 7,
+    "NO_LINK_OTHER": 2,
+    "YT_CHANNEL": 2,
+    "YT_SEARCH": 1
+   }
   },
   {
    "video_id": "UXGSZvahNpg",
@@ -2127,7 +2921,14 @@
    "shares": 3,
    "engagedViews": 423,
    "estimatedMinutesWatched": 264,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 843,
+    "YT_SEARCH": 13,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 3,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "8SNWaf7SLgk",
@@ -2143,7 +2944,14 @@
    "shares": 3,
    "engagedViews": 835,
    "estimatedMinutesWatched": 602,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1854,
+    "YT_SEARCH": 61,
+    "YT_OTHER_PAGE": 22,
+    "HASHTAGS": 2,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "9JCSvcXcYKc",
@@ -2159,7 +2967,12 @@
    "shares": 0,
    "engagedViews": 26,
    "estimatedMinutesWatched": 7,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 142,
+    "YT_SEARCH": 4,
+    "YT_CHANNEL": 1,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "iZD3bBu9LWo",
@@ -2175,7 +2988,14 @@
    "shares": 2,
    "engagedViews": 373,
    "estimatedMinutesWatched": 245,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 748,
+    "YT_SEARCH": 3,
+    "YT_OTHER_PAGE": 3,
+    "SUBSCRIBER": 2,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "waCSk3_8Ogs",
@@ -2191,7 +3011,10 @@
    "shares": 1,
    "engagedViews": 1,
    "estimatedMinutesWatched": 0,
-   "traffic": {}
+   "traffic": {
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_18LHnTzdbQ",
@@ -2207,7 +3030,13 @@
    "shares": 1,
    "engagedViews": 341,
    "estimatedMinutesWatched": 137,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1442,
+    "YT_SEARCH": 14,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "YKcBdes81fQ",
@@ -2223,7 +3052,13 @@
    "shares": 0,
    "engagedViews": 348,
    "estimatedMinutesWatched": 171,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1228,
+    "YT_OTHER_PAGE": 16,
+    "YT_SEARCH": 14,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "yVb1CYMqFx8",
@@ -2239,7 +3074,13 @@
    "shares": 1,
    "engagedViews": 471,
    "estimatedMinutesWatched": 240,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1110,
+    "YT_SEARCH": 20,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "WRbeokMGiW4",
@@ -2255,7 +3096,13 @@
    "shares": 2,
    "engagedViews": 541,
    "estimatedMinutesWatched": 290,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1135,
+    "YT_SEARCH": 11,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "HrwwNKUGUDg",
@@ -2271,7 +3118,13 @@
    "shares": 0,
    "engagedViews": 65,
    "estimatedMinutesWatched": 28,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 364,
+    "YT_OTHER_PAGE": 6,
+    "YT_SEARCH": 2,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "3TUoDiOhHqQ",
@@ -2287,7 +3140,13 @@
    "shares": 0,
    "engagedViews": 394,
    "estimatedMinutesWatched": 253,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1183,
+    "YT_OTHER_PAGE": 19,
+    "YT_SEARCH": 9,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "3A2-Zf3LsPs",
@@ -2303,7 +3162,13 @@
    "shares": 0,
    "engagedViews": 326,
    "estimatedMinutesWatched": 146,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1158,
+    "YT_SEARCH": 20,
+    "YT_OTHER_PAGE": 13,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "y6IV2K1jvks",
@@ -2319,7 +3184,13 @@
    "shares": 0,
    "engagedViews": 340,
    "estimatedMinutesWatched": 210,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1228,
+    "YT_OTHER_PAGE": 8,
+    "YT_SEARCH": 6,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "QD-fzqUGFUg",
@@ -2335,7 +3206,17 @@
    "shares": 36,
    "engagedViews": 926,
    "estimatedMinutesWatched": 637,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1062,
+    "YT_SEARCH": 664,
+    "SUBSCRIBER": 156,
+    "RELATED_VIDEO": 112,
+    "YT_OTHER_PAGE": 11,
+    "EXT_URL": 5,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 1,
+    "PLAYLIST": 1
+   }
   },
   {
    "video_id": "SP2EfNw3_Mc",
@@ -2351,7 +3232,13 @@
    "shares": 0,
    "engagedViews": 357,
    "estimatedMinutesWatched": 168,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1048,
+    "YT_SEARCH": 9,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "KMJOgi_xgmw",
@@ -2367,7 +3254,13 @@
    "shares": 2,
    "engagedViews": 328,
    "estimatedMinutesWatched": 218,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1061,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "6mHuXlz74cE",
@@ -2383,7 +3276,13 @@
    "shares": 0,
    "engagedViews": 66,
    "estimatedMinutesWatched": 30,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 381,
+    "YT_SEARCH": 5,
+    "YT_OTHER_PAGE": 4,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "8CGVGjMkJwU",
@@ -2399,7 +3298,13 @@
    "shares": 2,
    "engagedViews": 383,
    "estimatedMinutesWatched": 162,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 824,
+    "YT_SEARCH": 14,
+    "YT_OTHER_PAGE": 7,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "8q_B7AtaRCg",
@@ -2415,7 +3320,13 @@
    "shares": 0,
    "engagedViews": 368,
    "estimatedMinutesWatched": 133,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 952,
+    "YT_SEARCH": 8,
+    "YT_CHANNEL": 4,
+    "YT_OTHER_PAGE": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "V_XgPUTioac",
@@ -2431,7 +3342,13 @@
    "shares": 0,
    "engagedViews": 329,
    "estimatedMinutesWatched": 141,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 582,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 4,
+    "YT_SEARCH": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "eFS95bjOkWE",
@@ -2447,7 +3364,13 @@
    "shares": 0,
    "engagedViews": 319,
    "estimatedMinutesWatched": 134,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1196,
+    "YT_SEARCH": 22,
+    "YT_OTHER_PAGE": 7,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "EAoc9PhaHn4",
@@ -2463,7 +3386,14 @@
    "shares": 1,
    "engagedViews": 376,
    "estimatedMinutesWatched": 155,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1112,
+    "YT_OTHER_PAGE": 7,
+    "YT_SEARCH": 5,
+    "YT_CHANNEL": 2,
+    "HASHTAGS": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "5ILQbGiwOH0",
@@ -2479,7 +3409,13 @@
    "shares": 2,
    "engagedViews": 415,
    "estimatedMinutesWatched": 366,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1328,
+    "YT_SEARCH": 53,
+    "YT_OTHER_PAGE": 16,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "xjogCDRt8m8",
@@ -2495,7 +3431,12 @@
    "shares": 0,
    "engagedViews": 17,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 163,
+    "YT_SEARCH": 7,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "bKAZzlcJvhA",
@@ -2511,7 +3452,12 @@
    "shares": 0,
    "engagedViews": 404,
    "estimatedMinutesWatched": 147,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 908,
+    "YT_SEARCH": 9,
+    "YT_OTHER_PAGE": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ychSdl7mEyA",
@@ -2527,7 +3473,11 @@
    "shares": 0,
    "engagedViews": 25,
    "estimatedMinutesWatched": 11,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 228,
+    "YT_SEARCH": 2,
+    "YT_OTHER_PAGE": 2
+   }
   },
   {
    "video_id": "Bf5UY5ebMzk",
@@ -2543,7 +3493,12 @@
    "shares": 0,
    "engagedViews": 91,
    "estimatedMinutesWatched": 35,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 489,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ISKy23qzYTE",
@@ -2559,7 +3514,11 @@
    "shares": 0,
    "engagedViews": 13,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 146,
+    "YT_OTHER_PAGE": 1,
+    "YT_SEARCH": 0
+   }
   },
   {
    "video_id": "fvXBhokDg8E",
@@ -2575,7 +3534,12 @@
    "shares": 0,
    "engagedViews": 314,
    "estimatedMinutesWatched": 170,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1167,
+    "YT_SEARCH": 13,
+    "YT_OTHER_PAGE": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "SsN1WdcyfUE",
@@ -2591,7 +3555,12 @@
    "shares": 2,
    "engagedViews": 320,
    "estimatedMinutesWatched": 198,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1209,
+    "YT_SEARCH": 18,
+    "YT_OTHER_PAGE": 15,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "y6LnOMaKRbs",
@@ -2607,7 +3576,12 @@
    "shares": 0,
    "engagedViews": 18,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 133,
+    "YT_SEARCH": 5,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "aKUokSZpTAM",
@@ -2623,7 +3597,13 @@
    "shares": 0,
    "engagedViews": 30,
    "estimatedMinutesWatched": 19,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 292,
+    "YT_SEARCH": 8,
+    "YT_OTHER_PAGE": 6,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "_Zgtdj3h3vI",
@@ -2639,7 +3619,12 @@
    "shares": 0,
    "engagedViews": 321,
    "estimatedMinutesWatched": 152,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1029,
+    "YT_SEARCH": 13,
+    "YT_OTHER_PAGE": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Z1Jl9ZBl678",
@@ -2655,7 +3640,11 @@
    "shares": 0,
    "engagedViews": 54,
    "estimatedMinutesWatched": 22,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 421,
+    "YT_SEARCH": 20,
+    "YT_OTHER_PAGE": 2
+   }
   },
   {
    "video_id": "Uv53Hk301m4",
@@ -2671,7 +3660,13 @@
    "shares": 0,
    "engagedViews": 349,
    "estimatedMinutesWatched": 199,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1161,
+    "YT_SEARCH": 28,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "ZfFIk5PxpYU",
@@ -2687,7 +3682,14 @@
    "shares": 1,
    "engagedViews": 380,
    "estimatedMinutesWatched": 265,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1104,
+    "YT_SEARCH": 30,
+    "YT_OTHER_PAGE": 15,
+    "YT_CHANNEL": 7,
+    "SUBSCRIBER": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "m7xp5ygDVKM",
@@ -2703,7 +3705,13 @@
    "shares": 0,
    "engagedViews": 433,
    "estimatedMinutesWatched": 211,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1254,
+    "YT_SEARCH": 12,
+    "YT_CHANNEL": 7,
+    "YT_OTHER_PAGE": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "3BheTfOd2lw",
@@ -2719,7 +3727,11 @@
    "shares": 0,
    "engagedViews": 48,
    "estimatedMinutesWatched": 18,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 318,
+    "YT_SEARCH": 2,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "QtTKw3aAfYQ",
@@ -2735,7 +3747,13 @@
    "shares": 0,
    "engagedViews": 308,
    "estimatedMinutesWatched": 178,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1259,
+    "YT_OTHER_PAGE": 12,
+    "YT_SEARCH": 6,
+    "NO_LINK_OTHER": 0,
+    "YT_CHANNEL": 0
+   }
   },
   {
    "video_id": "LvQACkdNy14",
@@ -2751,7 +3769,10 @@
    "shares": 0,
    "engagedViews": 10,
    "estimatedMinutesWatched": 3,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 80,
+    "YT_SEARCH": 4
+   }
   },
   {
    "video_id": "AaUZLDHV0mE",
@@ -2767,7 +3788,13 @@
    "shares": 0,
    "engagedViews": 358,
    "estimatedMinutesWatched": 142,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 830,
+    "YT_OTHER_PAGE": 11,
+    "YT_SEARCH": 4,
+    "NO_LINK_OTHER": 1,
+    "YT_CHANNEL": 1
+   }
   },
   {
    "video_id": "2bVx-SUgjAA",
@@ -2783,7 +3810,12 @@
    "shares": 0,
    "engagedViews": 310,
    "estimatedMinutesWatched": 129,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1014,
+    "YT_SEARCH": 13,
+    "YT_OTHER_PAGE": 12,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "0ScgOMh_WeM",
@@ -2799,7 +3831,13 @@
    "shares": 0,
    "engagedViews": 330,
    "estimatedMinutesWatched": 153,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1349,
+    "YT_SEARCH": 20,
+    "YT_OTHER_PAGE": 7,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "lNcthMiSKg4",
@@ -2815,7 +3853,14 @@
    "shares": 1,
    "engagedViews": 342,
    "estimatedMinutesWatched": 154,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 942,
+    "YT_OTHER_PAGE": 12,
+    "YT_SEARCH": 8,
+    "YT_CHANNEL": 2,
+    "EXT_URL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "gqD1lc5V6bA",
@@ -2831,7 +3876,13 @@
    "shares": 0,
    "engagedViews": 306,
    "estimatedMinutesWatched": 174,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1369,
+    "YT_SEARCH": 5,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "XVN_UJT1vXs",
@@ -2847,7 +3898,13 @@
    "shares": 0,
    "engagedViews": 32,
    "estimatedMinutesWatched": 12,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 216,
+    "YT_SEARCH": 11,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0,
+    "YT_OTHER_PAGE": 0
+   }
   },
   {
    "video_id": "vKpD6l7G7oY",
@@ -2863,7 +3920,13 @@
    "shares": 0,
    "engagedViews": 68,
    "estimatedMinutesWatched": 26,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 402,
+    "YT_OTHER_PAGE": 7,
+    "YT_CHANNEL": 1,
+    "YT_SEARCH": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "dnXEE3zZ-mg",
@@ -2879,7 +3942,13 @@
    "shares": 1,
    "engagedViews": 778,
    "estimatedMinutesWatched": 423,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1643,
+    "YT_SEARCH": 18,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "AjnGGctemgU",
@@ -2895,7 +3964,12 @@
    "shares": 0,
    "engagedViews": 12,
    "estimatedMinutesWatched": 5,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 180,
+    "YT_SEARCH": 3,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "0wjXq1TQmX0",
@@ -2911,7 +3985,13 @@
    "shares": 3,
    "engagedViews": 543,
    "estimatedMinutesWatched": 261,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2041,
+    "YT_SEARCH": 21,
+    "YT_OTHER_PAGE": 12,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "iuY7JneX6uw",
@@ -2927,7 +4007,14 @@
    "shares": 0,
    "engagedViews": 39,
    "estimatedMinutesWatched": 15,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 347,
+    "YT_SEARCH": 7,
+    "YT_CHANNEL": 2,
+    "YT_OTHER_PAGE": 2,
+    "SUBSCRIBER": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "qajeWZMh-EI",
@@ -2943,7 +4030,13 @@
    "shares": 0,
    "engagedViews": 10,
    "estimatedMinutesWatched": 3,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 72,
+    "YT_CHANNEL": 3,
+    "YT_SEARCH": 3,
+    "NO_LINK_OTHER": 0,
+    "YT_OTHER_PAGE": 0
+   }
   },
   {
    "video_id": "Py75REERX90",
@@ -2959,7 +4052,14 @@
    "shares": 0,
    "engagedViews": 415,
    "estimatedMinutesWatched": 417,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 997,
+    "YT_SEARCH": 12,
+    "YT_CHANNEL": 4,
+    "SUBSCRIBER": 3,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "gZgi0EtqdIQ",
@@ -2975,7 +4075,13 @@
    "shares": 0,
    "engagedViews": 17,
    "estimatedMinutesWatched": 9,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 93,
+    "YT_SEARCH": 9,
+    "YT_CHANNEL": 6,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "Iu2Q5Edol_A",
@@ -2991,7 +4097,13 @@
    "shares": 0,
    "engagedViews": 58,
    "estimatedMinutesWatched": 19,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 340,
+    "YT_SEARCH": 8,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0,
+    "YT_OTHER_PAGE": 0
+   }
   },
   {
    "video_id": "E6t0Snytu2E",
@@ -3007,7 +4119,13 @@
    "shares": 0,
    "engagedViews": 31,
    "estimatedMinutesWatched": 13,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 206,
+    "YT_CHANNEL": 3,
+    "YT_SEARCH": 3,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "LPBNa49hrjM",
@@ -3023,7 +4141,14 @@
    "shares": 3,
    "engagedViews": 511,
    "estimatedMinutesWatched": 254,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2074,
+    "YT_SEARCH": 29,
+    "YT_OTHER_PAGE": 23,
+    "YT_CHANNEL": 4,
+    "EXT_URL": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "dR4fAue_37g",
@@ -3039,7 +4164,13 @@
    "shares": 4,
    "engagedViews": 79,
    "estimatedMinutesWatched": 33,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 416,
+    "YT_SEARCH": 31,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "UGwHJkG-b4Q",
@@ -3055,7 +4186,11 @@
    "shares": 0,
    "engagedViews": 9,
    "estimatedMinutesWatched": 3,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 85,
+    "YT_CHANNEL": 4,
+    "YT_SEARCH": 3
+   }
   },
   {
    "video_id": "UNoqWwqjiAU",
@@ -3071,7 +4206,12 @@
    "shares": 0,
    "engagedViews": 14,
    "estimatedMinutesWatched": 6,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 165,
+    "YT_SEARCH": 6,
+    "YT_CHANNEL": 4,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "6StWsTYOEIE",
@@ -3087,7 +4227,12 @@
    "shares": 0,
    "engagedViews": 22,
    "estimatedMinutesWatched": 10,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 205,
+    "YT_CHANNEL": 4,
+    "YT_SEARCH": 4,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "sU2HeHr2pIw",
@@ -3103,7 +4248,14 @@
    "shares": 14,
    "engagedViews": 664,
    "estimatedMinutesWatched": 587,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2071,
+    "YT_SEARCH": 21,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 5,
+    "EXT_URL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "DmmDd3YEPb8",
@@ -3119,7 +4271,14 @@
    "shares": 0,
    "engagedViews": 827,
    "estimatedMinutesWatched": 24,
-   "traffic": {}
+   "traffic": {
+    "EXT_URL": 781,
+    "SHORTS": 177,
+    "YT_SEARCH": 6,
+    "YT_CHANNEL": 4,
+    "YT_OTHER_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "OnEA6UzRjfQ",
@@ -3135,7 +4294,14 @@
    "shares": 0,
    "engagedViews": 544,
    "estimatedMinutesWatched": 626,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1397,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 4,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "1ykXuMpTuzI",
@@ -3151,7 +4317,14 @@
    "shares": 0,
    "engagedViews": 800,
    "estimatedMinutesWatched": 18,
-   "traffic": {}
+   "traffic": {
+    "EXT_URL": 793,
+    "YT_SEARCH": 10,
+    "YT_CHANNEL": 3,
+    "SUBSCRIBER": 1,
+    "YT_OTHER_PAGE": 1,
+    "SHORTS": 1
+   }
   },
   {
    "video_id": "-EOBTluTVj8",
@@ -3167,7 +4340,13 @@
    "shares": 0,
    "engagedViews": 598,
    "estimatedMinutesWatched": 238,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1400,
+    "YT_SEARCH": 14,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "SxJ7zgSeddw",
@@ -3183,7 +4362,13 @@
    "shares": 0,
    "engagedViews": 557,
    "estimatedMinutesWatched": 367,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1064,
+    "YT_SEARCH": 12,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "dLc2NOK9ZWY",
@@ -3199,7 +4384,13 @@
    "shares": 5,
    "engagedViews": 1021,
    "estimatedMinutesWatched": 623,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2379,
+    "YT_SEARCH": 39,
+    "YT_OTHER_PAGE": 12,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "JXzP5HFDP0k",
