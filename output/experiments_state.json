@@ -6,9 +6,27 @@
    "started": "2026-10-02"
   },
   "hook_card": {
-   "status": "running",
+   "status": "decided",
    "slot": 1,
-   "started": "2026-10-04"
+   "started": "2026-10-04",
+   "winner": "off",
+   "verdict": "winner",
+   "decided": "2026-11-07",
+   "result": {
+    "n": {
+     "on": 13,
+     "off": 14
+    },
+    "verdict": "winner",
+    "median_on": 0.22709163346613545,
+    "median_off": 0.3436791383219955,
+    "diff": 0.11658750485586003,
+    "ci": [
+     0.00208947885939037,
+     0.18961608738108335
+    ],
+    "winner": "off"
+   }
   },
   "bg_mode": {
    "status": "running",
@@ -22,8 +40,10 @@
    "status": "queued"
   },
   "outro_q": {
-   "status": "queued"
+   "status": "running",
+   "slot": 1,
+   "started": "2026-11-08"
   }
  },
- "updated": "2026-11-06T11:07:55+09:00"
+ "updated": "2026-11-07T07:08:55+09:00"
 }
