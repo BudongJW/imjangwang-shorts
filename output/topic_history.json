@@ -1994,35 +1994,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "분양가는 뛰고 대출 죄이자 … 서울아파트 분양전망 최저",
-    "video_id": "WQwiCVoIhg4",
-    "date": "2026-11-06T21:49:28.890576",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 232,
-    "source": "매일경제",
-    "age_days": 1.1838344664930556,
-    "topic_score": 8,
-    "recency_score": 4,
-    "media": [
-      "p38975396",
-      "p34961617",
-      "p6670867",
-      "p5412338",
-      "p7111558",
-      "p7680740",
-      "v40806775"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "graphic",
-      "outro_q": "off",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

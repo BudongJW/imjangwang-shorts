@@ -1921,6 +1921,31 @@ def _dequoted_title_problems(script: str, title: str) -> list[tuple[str, str]]:
     return out
 
 
+# 앞 문장을 원인으로 받는 접속어("이로 인해", "이 때문에")로 진행자가 만든 인과. 11-07 초안:
+# "… 물량을 줄이는 움직임이 포착됩니다. 이로 인해 강남권 집값 약세에도 불구하고 분양가 상승
+# 전망은 여전합니다". 기사는 분양가 상승 전망을 "인건비 등 공사비 부담"으로 풀이했다.
+# 기사에서 인과 낱말이 있는 두 문장 창 하나가 앞 문장 낱말 2개, 이 문장 낱말 3개를 같이
+# 가져야 통과한다.
+_BACK_CAUSE_RE = re.compile(r"^(?:결국,?\s?)?(?:이로\s?인해|이\s?때문에|그\s?결과|이에\s?따라|이\s?영향으로|그\s?여파로|그래서|따라서)")
+_SRC_CAUSAL_RE = re.compile(r"인해|인한|때문|결과|따라|따른|영향|여파|풀이|탓|덕분|이유|그래서|따라서|그러니")
+BACK_PREV_MIN, BACK_THIS_MIN = 2, 3
+
+
+def _back_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    segs = [x for x in _SEG_SPLIT_RE.split(source_text or "") if x.strip()]
+    wins = [" ".join(segs[i:i + 2]) for i in range(len(segs))]
+    wins = [(_stems(w), w) for w in wins if _SRC_CAUSAL_RE.search(w)]
+    sents = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    out = []
+    for k in range(1, len(sents)):
+        if not _BACK_CAUSE_RE.match(sents[k]):
+            continue
+        prev, this = _stems(sents[k - 1]), _stems(sents[k])
+        if not any(len(prev & ws) >= BACK_PREV_MIN and len(this & ws) >= BACK_THIS_MIN for ws, _ in wins):
+            out.append((sents[k][:40], "앞 문장을 원인으로 묶었는데 기사는 그렇게 잇지 않았다"))
+    return out
+
+
 # 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
 # 26만8천호"라고만 썼는데(다른 매체로 보면 수도권 목표) 대본은 "전국 26만8천호"였다.
 _SCOPE_RE = re.compile(r"(?<![가-힣])전국")
@@ -1940,7 +1965,10 @@ _JARGON_RE = re.compile(
     r"매물\s?잠김|잠김\s?(?:현상|효과)|거래\s?절벽|패닉\s?바잉|풍선\s?효과|똘똘한\s?한\s?채|"
     r"영끌|핀셋|규제\s?폭탄|세금\s?폭탄|불장|폭등장|하락장|상승장|"
     # 11-06 초안: "전세의 월세화는 이미 가속 중입니다". 기사에 월세화 얘기가 없었다.
-    r"월세화|전세\s?(?:소멸|종말|실종)")
+    r"월세화|전세\s?(?:소멸|종말|실종)|"
+    # 11-07 초안: "건설사들이 분양 시기를 늦추거나 물량을 줄이는 움직임이 포착됩니다".
+    # 기사(주산연 분양전망지수)에 그런 움직임은 없었다. 관찰했다는 말은 기사에 있어야 한다.
+    r"포착|감지되")
 
 
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -2134,7 +2162,7 @@ def generate(art) -> ShortPlan:
                  + _subject_problems(text, hay) + _proposal_problems(text, hay)
                  + _forecast_problems(text, hay) + _absolute_problems(text, hay)
                  + _empty_open_problems(text) + _org_claim_problems(text, hay)
-                 + _hedge_drop_problems(text, hay)
+                 + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
