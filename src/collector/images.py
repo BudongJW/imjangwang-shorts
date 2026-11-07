@@ -133,7 +133,11 @@ _OFFTOPIC_RE = re.compile(
     # 같은 날 재제작본: 그걸 빼자 "포즈를 취하는 네 명의 웃는 가족", "새 집 구매를 축하하는
     # 행복한 커플"이 같은 자리에 떴다. 얼굴이 보이는 사람 사진은 몇 명이든 뺀다.
     # 11-01 지정 영상: "기뻐하는 새 집주인들이 집 열쇠를 보여주며 미소 짓"가 '미소를 띤'만 보던 줄을 빠져나갔다.
-    r"가족|커플|부부|연인|웃는|웃고|포즈|행복한|축하하|집주인들|family|couple|smiling|posing|happy|joyful", re.I)
+    r"가족|커플|부부|연인|웃는|웃고|포즈|행복한|축하하|집주인들|family|couple|smiling|posing|happy|joyful|"
+    # 11-07 지정 영상: 'korean city skyline night' b-roll로 "vibrant-seoul-night-market-street-scene"
+    # (해산물 식당 간판, 야시장 골목)이 "11월 서울 분양전망지수는" 자막 밑에 떴다.
+    r"night[\s-]?market|street[\s-]?(?:market|food)|market[\s-]?street|seafood|eatery|"
+    r"야시장|재래시장|전통시장|시장\s?골목|먹자골목|해산물|횟집|포장마차|음식점", re.I)
 
 
 # 한국 부동산 영상에 외국 도시가 뜨면 안 된다. 검색어에 seoul·korean을
@@ -233,7 +237,8 @@ USED_MEDIA: list[str] = []
 # p30764160: 지붕 위 판잣집 항공 사진, 10-08 초안.
 # p20111013: 눈 덮인 가평 리조트(설명에 눈이 없다), 10-08 초안.
 # v19327271: 일본 주택가 골목, 10-08 LH 영상.
-BANNED_MEDIA = {"v34435020", "p30764160", "p20111013", "v19327271"}
+# v40806775: 서울 야시장 거리(해산물 식당 간판), 11-07 지정 영상.
+BANNED_MEDIA = {"v34435020", "p30764160", "p20111013", "v19327271", "v40806775"}
 # 최근 몇 편과 겹치지 않게 할지. 하루 3편 안팎이라 닷새치다.
 MEDIA_AVOID_RECENT = 15
 
