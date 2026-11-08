@@ -1878,7 +1878,10 @@ def _org_claim_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # "전세 부족에 따른 매수가 이어지며 집값 하락을 제약할 수 있다는 분석이 나온다"였는데
 # 대본은 "이 심각한 전세난이 실수요자를 매매로 떠밀며 집값 하락을 제약한다는 분석입니다".
 # 누구 말인지는 붙였지만 가능성을 단정으로 바꿨다.
-_SAYING_END_RE = re.compile(r"(?:다는|라는|란)\s?(?:분석|전망|관측|지적|평가|예상|우려|진단|얘기|이야기)")
+_SAYING_END_RE = re.compile(r"(?:다는|라는|란)\s?(?:분석|전망|관측|지적|평가|예상|우려|진단|얘기|이야기)|"
+                            # 11-08 초안: 기사 "전문조사가의 주관이 과도하게 개입될 수 있다는 점이 단점으로
+                            # 꼽힌다"를 대본은 "전문조사관 주관 개입이 … 단점으로 꼽힙니다"로 맺었다.
+                            r"꼽힙니다|꼽힌다|지적됩니다|거론됩니다")
 _SCRIPT_MAYBE_RE = re.compile(r"수\s?있|가능|듯|[을ㄹ]지\s?모|[을ㄹ]\s?것|겠")
 _SRC_MAYBE_RE = re.compile(r"수\s?있(?:다는|을\s?것|다고|으리)|가능성이\s?있다는")
 HEDGE_MIN_SHARED = 3
@@ -1943,6 +1946,36 @@ def _back_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]
         prev, this = _stems(sents[k - 1]), _stems(sents[k])
         if not any(len(prev & ws) >= BACK_PREV_MIN and len(this & ws) >= BACK_THIS_MIN for ws, _ in wins):
             out.append((sents[k][:40], "앞 문장을 원인으로 묶었는데 기사는 그렇게 잇지 않았다"))
+    return out
+
+
+# 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
+# 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
+# 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
+_SRC_CUM_RE = re.compile(r"(?<!\d)(\d{1,2})\s?월\s?(?:말\s?)?(?:누적|누계)")
+_SCRIPT_CUM_RE = re.compile(r"누적|누계|까지|올해|연간|들어|[~∼]\s?\d{1,2}\s?월")
+
+
+def _cumulative_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    cum: dict[str, set[str]] = {}
+    for x in src_sents:
+        for m in _SRC_CUM_RE.finditer(x):
+            nums = {n.replace(",", "") for n in re.findall(r"\d[\d,]*\.\d+|\d[\d,]{2,}", x[m.end():])}
+            if nums:
+                cum.setdefault(m.group(1), set()).update(nums)
+    if not cum:
+        return []
+    sents = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    out = []
+    for k, sent in enumerate(sents):
+        for mon, nums in cum.items():
+            if not re.search(r"(?<!\d)" + mon + r"\s?월", sent) or _SCRIPT_CUM_RE.search(sent):
+                continue
+            near = " ".join(sents[k:k + 2]).replace(",", "")
+            if any(re.search(r"(?<![\d.])" + re.escape(n) + r"(?![\d])", near) for n in nums):
+                out.append((sent[:40], f"기사는 {mon}월까지 누적인데 {mon}월 한 달 값처럼 말했다"))
+                break
     return out
 
 
@@ -2163,6 +2196,7 @@ def generate(art) -> ShortPlan:
                  + _forecast_problems(text, hay) + _absolute_problems(text, hay)
                  + _empty_open_problems(text) + _org_claim_problems(text, hay)
                  + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
+                 + _cumulative_problems(text, hay)
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],

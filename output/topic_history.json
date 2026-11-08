@@ -2022,35 +2022,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "“강남 집값 하락률 4.8배 차이”…세입자도 집주인도 “어느 통계 믿나” 대혼란",
-    "video_id": "czGdrzrYHD0",
-    "date": "2026-11-07T20:35:20.123678",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 312,
-    "source": "매일경제",
-    "age_days": 0.07070758836805555,
-    "topic_score": 10,
-    "recency_score": 4,
-    "media": [
-      "p33093557",
-      "p12670294",
-      "p33415133",
-      "p37319814",
-      "p31752211",
-      "p34643209",
-      "v39443157"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "outro_q": "off",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
