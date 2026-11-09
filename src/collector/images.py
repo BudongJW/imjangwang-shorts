@@ -213,7 +213,14 @@ _REGION_ANY_RE = re.compile(r"지방|비수도권|전국")
 
 def _other_region(text: str) -> str:
     art = ARTICLE_TEXT or ""
-    if not art or _REGION_ANY_RE.search(art):
+    if not art:
+        return ""
+    # '지방'이 한 번 나왔다고 지역 거르기를 통째로 끄면 안 된다. 11-09 지정 영상(서울 집값
+    # 기사, "지방의 전월세난" 한 줄)에 부산 광안대교 항공 영상이 "부읽남TV의 정태익 대표는"
+    # 밑에 떴다. 서울·수도권 얘기가 더 많으면 서울 기사로 보고 계속 거른다. 기사에 이름이
+    # 나온 지역은 아래에서 그대로 허용된다.
+    wide = len(_REGION_ANY_RE.findall(art))
+    if wide and art.count("서울") + art.count("수도권") <= wide:
         return ""
     for name, rx in _REGION_PHOTO:
         if rx.search(text) and not rx.search(art) and name not in art:
