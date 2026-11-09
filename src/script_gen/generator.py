@@ -1309,7 +1309,10 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       # 11-06 초안: "전세 시장의 대격변이 시작됩니다", "파격적인 세금 감면",
                       # "안심신탁이 전세의 씨를 말릴지". 기사(HUG 안심신탁 임대인 모집)에는 셋 다
                       # 없었고, 제도는 임차인 보증금을 지키려는 것이었다.
-                      r"격변|파격|씨를\s?말|씨가\s?마르")
+                      r"격변|파격|씨를\s?말|씨가\s?마르|"
+                      # 11-09 초안: "이 기현상, 진짜 이유가 있습니다", "레버리지 활용은 생존과
+                      # 직결된 문제입니다". 기사(유튜버 발언 정리)에 기현상도 생존도 없었다.
+                      r"기현상|생존")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1834,11 +1837,15 @@ _EMPTY_ASK_RE = re.compile(r"(?:나요|까요|가요|습니까|ㄹ까)\??$|\?$")
 _EMPTY_WORD_RE = re.compile(r"여러분|무엇|뭘|어떻게|어디|알고\s?계|아시나요|궁금")
 
 
-def _empty_open_problems(script: str) -> list[tuple[str, str]]:
+def _empty_open_problems(script: str, source_text: str = "") -> list[tuple[str, str]]:
     parts = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
     if not parts:
         return []
     first = parts[0]
+    # 기사 낱말이 둘 이상 들어 있으면 내용 있는 물음이다(11-09 "금리를 올려도 집값이 오르는
+    # 이유는 뭘까요").
+    if source_text and len(_stems(first) & _stems(source_text)) >= 2:
+        return []
     if (len(first) <= 30 and not re.search(r"\d", first)
             and _EMPTY_ASK_RE.search(first) and _EMPTY_WORD_RE.search(first)):
         return [(first[:40], "첫 문장이 기사 내용 없는 물음")]
@@ -1976,6 +1983,57 @@ def _cumulative_problems(script: str, source_text: str) -> list[tuple[str, str]]
             if any(re.search(r"(?<![\d.])" + re.escape(n) + r"(?![\d])", near) for n in nums):
                 out.append((sent[:40], f"기사는 {mon}월까지 누적인데 {mon}월 한 달 값처럼 말했다"))
                 break
+    return out
+
+
+# 한 사람의 의견을 옮긴 기사에서 그 사람 말을 진행자 말로 단정한 문장. 11-09 초안(뉴시스,
+# 유튜버 정태익 대표 발언 정리): 기사는 "실거주 의무 등 주택 관련 규제가 전세 공급을
+# 위축시키고 있다는 것이다", "대출을 … 투기로 보는 시각에도 우려를 나타냈다"였는데 대본은
+# "전세 시장은 실거주 의무로 매물이 잠겼습니다", "무주택자의 대출을 투기로 보는 시각도
+# 문제"였다. 기사 문장의 절반 이상이 남의 말이면, 출처 없는 대본 문장이 가장 많이 겹치는
+# 기사 문장도 남의 말일 때 잡는다. 제목은 기자가 쓴 말이라 빼고 본다.
+_SPEECH_SRC_RE = re.compile(
+    r"[\"“”]|이라며|라며|다며|고\s?(?:말했|강조했|주장했|설명했|진단했|분석했|덧붙였|꼽았|봤다|"
+    r"지적했|전망했|반문했|밝혔)|다는\s?(?:것이다|설명이다|주장이다|분석이다|지적이다)|"
+    r"우려를\s?나타냈|입장을\s?밝혔")
+_FACT_SRC_RE = re.compile(r"집계|기록했|따르면|조사|통계|발표했")
+# 대본이 이미 누구 말인지 밝힌 꼴. 지정 대본 10-07 "민주당은 … 탓했습니다", 10-16 "해소하겠다고
+# 했습니다", 10-20 "오세훈 시장은 … 있었다며"가 첫 판에 걸렸다.
+_SCRIPT_SAID_RE = re.compile(r"다며|라며|고\s?했|탓했|비판했|반박했|지적했|요구했|촉구했|했다고|"
+                             r"밝혔|말했|주장했|강조했|설명했|진단했|분석했")
+HOST_VOICE_MIN_SHARED = 3
+HOST_VOICE_SPEECH_RATIO = 0.5
+
+
+def _host_voice_problems(script: str, source_text: str, title: str = "") -> list[tuple[str, str]]:
+    src = source_text or ""
+    if title and src.startswith(title):
+        src = src[len(title):]
+    sents = [x for x in _SRC_SPLIT_RE.split(src) if len(x.strip()) >= 30]
+    if not sents:
+        return []
+    speech = [bool(_SPEECH_SRC_RE.search(x)) for x in sents]
+    if sum(speech) / len(sents) < HOST_VOICE_SPEECH_RATIO:
+        return []
+    st_src = [_stems(x) for x in sents]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        # 숫자가 든 문장은 숫자 검사들이 본다. 기관장이 밝힌 계획(겠다·도입)은 의견이 아니다
+        # (10-16 HUG 사장 "사전심사제도를 도입").
+        if (not sent or _SCRIPT_ATTR_RE.search(sent) or _SCRIPT_SAID_RE.search(sent)
+                or _HOST_READ_RE.search(sent) or re.search(r"\d", sent)
+                or re.search(r"세요|십시오|까요|나요|\?", sent)):
+            continue
+        st = _stems(sent)
+        scored = [len(st & ss) for ss in st_src]
+        best = max(scored, default=0)
+        if best < HOST_VOICE_MIN_SHARED:
+            continue
+        tops = [i for i, k in enumerate(scored) if k == best]
+        if all(speech[i] and not _FACT_SRC_RE.search(sents[i]) and not _PLEDGE_RE.search(sents[i])
+               for i in tops):
+            out.append((sent[:40], "기사에서는 남의 말인데 누구 말인지 빼고 단정했다"))
     return out
 
 
@@ -2194,9 +2252,10 @@ def generate(art) -> ShortPlan:
                  + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
                  + _subject_problems(text, hay) + _proposal_problems(text, hay)
                  + _forecast_problems(text, hay) + _absolute_problems(text, hay)
-                 + _empty_open_problems(text) + _org_claim_problems(text, hay)
+                 + _empty_open_problems(text, hay) + _org_claim_problems(text, hay)
                  + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
                  + _cumulative_problems(text, hay)
+                 + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
             return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
