@@ -2053,5 +2053,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "금리 올려도 집값 상승, 대출 막혀 전세난…전문가 \"규제 일변도 벗어나야\"",
+    "video_id": "tdeguKohM4s",
+    "date": "2026-11-09T02:15:59.451472",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 242,
+    "source": "뉴시스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p8730975",
+      "p8441783",
+      "p8152746",
+      "p36475843",
+      "p4568710",
+      "p4569338",
+      "v38489829",
+      "v34676736"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
