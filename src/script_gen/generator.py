@@ -217,13 +217,13 @@ def _gemini(prompt: str) -> str | None:
                 log.info(f"  Gemini 빈 응답({model_name}), 로테이션")
             except Exception as e:  # 쿼터/모델명/키 → 다음 키·모델
                 last = e
-                log.info(f"  Gemini 실패({model_name}), 로테이션: {str(e)[:80]}")
+                log.info(f"  Gemini 실패({model_name}), 로테이션: {_err_text(e)[:80]}")
                 if _json_mode and _JSON_MODE_ERR_RE.search(str(e)):
                     # 모델이나 SDK가 JSON 모드를 안 받는다. 이 실행에서는 끄고 같은 키로
                     # 바로 한 번 더 간다. 그러지 않으면 모든 시도가 같은 이유로 실패해
                     # 템플릿 폴백 대본이 나간다.
                     _json_mode = False
-                    note(f"대본: JSON 모드 거절 → 일반 모드로 계속 ({str(e)[:60]})")
+                    note(f"대본: JSON 모드 거절 → 일반 모드로 계속 ({_err_text(e)[:60]})")
                     try:
                         resp = _generate(genai, key, model_name, prompt, False)
                         if resp.text:
@@ -231,7 +231,7 @@ def _gemini(prompt: str) -> str | None:
                             return resp.text
                     except Exception as e2:
                         last = e2
-    log.info(f"  Gemini 전체 실패: {str(last)[:120]}")
+    log.info(f"  Gemini 전체 실패: {_err_text(last)[:120]}")
     return None
 
 
@@ -246,13 +246,29 @@ _JSON_MODE_ERR_RE = re.compile(r"response_mime_type|mime|JSON mode|generation_co
 # google-genai는 기본 타임아웃이 없다(무한 대기). 연결이 걸리면 잡 제한 시간 30분을 다
 # 쓰고 죽으므로 요청 하나에 상한을 둔다. 단위는 밀리초다.
 _GEMINI_TIMEOUT_MS = 120_000
+# google-genai 3.x는 기본이 v1이고, 예전 google-generativeai는 v1beta를 불렀다. v1은
+# gemini-2.5-flash에 JSON 모드를 주지 않는다("JSON mode is not enabled", 2026-11-10 검증
+# 렌더에서 확인). 예전과 같은 v1beta로 고정한다.
+_GEMINI_API_VERSION = "v1beta"
 
 
 def _generate(genai, key: str, model_name: str, prompt: str, json_mode: bool):
     """키 하나로 요청 하나를 보낸다. google-genai는 전역 설정이 없고 키가 클라이언트에 묶인다."""
     cfg = {"response_mime_type": "application/json"} if json_mode else None
-    with genai.Client(api_key=key, http_options={"timeout": _GEMINI_TIMEOUT_MS}) as client:
+    opts = {"api_version": _GEMINI_API_VERSION, "timeout": _GEMINI_TIMEOUT_MS}
+    with genai.Client(api_key=key, http_options=opts) as client:
         return client.models.generate_content(model=model_name, contents=prompt, config=cfg)
+
+
+def _err_text(e) -> str:
+    """로그에 남길 오류 글.
+
+    google-genai의 APIError는 str()이 "400 INVALID_ARGUMENT. {'error': {'code': 400,
+    'message': '..."로 시작해서, 앞 80자만 남기는 로그에는 정작 사유가 잘려 나간다.
+    서버가 준 message가 있으면 그것을 앞세운다.
+    """
+    msg = getattr(e, "message", None)
+    return f"{getattr(e, 'code', '')} {msg}".strip() if msg else str(e)
 
 
 # 모델이 내는 JSON의 키. 파싱이 깨졌을 때 필드 단위로 건져 내는 데 쓴다.
