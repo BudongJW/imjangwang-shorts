@@ -1312,7 +1312,10 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"격변|파격|씨를\s?말|씨가\s?마르|"
                       # 11-09 초안: "이 기현상, 진짜 이유가 있습니다", "레버리지 활용은 생존과
                       # 직결된 문제입니다". 기사(유튜버 발언 정리)에 기현상도 생존도 없었다.
-                      r"기현상|생존")
+                      r"기현상|생존|"
+                      # 11-10 초안: "서민 주거 대안이 사라진다는 경고등이 켜진 건데요", "임대 물량은
+                      # 줄고 가격은 오르는 악순환입니다". 기사(서울 빌라 전월세 출회량)에 둘 다 없었다.
+                      r"경고등|악순환")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1892,6 +1895,7 @@ _SAYING_END_RE = re.compile(r"(?:다는|라는|란)\s?(?:분석|전망|관측|�
 _SCRIPT_MAYBE_RE = re.compile(r"수\s?있|가능|듯|[을ㄹ]지\s?모|[을ㄹ]\s?것|겠")
 _SRC_MAYBE_RE = re.compile(r"수\s?있(?:다는|을\s?것|다고|으리)|가능성이\s?있다는")
 HEDGE_MIN_SHARED = 3
+_CONCLUDE_TAIL_RE = re.compile(r"([가-힣]{2,})\s?(?:겁니다|것입니다|거죠|것이죠|셈입니다)$")
 
 
 def _hedge_drop_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -1909,6 +1913,18 @@ def _hedge_drop_problems(script: str, source_text: str) -> list[tuple[str, str]]
         tops = [x for k, x in scored if k == best]
         if all(_SRC_MAYBE_RE.search(x) for x in tops):
             out.append((sent[:40], "기사는 '~할 수 있다'인데 대본은 단정했다"))
+    # 진행자 말로 맺는 꼴("~된 겁니다"). 11-10 초안: 기사는 "이는 빌라 매입 수요를 위축시키고 …
+    # 신규 공급을 제약할 수 있다는 지적이다"였는데 대본은 "매입 수요 자체가 위축된 겁니다"였다.
+    # 맺는 말의 어간이 든 기사 문장(낱말 3개 이상 겹침)이 모두 '~수 있다'면 잡는다.
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        m = _CONCLUDE_TAIL_RE.search(sent)
+        if not m or _SCRIPT_MAYBE_RE.search(sent) or _SAYING_END_RE.search(sent):
+            continue
+        st, pred = _stems(sent), m.group(1)[:2]
+        cands = [x for x, ss in src_st if len(st & ss) >= HEDGE_MIN_SHARED and pred in x]
+        if cands and all(_SRC_MAYBE_RE.search(x) for x in cands):
+            out.append((sent[:40], f"기사는 '{pred}'를 '~할 수 있다'로 썼는데 대본은 일어난 일로 맺었다"))
     return out
 
 
@@ -2035,6 +2051,55 @@ def _host_voice_problems(script: str, source_text: str, title: str = "") -> list
                for i in tops):
             out.append((sent[:40], "기사에서는 남의 말인데 누구 말인지 빼고 단정했다"))
     return out
+
+
+# 기사의 "A에서 B로 N% 감소"를 끝 값 B 없이 "A에서 … N% 줄어든"으로 옮긴 문장. 11-10 초안:
+# 기사는 "2024년 1분기 3만752건에서 같은 해 3분기 2만2005건으로 반년 만에 28.4% 감소"였는데
+# 대본은 내년 1분기 1만8452건 바로 뒤에 "2024년 1분기 3만 752건에서 반년 만에 28.4%가 줄어든
+# 역대 최소치입니다"라고 붙였다. 28.4%가 1만8452건까지의 감소처럼 들린다.
+_QTY_UNIT_PAT = r"(?:건|가구|세대|호|원|만원|억원)"
+_FROM_PCT_RE = re.compile(r"(\d[\d,]*(?:\s?만\s?\d[\d,]*)?)\s?" + _QTY_UNIT_PAT + r"\s?에서([^.%]{0,30}?)(\d+(?:\.\d+)?)\s?%")
+
+
+def _endpoint_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    flat_src = re.sub(r"[\s,]", "", source_text or "")
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        flat = re.sub(r"[\s,]", "", sent)
+        for m in _FROM_PCT_RE.finditer(sent):
+            a = re.sub(r"[\s,]", "", m.group(1))
+            pct = m.group(3)
+            if re.search(r"\d", m.group(2)):
+                continue
+            for h in re.finditer(re.escape(a) + _QTY_UNIT_PAT + r"에서", flat_src):
+                seg = flat_src[h.end():h.end() + 60]
+                pm = re.search(re.escape(pct) + "%", seg)
+                if not pm:
+                    continue
+                bm = re.search(r"(\d[\d만]*)" + _QTY_UNIT_PAT + r"(?:으로|로)", seg[:pm.start()])
+                if bm and bm.group(1) not in flat:
+                    out.append((sent.strip()[:40],
+                                f"기사는 {a}에서 {bm.group(1)}로 {pct}% 줄었다는데 끝 값을 뺐다"))
+                    break
+    return out
+
+
+# 연간 실적과 '1~N월' 실적을 견줘 줄었다고 한 문장. 11-10 초안: "2021년 3만 건에 육박했던
+# 인허가 물량은 올해 1~9월 6684가구로 뚝 떨어졌죠". 기사는 올해 1~9월이 이미 지난해 연간
+# 실적을 넘었다고 썼고, 2021년과는 "비교하면 여전히 낮은 수준"이라고만 했다.
+_FULL_YEAR_RE = re.compile(r"(?<!\d)20\d{2}\s?년(?!\s?\d{1,2}\s?(?:월|분기))")
+_PARTIAL_RE = re.compile(r"1\s?[~∼～-]\s?\d{1,2}\s?월")
+_DROP_VERB_RE = re.compile(r"떨어|줄었|줄어|감소|급감|뚝|반토막|추락")
+
+
+def _partial_year_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_ok = any(_FULL_YEAR_RE.search(x) and _PARTIAL_RE.search(x) and _DROP_VERB_RE.search(x)
+                 for x in _SRC_SPLIT_RE.split(source_text or ""))
+    if src_ok:
+        return []
+    return [(sent.strip()[:40], "연간 실적과 1~N월 실적을 견줘 줄었다고 했다")
+            for sent in _CHECK_SPLIT_RE.split(script or "")
+            if _FULL_YEAR_RE.search(sent) and _PARTIAL_RE.search(sent) and _DROP_VERB_RE.search(sent)]
 
 
 # 기사에 없는 범위어. 10-18 초안: 기사는 "올해 주택 공급 목표는 착공 기준
@@ -2254,7 +2319,8 @@ def generate(art) -> ShortPlan:
                  + _forecast_problems(text, hay) + _absolute_problems(text, hay)
                  + _empty_open_problems(text, hay) + _org_claim_problems(text, hay)
                  + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
-                 + _cumulative_problems(text, hay)
+                 + _cumulative_problems(text, hay) + _endpoint_problems(text, hay)
+                 + _partial_year_problems(text, hay)
                  + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))

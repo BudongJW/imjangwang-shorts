@@ -2083,36 +2083,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "“아파트 욕심 조금만 미루자 했는데”…서울 빌라 전월세 물량 역대 최소",
-    "video_id": "eY4Br7R8oiA",
-    "date": "2026-11-10T00:33:44.357742",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 411,
-    "source": "매일경제",
-    "age_days": 1.1467371938541666,
-    "topic_score": 8,
-    "recency_score": 4,
-    "media": [
-      "p32180313",
-      "p32028711",
-      "p7464209",
-      "p4568698",
-      "p7464509",
-      "p7203702",
-      "v40049384",
-      "v39443157"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "outro_q": "on",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]

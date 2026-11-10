@@ -125,9 +125,18 @@ def _apply_outro_arm(plan):
         q = "여러분 동네 분양 분위기는 어떤가요? 댓글로 알려 주세요."
     else:
         q = "여러분 동네 분위기는 어떤가요? 댓글로 알려 주세요."
+    # 질문을 붙여 길이 상한을 넘으면 끝 문장부터 뺀다. 11-10 초안은 질문을 붙여 411자(65초)가
+    # 됐다. 길이 실험(보통 상한 380자)과 섞이면 질문 효과와 길이 효과를 가를 수 없다.
+    parts = [x for x in re.split(r"(?<=[.!?])\s+", cap) if x]
+    dropped = 0
+    while len(parts) > 2 and len(" ".join(parts)) + 1 + len(q) > SCRIPT_CHARS_CAP:
+        parts.pop()
+        dropped += 1
+    cap = " ".join(parts)
     plan.caption_script = f"{cap} {q}"
     plan.speech_script = to_speech(plan.caption_script)
-    buildnotes.note(f"실험 끝맺음 질문: 대본 끝에 질문을 붙임({q[:20]})")
+    buildnotes.note(f"실험 끝맺음 질문: 대본 끝에 질문을 붙임({q[:20]})"
+                    + (f", 상한 {SCRIPT_CHARS_CAP}자에 맞춰 끝 문장 {dropped}개 뺌" if dropped else ""))
     return plan
 
 
