@@ -420,9 +420,13 @@ def _age_days(published: str) -> float | None:
     try:
         dt = parsedate_to_datetime(published)
     except (TypeError, ValueError):
-        return None
+        dt = None
     if dt is None:
-        return None
+        # 지정 대본은 사람이 날짜를 적는다("2026-11-08", "2026-11-08T09:30:00+09:00").
+        try:
+            dt = datetime.fromisoformat(published.strip())
+        except ValueError:
+            return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - dt).total_seconds() / 86400
@@ -466,7 +470,6 @@ def collect(max_candidates: int = NEWS_MAX_CANDIDATES) -> list[Article]:
     # 언론사 피드를 먼저 넣는다. 원문 URL·본문이 딸려 있어 본문 확보 성공률이
     # 훨씬 높고, 점수가 같으면 먼저 들어온 쪽이 남는다.
     feeds = [(src, url, _fetch_publisher_rss(src, url)) for src, url in PUBLISHER_FEEDS]
-    n_feed = sum(len(x[2]) for x in feeds)
     for _src, _url, arts in feeds:
         for art in arts:
             key = art.title[:30]

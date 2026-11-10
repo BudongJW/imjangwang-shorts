@@ -414,6 +414,10 @@ def _capture_with_playwright(url: str, highlight: str, out: Path,
 
 
 def _wrap(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
+    # 줄바꿈을 공백으로 편다. 본문 발췌에 줄바꿈이 남아 있으면(지정 대본의 summary가
+    # 그렇다) 줄 안에 '\n'이 들어가고, 강조 폭을 재는 textlength가 "can't measure
+    # length of multiline text"로 죽어 기사 화면이 통째로 빠진다.
+    text = re.sub(r"\s+", " ", text or "").strip()
     lines, cur = [], ""
     for ch in text:
         if font.getlength(cur + ch) <= max_w:
@@ -596,7 +600,7 @@ def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
                           is_title: bool, out: Path) -> Path:
     """캡처 윗부분(증거) + 기사 원문 강조 문장(크게)을 한 화면(1080x1920)으로."""
     from src.editor.slide_bg import backdrop
-    W, H = SHORTS_WIDTH, SHORTS_HEIGHT
+    W = SHORTS_WIDTH
     canvas = backdrop().convert("RGB")
     d = ImageDraw.Draw(canvas)
     cap = Image.open(shot).convert("RGB")

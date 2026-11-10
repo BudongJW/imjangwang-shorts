@@ -10,6 +10,7 @@ output/audio/*
 output/srt/*
 output/video/*
 output/final/*
+output/frames/
 !output/**/.gitkeep
 
 # 파이썬
@@ -37,3 +38,7 @@ output/topic_history.json
 oauth_out.log
 live_test*.log
 img_final_test.log
+
+# 테스트·린트 캐시
+.pytest_cache/
+.ruff_cache/

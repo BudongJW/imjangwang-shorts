@@ -205,22 +205,51 @@ def _darken(im: Image.Image, factor: float = 0.5) -> Image.Image:
     return ImageEnhance.Brightness(im).enhance(factor)
 
 
-def _rising_arrow(draw: ImageDraw.ImageDraw, y0: int) -> None:
-    """빨간 상승 지그재그 화살표를 화면 중하단에 그린다."""
+# 화살표 방향을 헤드라인이 말하는 방향에 맞춘다. 예전에는 얼굴이 없으면 무조건 빨간
+# 상승 화살표를 그렸다. 지정 대본이 10월부터 전부 face=none이라 모든 썸네일에 상승
+# 화살표가 붙었고, "집계 이래 최소"(11-10), "올해 최저"(11-07), "집값 하락률"(11-08)
+# 같은 썸네일에도 오른다는 그림이 올라갔다. 썸네일은 영상에서 가장 먼저 보이는 화면이라
+# 방향이 글과 어긋나면 그 자체가 틀린 정보다. 방향을 못 가리면 그리지 않는다.
+# 수량이 움직인 방향을 말하는 낱말만 본다. '폭락론'(전망을 가리키는 말), '최대 92%'
+# (상한), '빈집·해지·미달'(상태)은 방향이 아니라서 넣지 않는다.
+_ARROW_UP_RE = re.compile(
+    r"오르|올랐|올라|상승|폭등|급등|치솟|뛰|뛴|껑충|쑥|최고|최대(?!\s?\d)|신고가|돌파|"
+    r"늘었|늘어|늘고|늘며|늘자|증가|급증")
+_ARROW_DOWN_RE = re.compile(
+    r"하락(?!론)|급락|폭락(?!론)|내리|내렸|내린|떨어|감소|급감|최저|최소|바닥|증발|절벽|"
+    r"반토막|줄었|줄어|줄고|줄며|줄자")
+BLUE = (46, 130, 235)     # 숫자 카드의 하락 색과 같다(stat_callout.BLUE)
+
+
+def headline_direction(headline: list[str], hook_word: str = "") -> str:
+    """헤드라인이 말하는 방향: 'up' | 'down' | ''(둘 다 있거나 둘 다 없음)."""
+    # 줄마다 따로 본다. 이어 붙이면 줄 끝의 '최대'가 다음 줄 숫자와 만나 상한으로 읽힌다.
+    parts = [x for x in [*(headline or []), hook_word or ""] if x]
+    up = any(_ARROW_UP_RE.search(x) for x in parts)
+    down = any(_ARROW_DOWN_RE.search(x) for x in parts)
+    if up == down:
+        return ""
+    return "up" if up else "down"
+
+
+def _trend_arrow(draw: ImageDraw.ImageDraw, y0: int, direction: str = "up") -> None:
+    """지그재그 화살표를 화면 중하단에 그린다. 상승은 빨강, 하락은 파랑(위아래를 뒤집는다)."""
     w = SHORTS_WIDTH
+    color = RED if direction == "up" else BLUE
     pts = [
         (int(w * 0.12), y0 + 260),
         (int(w * 0.34), y0 + 120),
         (int(w * 0.52), y0 + 200),
         (int(w * 0.86), y0 - 40),
     ]
-    draw.line(pts, fill=RED, width=22, joint="curve")
-    # 화살촉
+    head = [(8, -8), (-70, -34), (-34, 62)]
+    if direction != "up":
+        mid = y0 + 110          # 꺾은선의 세로 중심. 여기를 축으로 뒤집으면 같은 자리에 내려가는 선이 된다
+        pts = [(x, 2 * mid - y) for x, y in pts]
+        head = [(dx, -dy) for dx, dy in head]
+    draw.line(pts, fill=color, width=22, joint="curve")
     tip = pts[-1]
-    draw.polygon(
-        [(tip[0] + 8, tip[1] - 8), (tip[0] - 70, tip[1] - 34), (tip[0] - 34, tip[1] + 62)],
-        fill=RED,
-    )
+    draw.polygon([(tip[0] + dx, tip[1] + dy) for dx, dy in head], fill=color)
 
 
 def _paste_face(base: Image.Image, face: Path, side: str = "right",
@@ -307,10 +336,6 @@ def render_title_card(headline: list[str], hook_word: str,
 
     draw = ImageDraw.Draw(base, "RGBA")
 
-    # 얼굴이 없을 때만 상승 화살표
-    if not has_face:
-        _rising_arrow(draw, y0=int(SHORTS_HEIGHT * 0.52))
-
     # 헤드라인 밴드 — 구도별 위치·폭·정렬
     x0 = int(SHORTS_WIDTH * lay.band_x0)
     x1 = int(SHORTS_WIDTH * lay.band_x1)
@@ -341,6 +366,18 @@ def render_title_card(headline: list[str], hook_word: str,
             band_top += shift
             band_bottom += shift
             top += shift
+
+    # 얼굴이 없을 때만 화살표. 방향은 헤드라인에서 읽고, 못 가리면 그리지 않는다.
+    # 자리는 헤드라인 밴드를 피해 잡는다. 화면 52% 높이에 고정해 두었을 때는 밴드가
+    # 가운데나 아래에 오는 구도(head-right, eyes-left)에서 화살표가 글자와 겹쳤다.
+    if not has_face:
+        direction = headline_direction(headline, hook_word)
+        if direction:
+            if (band_top + band_bottom) / 2 < SHORTS_HEIGHT * 0.5:
+                y0 = max(int(SHORTS_HEIGHT * 0.52), band_bottom + 110)
+            else:
+                y0 = band_top - 330
+            _trend_arrow(draw, y0=y0, direction=direction)
 
     if lay.band_style == "accent":
         draw.rectangle([x0, band_top, x1, band_bottom], fill=(*accent, 210))

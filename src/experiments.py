@@ -57,6 +57,13 @@ REGISTRY: list[dict] = [
      "control": "off", "metric": "views_48h", "also": ["like_rate", "avg_pct"],
      "pinned": True,
      "about": "대본 마지막 문장을 시청자에게 묻는 짧은 질문으로 끝내는지"},
+    # 11-10 프로젝트 검토에서 넣었다. 구간별 시청 유지에서 3초에 남은 시청자의 40%가
+    # 8초 전에 떠나고(10-10판 9편 중앙값), 그 구간이 글자만 있는 기사 화면이다.
+    # late 팔은 기사 화면을 영상 중간으로 옮기고 그 자리에 배경 컷과 첫 숫자 카드를 둔다.
+    {"key": "article_pos", "title": "기사 화면 위치", "arms": ["early", "late"],
+     "control": "early", "metric": "avg_pct", "also": ["pass_rate", "views_48h"],
+     "pinned": True,
+     "about": "기사 화면을 첫 컷 바로 뒤(3~8초)에 두는지 영상 중간으로 옮기는지"},
     {"key": "bgm", "title": "배경음", "arms": ["on", "off"],
      "control": "on", "metric": "avg_pct", "also": ["views_48h"],
      "pinned": True,
