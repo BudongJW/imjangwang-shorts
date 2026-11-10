@@ -20,6 +20,7 @@ class Calls(list):
     def __init__(self):
         super().__init__()
         self.keys = []
+        self.http_options = []
 
 
 def install_fake_sdk(monkeypatch, handler):
@@ -43,6 +44,7 @@ def install_fake_sdk(monkeypatch, handler):
 
     class Client:
         def __init__(self, *, api_key=None, http_options=None):
+            calls.http_options.append(http_options)
             self.models = Models(api_key)
 
         def __enter__(self):
@@ -67,6 +69,15 @@ def test_json_mode_is_requested(monkeypatch):
     calls = install_fake_sdk(monkeypatch, lambda model, cfg: '{"script": "가"}')
     assert g._gemini("p") == '{"script": "가"}'
     assert calls == [(g.GEMINI_MODEL, {"response_mime_type": "application/json"})]
+
+
+def test_client_pins_v1beta_and_a_timeout(monkeypatch):
+    # google-genai 3.x의 기본 v1은 gemini-2.5-flash의 JSON 모드를 400으로 거절한다
+    # (2026-11-10 검증 렌더). 기본 타임아웃도 없다. 둘 다 빠지면 조용히 나빠진다.
+    calls = install_fake_sdk(monkeypatch, lambda model, cfg: '{"script": "가"}')
+    g._gemini("p")
+    assert calls.http_options[0]["api_version"] == "v1beta"
+    assert calls.http_options[0]["timeout"] > 0
 
 
 def test_rejected_json_mode_is_turned_off_and_retried_at_once(monkeypatch):

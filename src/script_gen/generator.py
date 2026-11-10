@@ -247,8 +247,9 @@ _JSON_MODE_ERR_RE = re.compile(r"response_mime_type|mime|JSON mode|generation_co
 # 쓰고 죽으므로 요청 하나에 상한을 둔다. 단위는 밀리초다.
 _GEMINI_TIMEOUT_MS = 120_000
 # google-genai 3.x는 기본이 v1이고, 예전 google-generativeai는 v1beta를 불렀다. v1은
-# gemini-2.5-flash에 JSON 모드를 주지 않는다("JSON mode is not enabled", 2026-11-10 검증
-# 렌더에서 확인). 예전과 같은 v1beta로 고정한다.
+# gemini-2.5-flash에 JSON 모드를 주지 않는다(400 "JSON mode is not enabled"). 2026-11-10
+# 검증 렌더 두 번으로 확인했다: v1은 거절, v1beta는 JSON 모드로 생성. 예전과 같은
+# v1beta로 고정한다.
 _GEMINI_API_VERSION = "v1beta"
 
 
