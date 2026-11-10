@@ -1,0 +1,15 @@
+# 패키지 설정이 아니라 도구 설정만 둔다. 의존성은 requirements.txt에 있다.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+extend-exclude = ["output"]
+
+[tool.ruff.lint]
+# 실제로 터지는 것만 본다: 문법 오류, 없는 이름, 안 쓰는 import·변수.
+# 모양(줄 길이·따옴표)은 보지 않는다. 규칙을 넓히려면 먼저 기존 코드를 맞춘다.
+select = ["E9", "F"]
