@@ -16,7 +16,7 @@ from datetime import datetime
 
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
-    POLITICIAN_FACE, POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
+    POLITICIAN_FACE_ENABLED, GOV_NAME, OUTPUT_DIR,
     PUBLISH_TARGET_KST, PUBLISH_MIN_LEAD_MIN, SCRIPT_LEN_MODE, BROLL_VIDEO_N,
     SCRIPT_CHARS_MIN, SCRIPT_CHARS_CAP,
 )
@@ -161,7 +161,15 @@ def _load_pinned_plan():
             title=a.get("title", ""), source=a.get("source", ""),
             url=a.get("url", ""), summary=a.get("summary", ""),
             image_url=a.get("image_url", ""),
+            published=a.get("published", ""),
         )
+        # 선정 근거를 지정 대본에도 남긴다. 자동 선정 경로(pick_and_enrich)에서만 채워서,
+        # 지정 대본을 쓴 날은 토픽 기록의 소재 점수가 전부 0으로 남았다. 10월 이후 매일
+        # 지정 대본이라, 소재 점수와 조회수를 맞춰 보는 분석이 10-04에서 멈춰 있었다.
+        art.pick_topic_score = news.topic_score(art.title)
+        if art.published:
+            art.pick_age_days = news._age_days(art.published)
+            art.pick_recency_score = news.recency_score(art.published)
         cap = str(p["caption_script"]).strip()
         plan = ShortPlan(
             headline=list(p.get("headline", [])),
@@ -543,7 +551,9 @@ def run(skip_upload: bool = False) -> int:
                  source=getattr(art, "source", "") or None,
                  age_days=getattr(art, "pick_age_days", None),
                  topic_score=getattr(art, "pick_topic_score", None),
-                 recency_score=getattr(art, "pick_recency_score", None),
+                 # 지정 대본에 기사 날짜가 없으면 신선도는 모르는 값이다(0점이 아니다).
+                 recency_score=(getattr(art, "pick_recency_score", None)
+                                if not pinned or getattr(art, "published", "") else None),
                  # 다음 영상들이 같은 스톡 사진·영상을 피하도록 남긴다.
                  media=list(images.USED_MEDIA) or None,
                  # 화면 구성 판(첫 화면 숫자 카드, 짧은 기사 화면, 끝 컷 반복).

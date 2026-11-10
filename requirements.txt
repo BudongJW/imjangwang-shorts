@@ -1,5 +1,6 @@
 # LLM (대본 생성)
-google-generativeai>=0.8.0
+# 다음 메이저에서 generate_content 동작이 바뀐다고 예고돼 있어 3.x로 묶는다.
+google-genai>=3.0.0,<4
 
 # TTS
 # edge-tts는 AZURE_SPEECH_KEY가 없을 때의 폴백으로 남겨 둔다.
