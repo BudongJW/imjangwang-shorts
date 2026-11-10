@@ -196,9 +196,9 @@ def _gemini(prompt: str) -> str | None:
     if not _key_cycle:
         return None
     try:
-        import google.generativeai as genai
+        from google import genai
     except Exception:
-        log.info("google-generativeai 미설치 → 폴백")
+        log.info("google-genai 미설치 → 폴백")
         return None
     # 주 모델 → 백업 모델 순으로, 각 모델마다 키 로테이션
     models = list(dict.fromkeys([GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]))
@@ -208,11 +208,13 @@ def _gemini(prompt: str) -> str | None:
         for _ in range(min(len(GEMINI_API_KEYS), 3)):
             key = next(_key_cycle)
             try:
-                genai.configure(api_key=key)
-                resp = _generate(genai, model_name, prompt, _json_mode)
+                resp = _generate(genai, key, model_name, prompt, _json_mode)
                 if resp.text:
                     log.info(f"  Gemini 생성({model_name}{', JSON 모드' if _json_mode else ''})")
                     return resp.text
+                # 새 SDK는 차단되거나 빈 응답에서 예외를 던지지 않고 text가 None이다.
+                last = "빈 응답"
+                log.info(f"  Gemini 빈 응답({model_name}), 로테이션")
             except Exception as e:  # 쿼터/모델명/키 → 다음 키·모델
                 last = e
                 log.info(f"  Gemini 실패({model_name}), 로테이션: {str(e)[:80]}")
@@ -223,7 +225,7 @@ def _gemini(prompt: str) -> str | None:
                     _json_mode = False
                     note(f"대본: JSON 모드 거절 → 일반 모드로 계속 ({str(e)[:60]})")
                     try:
-                        resp = _generate(genai, model_name, prompt, False)
+                        resp = _generate(genai, key, model_name, prompt, False)
                         if resp.text:
                             log.info(f"  Gemini 생성({model_name})")
                             return resp.text
@@ -241,10 +243,16 @@ _json_mode = True
 _JSON_MODE_ERR_RE = re.compile(r"response_mime_type|mime|JSON mode|generation_config|"
                                r"unexpected keyword", re.I)
 
+# google-genai는 기본 타임아웃이 없다(무한 대기). 연결이 걸리면 잡 제한 시간 30분을 다
+# 쓰고 죽으므로 요청 하나에 상한을 둔다. 단위는 밀리초다.
+_GEMINI_TIMEOUT_MS = 120_000
 
-def _generate(genai, model_name: str, prompt: str, json_mode: bool):
+
+def _generate(genai, key: str, model_name: str, prompt: str, json_mode: bool):
+    """키 하나로 요청 하나를 보낸다. google-genai는 전역 설정이 없고 키가 클라이언트에 묶인다."""
     cfg = {"response_mime_type": "application/json"} if json_mode else None
-    return genai.GenerativeModel(model_name, generation_config=cfg).generate_content(prompt)
+    with genai.Client(api_key=key, http_options={"timeout": _GEMINI_TIMEOUT_MS}) as client:
+        return client.models.generate_content(model=model_name, contents=prompt, config=cfg)
 
 
 # 모델이 내는 JSON의 키. 파싱이 깨졌을 때 필드 단위로 건져 내는 데 쓴다.

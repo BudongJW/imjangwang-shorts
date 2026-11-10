@@ -14,28 +14,49 @@ class FakeResp:
         self.text = text
 
 
+class Calls(list):
+    """(모델, config) 호출 기록. keys에는 각 호출이 쓴 API 키가 같은 순서로 들어간다."""
+
+    def __init__(self):
+        super().__init__()
+        self.keys = []
+
+
 def install_fake_sdk(monkeypatch, handler):
-    """google.generativeai를 흉내 낸다. handler(model, generation_config) → 글 또는 예외."""
-    calls = []
+    """google.genai를 흉내 낸다. handler(model, config) → 글, None(빈 응답) 또는 예외.
 
-    class Model:
-        def __init__(self, name, generation_config=None):
-            self.name, self.cfg = name, generation_config
+    새 SDK는 전역 설정이 없고 키마다 Client를 만든다. 어떤 키로 불렀는지도 적어 둔다.
+    """
+    calls = Calls()
 
-        def generate_content(self, prompt):
-            calls.append((self.name, self.cfg))
-            out = handler(self.name, self.cfg)
+    class Models:
+        def __init__(self, key):
+            self.key = key
+
+        def generate_content(self, *, model, contents, config=None):
+            calls.append((model, config))
+            calls.keys.append(self.key)
+            out = handler(model, config)
             if isinstance(out, Exception):
                 raise out
             return FakeResp(out)
 
-    sdk = types.ModuleType("google.generativeai")
-    sdk.configure = lambda api_key=None: None
-    sdk.GenerativeModel = Model
+    class Client:
+        def __init__(self, *, api_key=None, http_options=None):
+            self.models = Models(api_key)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    sdk = types.ModuleType("google.genai")
+    sdk.Client = Client
     pkg = types.ModuleType("google")
-    pkg.generativeai = sdk
+    pkg.genai = sdk
     monkeypatch.setitem(sys.modules, "google", pkg)
-    monkeypatch.setitem(sys.modules, "google.generativeai", sdk)
+    monkeypatch.setitem(sys.modules, "google.genai", sdk)
     monkeypatch.setattr(g, "GEMINI_API_KEYS", ["k1", "k2"])
     monkeypatch.setattr(g, "_key_cycle", itertools.cycle(["k1", "k2"]))
     monkeypatch.setattr(g, "_json_mode", True)
@@ -69,12 +90,23 @@ def test_quota_errors_rotate_keys_and_models_without_dropping_json_mode(monkeypa
     calls = install_fake_sdk(monkeypatch, handler)
     assert g._gemini("p") == '{"script": "다"}'
     assert [m for m, _ in calls] == [g.GEMINI_MODEL, g.GEMINI_MODEL, g.GEMINI_FALLBACK_MODELS[0]]
+    assert calls.keys == ["k1", "k2", "k1"]   # 요청마다 그 키로 만든 클라이언트를 쓴다
     assert g._json_mode is True
 
 
 def test_all_failures_return_none(monkeypatch):
     install_fake_sdk(monkeypatch, lambda model, cfg: RuntimeError("503"))
     assert g._gemini("p") is None
+
+
+def test_empty_response_rotates_instead_of_returning(monkeypatch):
+    # 새 SDK는 차단·빈 응답에서 예외 없이 text=None을 준다. 그대로 돌려주지 않고 다음으로 간다.
+    def handler(model, cfg):
+        return None if model == g.GEMINI_MODEL else '{"script": "라"}'
+    calls = install_fake_sdk(monkeypatch, handler)
+    assert g._gemini("p") == '{"script": "라"}'
+    assert [m for m, _ in calls] == [g.GEMINI_MODEL, g.GEMINI_MODEL, g.GEMINI_FALLBACK_MODELS[0]]
+    assert g._json_mode is True
 
 
 @pytest.mark.parametrize("raw,script", [
