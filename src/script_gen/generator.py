@@ -203,20 +203,48 @@ def _gemini(prompt: str) -> str | None:
     # 주 모델 → 백업 모델 순으로, 각 모델마다 키 로테이션
     models = list(dict.fromkeys([GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]))
     last = None
+    global _json_mode
     for model_name in models:
         for _ in range(min(len(GEMINI_API_KEYS), 3)):
             key = next(_key_cycle)
             try:
                 genai.configure(api_key=key)
-                resp = genai.GenerativeModel(model_name).generate_content(prompt)
+                resp = _generate(genai, model_name, prompt, _json_mode)
                 if resp.text:
-                    log.info(f"  Gemini 생성({model_name})")
+                    log.info(f"  Gemini 생성({model_name}{', JSON 모드' if _json_mode else ''})")
                     return resp.text
             except Exception as e:  # 쿼터/모델명/키 → 다음 키·모델
                 last = e
                 log.info(f"  Gemini 실패({model_name}), 로테이션: {str(e)[:80]}")
+                if _json_mode and _JSON_MODE_ERR_RE.search(str(e)):
+                    # 모델이나 SDK가 JSON 모드를 안 받는다. 이 실행에서는 끄고 같은 키로
+                    # 바로 한 번 더 간다. 그러지 않으면 모든 시도가 같은 이유로 실패해
+                    # 템플릿 폴백 대본이 나간다.
+                    _json_mode = False
+                    note(f"대본: JSON 모드 거절 → 일반 모드로 계속 ({str(e)[:60]})")
+                    try:
+                        resp = _generate(genai, model_name, prompt, False)
+                        if resp.text:
+                            log.info(f"  Gemini 생성({model_name})")
+                            return resp.text
+                    except Exception as e2:
+                        last = e2
     log.info(f"  Gemini 전체 실패: {str(last)[:120]}")
     return None
+
+
+# 응답을 JSON으로만 받는다(response_mime_type). 프롬프트가 제목에 따옴표 인용을 요구해서
+# 모델이 문자열 안에 이스케이프 없는 "를 넣는 일이 잦았고, 그때마다 아래 _parse_json이
+# 수선하거나 키 위치로 잘라 읽어야 했다. JSON 모드에서는 모델이 문법에 맞는 JSON만 낸다.
+# 수선 경로는 그대로 둔다(모드가 꺼졌을 때와 백업 모델용).
+_json_mode = True
+_JSON_MODE_ERR_RE = re.compile(r"response_mime_type|mime|JSON mode|generation_config|"
+                               r"unexpected keyword", re.I)
+
+
+def _generate(genai, model_name: str, prompt: str, json_mode: bool):
+    cfg = {"response_mime_type": "application/json"} if json_mode else None
+    return genai.GenerativeModel(model_name, generation_config=cfg).generate_content(prompt)
 
 
 # 모델이 내는 JSON의 키. 파싱이 깨졌을 때 필드 단위로 건져 내는 데 쓴다.
@@ -1151,6 +1179,22 @@ _ATTRIB_RE = re.compile(
 # 당부했다고 썼는데 대본은 "건설 금융 걸림돌부터 없애야 한다는 지적이 컸습니다"였다.
 _CROWD_RE = re.compile(
     r"(지적|비판|우려|목소리|불만)(?:이|가|도)\s?(?:컸|크|많|잇따|쏟아|높|거세|커지|나오|나왔|나옵|나온|나와|제기)")
+# "지적이 나옵니다"처럼 크기를 키우지 않는 꼴. 기사가 같은 낱말로 남의 말을 전했으면
+# ("~할 수 있다는 지적이다", "~라는 우려도 있다") 그대로 옮긴 것이다. 11-10 기사의
+# "신규 공급을 제약할 수 있다는 지적이다"를 "…지적이 나옵니다"로 옮긴 문장이 지워졌다.
+# 프롬프트 규칙 8·16이 권하는 꼴이 바로 이것이라, 잡으면 고쳐 쓸 길이 없다.
+# "쏟아진다·거세다·잇따른다"처럼 크기를 말하는 꼴은 기사에도 그런 말이 있어야 한다.
+_CROWD_MILD_RE = re.compile(r"(?:나오|나왔|나옵|나온|나와|제기)$")
+
+
+def _mild_crowd_in_source(cm: re.Match, src: str) -> bool:
+    if not _CROWD_MILD_RE.search(cm.group(0)):
+        return False
+    noun = cm.group(1)
+    return bool(re.search(
+        rf"(?:다는|라는)\s?{noun}|(?<![가-힣]){noun}(?:이다|이었다|도\s?있|이\s?있)", src))
+
+
 _HEARSAY_RE = re.compile(r"다는\s?(지적|비판|우려|목소리|분석|평가|관측)")
 _POLICY_STEMS = {"규제", "정책", "대책", "정부", "세금", "대출", "임대", "중과"}
 # 진행자 말로 맺는 원인 설명("~한 것이죠", "~때문입니다"). 기사가 그 내용을
@@ -1200,7 +1244,7 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
             out.append((needle, f"남의 말로 옮겼는데 기사에 '{am.group(1)}' 표현이 없다"))
             continue
         cm = _CROWD_RE.search(sent)
-        if cm and not _CROWD_RE.search(src):
+        if cm and not _CROWD_RE.search(src) and not _mild_crowd_in_source(cm, src):
             out.append((needle, f"기사에 없는 여론으로 키웠다('{cm.group(0)}')"))
             continue
         # "~다는 지적에"처럼 내용을 남의 지적으로 옮긴 꼴. 기사에 '지적했다'만
@@ -2229,6 +2273,42 @@ def _drop_sentences_with(script: str, quotes: list[str]) -> str:
     return (". ".join(keep) + ".") if keep else ""
 
 
+def script_defects(text: str, hay: str, title: str = "",
+                   published: str = "") -> tuple[list[str], list[str]]:
+    """대본을 기사와 대조한다. (문장 삭제에 쓸 바늘, 사람이 읽을 사유)를 돌려준다.
+
+    hay는 기사 제목과 본문을 이은 글이다. generate()가 쓰는 검사 묶음을 그대로 밖에
+    내놓은 것이라, 테스트와 지정 대본 회귀 검사(scripts/check_corpus.py)가 같은
+    기준으로 돈다. 검사를 더할 때는 여기 한 곳에만 더한다.
+    """
+    q = _fake_quotes(text, hay)
+    p = _pct_problems(text, hay)
+    a = _unsourced_actors(text, hay)
+    pr = _pair_problems(text, hay)
+    c = (_causal_problems(text, hay) + _hype_problems(text, hay)
+         + _year_problems(text, hay) + _count_problems(text, hay)
+         + _verdict_problems(text, hay) + _range_problems(text, hay)
+         + _opinion_problems(text, hay) + _link_problems(text, hay)
+         + _tense_problems(text, hay) + _scope_problems(text, hay)
+         + _future_problems(text, hay) + _period_problems(text, hay)
+         + _duration_problems(text, hay) + _quote_speaker_problems(text, hay)
+         + _stale_month_problems(text, published)
+         + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
+         + _subject_problems(text, hay) + _proposal_problems(text, hay)
+         + _forecast_problems(text, hay) + _absolute_problems(text, hay)
+         + _empty_open_problems(text, hay) + _org_claim_problems(text, hay)
+         + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
+         + _cumulative_problems(text, hay) + _endpoint_problems(text, hay)
+         + _partial_year_problems(text, hay)
+         + _host_voice_problems(text, hay, title)
+         + _dequoted_title_problems(text, title)
+         + _direction_problems(text))
+    return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
+            [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
+            + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]
+            + [r for _, r in c])
+
+
 def generate(art) -> ShortPlan:
     body = (getattr(art, "summary", "") or "").strip()
     has_body = len(body) >= MIN_BODY_FOR_STATS
@@ -2301,33 +2381,8 @@ def generate(art) -> ShortPlan:
     if has_body:
         hay = f"{getattr(art, 'title', '')} {body}"
         def _defects(text: str) -> tuple[list[str], list[str]]:
-            """(문장 삭제에 쓸 바늘, 사람이 읽을 사유)."""
-            q = _fake_quotes(text, hay)
-            p = _pct_problems(text, hay)
-            a = _unsourced_actors(text, hay)
-            pr = _pair_problems(text, hay)
-            c = (_causal_problems(text, hay) + _hype_problems(text, hay)
-                 + _year_problems(text, hay) + _count_problems(text, hay)
-                 + _verdict_problems(text, hay) + _range_problems(text, hay)
-                 + _opinion_problems(text, hay) + _link_problems(text, hay)
-                 + _tense_problems(text, hay) + _scope_problems(text, hay)
-                 + _future_problems(text, hay) + _period_problems(text, hay)
-                 + _duration_problems(text, hay) + _quote_speaker_problems(text, hay)
-                 + _stale_month_problems(text, getattr(art, "published", ""))
-                 + _claimant_problems(text, hay) + _qualifier_problems(text, hay)
-                 + _subject_problems(text, hay) + _proposal_problems(text, hay)
-                 + _forecast_problems(text, hay) + _absolute_problems(text, hay)
-                 + _empty_open_problems(text, hay) + _org_claim_problems(text, hay)
-                 + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
-                 + _cumulative_problems(text, hay) + _endpoint_problems(text, hay)
-                 + _partial_year_problems(text, hay)
-                 + _host_voice_problems(text, hay, getattr(art, "title", ""))
-                 + _dequoted_title_problems(text, getattr(art, "title", ""))
-                 + _direction_problems(text))
-            return (q + [n for n, _ in p] + a + [n for n, _ in pr] + [n for n, _ in c],
-                    [f'없는 인용: "{x}"' for x in q] + [r for _, r in p]
-                    + [f"기사에 없는 주체: {x}" for x in a] + [r for _, r in pr]
-                    + [r for _, r in c])
+            return script_defects(text, hay, getattr(art, "title", ""),
+                                  getattr(art, "published", ""))
 
         bad, why = _defects(str(data.get("script", "")))
         if bad:

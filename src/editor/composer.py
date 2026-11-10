@@ -23,7 +23,7 @@ from pathlib import Path
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
     TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO)
-from src.editor.fonts import font_bold, fix_glyphs
+from src.editor.fonts import fix_glyphs
 from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
 
@@ -60,6 +60,36 @@ def _ffprobe_duration(path: Path) -> float:
         h, mm, s = int(m.group(1)), int(m.group(2)), float(m.group(3))
         return h * 3600 + mm * 60 + s
     return 50.0
+
+
+# 나레이션 앞 무음. TTS가 0.3~0.4초 쉬고 말을 시작한다(11-10 영상 실측 0.37초).
+# 쇼츠는 첫 1초 안에 넘길지가 갈리는데 그 3분의 1이 소리 없는 화면이었다.
+# 이만큼만 남기고 잘라 낸다. 측정에 실패하면 0을 돌려줘 아무것도 자르지 않는다.
+LEAD_KEEP_SEC = 0.08
+LEAD_TRIM_MIN_SEC = 0.1     # 이보다 짧으면 자를 것이 없다
+LEAD_TRIM_MAX_SEC = 1.0     # 이보다 길면 무음이 아니라 측정이 틀린 것이다
+
+
+def _leading_silence(path: Path) -> float:
+    """오디오 맨 앞 무음 길이(초). 무음으로 시작하지 않거나 못 재면 0."""
+    try:
+        r = subprocess.run(
+            [_ffmpeg(), "-hide_banner", "-t", "3", "-i", str(path),
+             "-af", "silencedetect=noise=-40dB:d=0.05", "-f", "null", "-"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return 0.0
+    st = re.search(r"silence_start:\s*(-?[\d.]+)", r.stderr or "")
+    en = re.search(r"silence_end:\s*([\d.]+)", r.stderr or "")
+    if not st or not en or float(st.group(1)) > 0.02:
+        return 0.0
+    return float(en.group(1))
+
+
+def _lead_trim(path: Path) -> float:
+    """나레이션 앞에서 잘라 낼 길이(초)."""
+    cut = _leading_silence(path) - LEAD_KEEP_SEC
+    return round(cut, 3) if LEAD_TRIM_MIN_SEC <= cut <= LEAD_TRIM_MAX_SEC else 0.0
 
 
 # ── 자막(교정된 표기) ASS 생성 ──────────────────────────
@@ -104,7 +134,14 @@ _HL_OFF = r"{\c&HFFFFFF&}"
 # 숫자+단위, 임팩트 키워드를 노랑 강조. 글자에 붙은 숫자("화곡6동", "제1호")는
 # 이름이라 칠하지 않는다(10-11 지정 영상). 자릿수 단위 뒤의 숫자("2만6951가구"의
 # 6951)는 같은 수의 뒷부분이라 칠한다(10-14 초안에서 "2만"만 노랗게 떴다).
-_NUM_RE = re.compile(r"(?:(?<![가-힣A-Za-z\d,\.])|(?<=[조억만천]))\d[\d,\.]*\s?(?:%|퍼센트|억|만원|만|천|년|배|채|가구|평|㎡|조|위|건|일|개월)?")
+# 숫자 뒤 단위까지 한 덩어리로 칠한다. 단위 목록이 짧았을 때는 "1분기"의 1, "67만
+# 9886원"의 원 앞까지만 노랗게 떠서 숫자가 반쪽만 강조됐다(11-10 영상 0.8초·20초 자막).
+# 긴 단위를 앞에 둔다(개월 > 개, 세대 > 세, %포인트 > %). "1주택자"의 주, "3건물"의
+# 건처럼 다른 낱말의 첫 글자인 경우는 뺀다.
+_NUM_UNIT = (r"(?:%\s?포인트|%p|%|퍼센트(?:\s?포인트)?|포인트|"
+             r"(?:조|억|만|천)+(?:\s?(?:원(?![룸가])|가구|세대|명|채|건(?![물설축])))?|"
+             r"원(?![룸가])|년|분기|개월|월|주(?!택)|일|배|채|가구|세대|평|㎡|위|건(?![물설축])|명|곳|호|층|세|개)")
+_NUM_RE = re.compile(r"(?:(?<![가-힣A-Za-z\d,\.])|(?<=[조억만천]))\d[\d,\.]*\s?" + _NUM_UNIT + "?")
 _KEYWORDS = ["폭등", "급등", "급락", "폭락", "역대급", "신고가", "최고치", "최고", "최저",
              "하락", "급증", "반등", "규제", "완화", "비상", "경고"]
 
@@ -291,6 +328,11 @@ def _timings_from_cues(phrases: list[str], cues: list[tuple[str, float, float]],
         out.append((ph, start, end))
     if not out:
         return None
+    # 첫 자막은 0초부터 띄운다. 발화가 0.2~0.4초에 시작해서 그때까지 자막이 없었고,
+    # 피드에서 가장 먼저 보이는 첫 프레임이 글자 없는 스톡 사진이었다(11-10 영상
+    # 0.0~0.1초). 쇼츠는 대부분 소리 없이 넘기므로 첫 프레임에 무슨 얘기인지 보여야 한다.
+    ph, _, en = out[0]
+    out[0] = (ph, 0.0, en)
     # 마지막은 오디오 끝까지 붙인다.
     ph, st, _ = out[-1]
     out[-1] = (ph, st, total_sec)
@@ -502,7 +544,8 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
                         cues: list[tuple[str, float, float]] | None = None,
                         avoid: list[tuple[float, float]] | None = None,
                         skip_values: set[str] | None = None,
-                        full: bool = False
+                        full: bool = False,
+                        clear_until: float = 0.0
                         ) -> list[tuple[Path, float, float]]:
     """대본 구절에서 핵심 수치를 뽑아 (스탯카드경로, 시작, 끝) 오버레이 계획 생성.
 
@@ -551,6 +594,13 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
         # 겹치지 않는 쪽으로 잘라 쓰고, 남는 길이가 모자랄 때만 버린다.
         cs, ce = _clip_blocked(cs, ce, blocked)
         in_article = ce - cs < MIN_CALLOUT_SEC
+        # 비워 두는 첫 화면(0~clear_until)에 걸친 숫자는 버리지 않고 그 뒤로 미룬다.
+        # 통째로 버리면 첫 문장의 핵심 숫자가 카드로 한 번도 안 나온다.
+        # 미룰 만큼 남지 않으면(첫 화면 안에서 끝나는 구절) 예전처럼 띄우지 않는다.
+        if cs < clear_until:
+            if ce - clear_until < MIN_CALLOUT_SEC:
+                continue
+            cs = clear_until
         # 비교 카드가 떠 있는 동안에는 숫자 카드를 겹쳐 띄우지 않는다.
         if any(cs < b and ce > a for a, b in (avoid or [])):
             continue
@@ -693,10 +743,14 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
 
 
 ARTICLE_MAX_SEC = 5.0
+# 실험 '기사 화면 위치' late 팔: 배경 컷의 이 비율을 지난 자리에 기사 화면을 넣는다.
+ARTICLE_LATE_AT = 0.45
 # 화면 구성 판. 토픽 기록에 남겨 분석 리포트가 바꾸기 전후를 가른다.
 # 2026-10-10: 기사 화면을 '캡처 윗부분 + 원문 강조 문장 크게'로, 숫자 카드 이름표,
 # 자막 묶음 규칙.
-LAYOUT_VERSION = "2026-10-10"
+# 2026-11-10: 첫 자막을 0초부터, 나레이션 앞 무음 제거, 자막 숫자 강조 단위,
+# 썸네일 화살표 방향. 첫 화면이 달라지므로 3초·8초 유지를 이 판부터 따로 모은다.
+LAYOUT_VERSION = "2026-11-10"
 VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
@@ -730,10 +784,19 @@ def _plan_segments(title_card: Path, article_img: Path | None,
 
     segs: list[tuple[Path, float]] = [(title_card, t_title)] if t_title > 0 else []
     if article_img and img_segs:
-        # 첫 이미지컷 뒤에 기사 캡처 삽입
-        segs.append(img_segs[0])
+        # 기본은 첫 이미지컷 뒤(약 3~8초)에 기사 화면을 넣는다.
+        # 실험 '기사 화면 위치'의 late 팔은 영상 중간으로 옮긴다. 구간별 시청 유지에서
+        # 3초에 남아 있던 시청자의 40%가 8초 전에 떠나는데(10-10판 9편 중앙값, 11-10
+        # 리포트) 그 5초가 통째로 글자만 있는 정지 화면이다. 게다가 이 구간에는 숫자
+        # 카드를 못 띄워서, 첫 문장의 핵심 숫자가 카드로 한 번도 안 나온다(11-10 영상:
+        # 제목의 1만 8452건은 자막으로만 지나가고 첫 숫자 카드가 19초에 떴다).
+        # 맨 끝 컷은 첫 컷과 이어 붙이는 자리라 기사 화면을 두지 않는다.
+        k = 1
+        if arm("article_pos") == "late" and len(img_segs) >= 4:
+            k = min(len(img_segs) - 1, max(2, round(len(img_segs) * ARTICLE_LATE_AT)))
+        segs.extend(img_segs[:k])
         segs.append((article_img, t_article))
-        segs.extend(img_segs[1:])
+        segs.extend(img_segs[k:])
     elif article_img:
         segs.append((article_img, t_article))
     else:
@@ -776,10 +839,16 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     FINAL_DIR.mkdir(parents=True, exist_ok=True)
     out_path = FINAL_DIR / f"{out_name}.mp4"
     dur = _ffprobe_duration(audio_path)
-    log.info(f"  오디오 길이 {dur:.1f}s")
+    # 앞 무음을 잘라 내고, 그만큼 전체 길이와 발화 시각을 당긴다.
+    lead = _lead_trim(audio_path)
+    dur -= lead
+    log.info(f"  오디오 길이 {dur:.1f}s" + (f" (앞 무음 {lead:.2f}s 제거)" if lead else ""))
     # TTS가 남긴 실제 발화 시각. 자막과 콜아웃이 같은 타임라인을 쓰도록
     # 한 번만 읽어 둘 다에 넘긴다.
     cues = parse_srt_cues(srt_path) if srt_path else []
+    if lead:
+        cues = [(t, max(0.0, a - lead), max(0.0, b - lead)) for t, a, b in cues]
+        note(f"나레이션 앞 무음 {lead:.2f}s 제거")
     note(f"자막 타이밍: {'발화 시각 ' + str(len(cues)) + '구간' if cues else '글자수 비례(폴백)'}")
 
     # 자막 SRT·폰트는 비ASCII(한글) 경로에서 libass가 실패할 수 있어 임시 ASCII 폴더에 둔다.
@@ -809,7 +878,8 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 실험: 숫자·비교 카드를 남색 정보 화면 전체로 띄우는지(graphic) 사진 위에 얹는지
     graphic = arm("bg_mode") == "graphic"
     note(f"실험 배정: 첫 화면 숫자 카드 {'켬' if hook_on else '끔'}, 배경음 "
-         f"{arm('bgm')}, 컷 길이 {arm('cut_pace')}, 숫자 구간 배경 {arm('bg_mode')}")
+         f"{arm('bgm')}, 컷 길이 {arm('cut_pace')}, 숫자 구간 배경 {arm('bg_mode')}, "
+         f"기사 화면 위치 {arm('article_pos')}")
     # 끔 팔은 첫 화면(0~HOOK_MAX_SEC)을 비운다. 10-05 초안(끔 배정)에서 첫 문장의
     # "86주"가 숫자 카드로 0.1초에 떠, 켠 날과 첫 화면이 같았다. 첫 문장 비교
     # 카드도 같은 이유로 뺀다(바로 뒤가 기사 화면이라 미룰 자리가 없다).
@@ -820,8 +890,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     opens_with_compare = any(c[1] < HOOK_MAX_SEC for c in compares)
     hook = (_plan_hook_overlay(caption_script, dur, blocked=blocked, full=graphic)
             if title_dur == 0 and not opens_with_compare and hook_on else None)
-    avoid = ([(c[1], c[2]) for c in compares] + ([(hook[1], hook[2])] if hook else [])
-             + ([(0.0, HOOK_MAX_SEC)] if first_clear else []))
+    avoid = [(c[1], c[2]) for c in compares] + ([(hook[1], hook[2])] if hook else [])
     # 첫 화면·비교 카드에 이미 나온 숫자는 숫자 카드로 다시 띄우지 않는다
     # (10-03 지정 영상: 비교 카드의 37.7%가 4초 뒤 숫자 카드로 또 떴다).
     shown = {hook[3]} if hook else set()
@@ -831,7 +900,8 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             shown |= {_short(c[3].v1), _short(c[3].v2)}
     compares = [c[:3] for c in compares]
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
-                                avoid=avoid, skip_values=shown or None, full=graphic)
+                                avoid=avoid, skip_values=shown or None, full=graphic,
+                                clear_until=HOOK_MAX_SEC if first_clear else 0.0)
     # 숫자 카드·비교 카드·첫 화면 카드는 같은 방식(전체 화면 PNG, 시간 구간)으로 얹는다.
     stats = sorted(stats + compares + ([hook[:3]] if hook else []), key=lambda x: x[1])
     # 계획을 파일로 남긴다. 콜아웃이 떴는지 아닌지는 프레임 몇 장을 떠서
@@ -935,16 +1005,17 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 보다 넘어오면 6dB쯤 작게 들렸다. 나레이션(TTS 24kHz 모노)도 48kHz
     # 스테레오로 올려 BGM이 모노로 뭉개지지 않게 한다.
     fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
+    nar_fmt = f"atrim=start={lead:.3f},asetpts=PTS-STARTPTS,{fmt}" if lead else fmt
     norm = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
     if bgm_idx is not None:
         graph += (
-            f";[{audio_idx}:a]{fmt}[nar]"
+            f";[{audio_idx}:a]{nar_fmt}[nar]"
             # 끝 페이드는 짧게 둔다. 다시 재생될 때 음악이 뚝 끊겼다 살아나지 않게.
             f";[{bgm_idx}:a]{fmt},volume={BGM_VOLUME},afade=t=out:st={max(0.0, dur - 0.8):.2f}:d=0.8[bgm]"
             f";[nar][bgm]amix=inputs=2:duration=first:normalize=0,{norm}[aout]"
         )
     else:
-        graph += f";[{audio_idx}:a]{fmt},{norm}[aout]"
+        graph += f";[{audio_idx}:a]{nar_fmt},{norm}[aout]"
     amap = "[aout]"
 
     cmd = [

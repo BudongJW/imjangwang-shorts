@@ -94,9 +94,9 @@ def request() -> int:
 
     _summary("## YouTube 인증")
     _summary("")
-    _summary(f"### 1. 이 주소를 여세요")
+    _summary("### 1. 이 주소를 여세요")
     _summary(f"# {url}")
-    _summary(f"### 2. 이 코드를 넣으세요")
+    _summary("### 2. 이 코드를 넣으세요")
     _summary(f"# `{code}`")
     _summary("### 3. 채널 계정으로 로그인하고 '허용'을 누르세요")
     _summary("")
