@@ -2141,5 +2141,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "전세난에 '월세살이'…임대 거래 51%가 월세",
+    "video_id": "3X8FJRhoVbk",
+    "date": "2026-11-11T23:09:46.664603",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 335,
+    "source": "한국경제",
+    "age_days": 0.6014088172106482,
+    "topic_score": 11,
+    "recency_score": 4,
+    "media": [
+      "p37323647",
+      "p10502211",
+      "p2376712",
+      "p19511931",
+      "p11687639",
+      "p32028726",
+      "v29918215"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
