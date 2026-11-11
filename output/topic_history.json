@@ -2113,5 +2113,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "조국 “종부세 감세보다 공공임대…육사·태릉에 최고급 주택 3만가구 짓자”",
+    "video_id": "rM1zWO5h6kc",
+    "date": "2026-11-11T02:13:22.668558",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 241,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p6863192",
+      "p6929032",
+      "p6863282",
+      "p2246789",
+      "p37384711",
+      "p2122447"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
