@@ -29,7 +29,7 @@ from src.script_gen.generator import generate, ShortPlan
 from src.script_gen.correct_terms import to_speech
 from src.tts.narrate import narrate
 from src.editor.title_card import (render_title_card, resolve_face, face_credit,
-                                   layout_by_name,
+                                   layout_by_name, face_subject,
                                    render_headline_banner, pick_accent)
 from src.editor.composer import compose, LAYOUT_VERSION
 from src.experiments import current_arms, arm as exp_arm
@@ -466,6 +466,14 @@ def run(skip_upload: bool = False) -> int:
     # 다르면 시청자에게는 그 자체가 허위로 읽힌다(2026-09-11분 사례).
     article_text = f"{art.title} {art.summary}"
     face = resolve_face(face_pin, article_text) if POLITICIAN_FACE_ENABLED else None
+    # 본문에 곁가지로만 나온 인물은 넣지 않는다. 11-11 초안(조국 원장의 육사·태릉 공공임대
+    # 제안): 기사가 "이 대통령은 2022년 대선 당시 … 공약"을 한 줄 인용했다고 이재명 대통령
+    # 얼굴이 20초 지점에 들어갔고, 그 밑 자막은 조국 원장의 말 "국민 누구나 살고 싶은
+    # 최고급 공공주택"이었다. 얼굴은 그 인물이 제목에 나올 때(기사의 주인공일 때)만 쓴다.
+    subj = face_subject(face) if face and not face_pin else ""
+    if subj and subj not in f"{art.title} {plan.youtube_title} {' '.join(plan.headline)}":
+        buildnotes.note(f"얼굴 생략: {subj}이(가) 제목에 없다(본문 곁가지 언급)")
+        face = None
     log.info(f"  얼굴: {face.name if face else '없음'}"
              + (f" (지정: {face_pin})" if face_pin else ""))
     lay = layout_by_name(plan.layout) if getattr(plan, "layout", "") else None
