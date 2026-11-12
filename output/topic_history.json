@@ -2171,5 +2171,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "LH 창사 첫 총파업 가나⋯ “공급·임대 업무 마비 우려”",
+    "video_id": "u9Kj5L53qac",
+    "date": "2026-11-12T22:30:48.143470",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 216,
+    "source": "국민일보",
+    "age_days": 0.4667113108680555,
+    "topic_score": 8,
+    "recency_score": 4,
+    "media": [
+      "p40559532",
+      "p31752211",
+      "p34643209",
+      "p39474791",
+      "p20849990",
+      "p27459663"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
