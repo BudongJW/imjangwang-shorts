@@ -2199,5 +2199,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "국토부 \"서울 매매·전월세 매물 동시에 늘어…토허제 12월중 결론\"",
+    "video_id": "qtBo77hiVIE",
+    "date": "2026-11-13T22:17:21.178380",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 316,
+    "source": "뉴시스",
+    "age_days": 0.7604559086921296,
+    "topic_score": 10,
+    "recency_score": 4,
+    "media": [
+      "p39848588",
+      "p37384703",
+      "p17949765",
+      "p31872710",
+      "p12640886",
+      "p6647660"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
