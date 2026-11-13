@@ -1974,6 +1974,90 @@ def _back_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]
     return out
 
 
+# 기사에서 따옴표 속 누구 말로만 나온 숫자를 출처 없이 사실로 말한 문장. 11-13 초안: 기사는
+# 장효수 LH 노조위원장 말 "지난해 LH가 600명을 채용했지만 휴직하거나 퇴직한 직원은 1000명"을
+# 옮겼는데 대본은 "작년 LH는 600명 채용했지만, 1000명이 퇴직·휴직했죠"였다.
+_SRC_QUOTE_SPAN_RE = re.compile(r"[“\"]([^”\"]{4,300})[”\"]")
+_QNUM_TOKEN_RE = re.compile(r"(\d[\d,.]*)\s?(만|억|천)?\s?(명|가구|건|원|%|채|곳|개(?!월|년))")
+
+
+def _quoted_number_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    spans = [(m.start(), m.end()) for m in _SRC_QUOTE_SPAN_RE.finditer(src)]
+    if not spans:
+        return []
+    def key(m):
+        return (m.group(1).replace(",", ""), m.group(2) or "", m.group(3))
+    inside, outside = set(), set()
+    for m in _QNUM_TOKEN_RE.finditer(src):
+        (inside if any(a <= m.start() < b for a, b in spans) else outside).add(key(m))
+    only_q = inside - outside
+    out = []
+    sents = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    def said(x: str) -> bool:
+        return bool(_SCRIPT_ATTR_RE.search(x) or _SCRIPT_SAID_RE.search(x) or re.search(r"한\s?말", x))
+    for k, sent in enumerate(sents):
+        # 바로 앞뒤 문장이 누구 말인지 밝히면 이어지는 말로 본다(10-15 "… 3000억 원. 정재훈
+        # 단국대 교수가 … 한 말입니다", 10-10 "장관 … 겁니다. 그간 수도권 공급의 80% …").
+        if said(sent) or any(said(sents[j]) for j in (k - 1, k + 1) if 0 <= j < len(sents)):
+            continue
+        keys = {key(m) for m in _QNUM_TOKEN_RE.finditer(sent)}
+        hit = keys & only_q
+        if hit and hit == keys:
+            n = sorted(hit)[0]
+            out.append((sent[:40], f"기사에서는 따옴표 속 누구 말인 숫자({n[0]}{n[1]}{n[2]})인데 누구 말인지 뺐다"))
+    return out
+
+
+# 기사에서 조건·우려 속에만 나온 동사를 대본이 일어날 일로 단정한 문장. 11-13 초안: 기사는
+# "총파업이 실행된다면 … 공공임대주택 운영·관리가 멈추는 것"(우려)이었는데 대본은 "이재명
+# 정부 주택 공급이 멈춥니다"였다. 대본 문장 끝 동사의 어간이 기사에서 조건(~면, ~경우)이나
+# 가능성·우려 문장에만 나오면 잡는다.
+_SRC_COND_RE = re.compile(r"된다면|한다면|된다면|되면|하면|할\s?경우|될\s?경우|수\s?있")
+_PRED_STOP = {"있", "없", "됩", "합", "입", "봅", "옵", "갑", "삽", "답", "랍"}
+
+
+def _pred_stem(word: str) -> str:
+    w = re.sub(r"[^가-힣]", "", word)[:2]
+    if len(w) < 2:
+        return ""
+    c = ord(w[1]) - 0xAC00
+    if 0 <= c < 11172 and c % 28 == 17:     # 받침 ㅂ(멈춥니다)을 떼어 기본형(멈추)으로
+        w = w[0] + chr(0xAC00 + c - 17)
+    return w
+
+
+def _conditional_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if (not sent or _SCRIPT_MAYBE_RE.search(sent) or _SCRIPT_ATTR_RE.search(sent)
+                or _SCRIPT_SAID_RE.search(sent) or re.search(r"면\s|경우|\?|까요|세요", sent)):
+            continue
+        words = sent.split()
+        if len(words) < 2:
+            continue
+        # 끝 낱말이 동사 현재형 줄임('멈춥니다', '늦춥니다')일 때만 본다. 명사+입니다, 과거형은
+        # 다른 검사가 본다(첫 판에서 '억원입니다', '줄었습니다'가 걸렸다).
+        last = re.sub(r"[^가-힣]", "", words[-1])
+        if not re.fullmatch(r"[가-힣]{1,3}니다", last) or len(last) > 5:
+            continue
+        b = ord(last[-3]) - 0xAC00
+        if not (0 <= b < 11172 and b % 28 == 17) or last[-3] in _PRED_STOP or last[-3] == "습":
+            continue
+        stem = _pred_stem(last)
+        if not stem:
+            continue
+        hits = [x for x in src_sents if stem in x]
+        if not hits or not all(_SRC_COND_RE.search(x) for x in hits):
+            continue
+        rest = _stems(" ".join(words[:-1]))
+        if any(rest & _stems(x) for x in hits):
+            out.append((sent[:40], f"기사는 '{stem}'을 조건·우려로만 썼는데 대본은 단정했다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2323,6 +2407,8 @@ def generate(art) -> ShortPlan:
                  + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
                  + _cumulative_problems(text, hay) + _endpoint_problems(text, hay)
                  + _partial_year_problems(text, hay)
+                 + _quoted_number_problems(text, hay)
+                 + _conditional_problems(text, hay)
                  + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
