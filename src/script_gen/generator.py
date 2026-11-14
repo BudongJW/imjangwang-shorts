@@ -1315,7 +1315,9 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"기현상|생존|"
                       # 11-10 초안: "서민 주거 대안이 사라진다는 경고등이 켜진 건데요", "임대 물량은
                       # 줄고 가격은 오르는 악순환입니다". 기사(서울 빌라 전월세 출회량)에 둘 다 없었다.
-                      r"경고등|악순환")
+                      r"경고등|악순환|"
+                      # 11-14 초안: "서울 아파트 매물이 연초 대비 40% 폭증했습니다". 기사는 "40% 이상 증가".
+                      r"폭증|폭등|폭락")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -2058,6 +2060,26 @@ def _conditional_problems(script: str, source_text: str) -> list[tuple[str, str]
     return out
 
 
+# 기사에 없는 지명. 11-14 초안(국토부 브리핑, 토허제 12월 결론): 대본이 "서울 강남 압구정,
+# 여의도, 목동, 성수 등 토허제 구역"을 댔는데 기사에는 넷 다 없었다. 기사가 다룬 토허제는
+# 10·15 대책(서울 전역)과 올해 경기 지정분이었고, 넷은 예전 서울시 지정 구역이다.
+_PLACES = ("강남", "서초", "송파", "강동", "용산", "마포", "성동", "광진", "동작", "영등포", "양천",
+           "강서", "구로", "금천", "관악", "노원", "도봉", "강북", "성북", "중랑", "동대문", "은평",
+           "서대문", "종로", "압구정", "여의도", "목동", "성수", "반포", "잠실", "대치", "청담",
+           "한남", "개포", "둔촌", "상계", "위례", "판교", "분당", "과천", "광명", "하남", "동탄")
+_PLACE_RE = re.compile(r"(?<![가-힣])(" + "|".join(_PLACES) + r")")
+
+
+def _place_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        miss = [m.group(1) for m in _PLACE_RE.finditer(sent) if m.group(1) not in src]
+        if miss:
+            out.append((sent.strip()[:40], f"기사에 없는 지명: {', '.join(dict.fromkeys(miss))}"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2104,6 +2126,7 @@ _FACT_SRC_RE = re.compile(r"집계|기록했|따르면|조사|통계|발표했")
 _SCRIPT_SAID_RE = re.compile(r"다며|라며|고\s?했|탓했|비판했|반박했|지적했|요구했|촉구했|했다고|"
                              r"밝혔|말했|주장했|강조했|설명했|진단했|분석했")
 HOST_VOICE_MIN_SHARED = 3
+_NEXT_SAID_RE = re.compile(r"(?:밝힌|발표한|말한|전한)\s?(?:내용|것)|한\s?말")
 HOST_VOICE_SPEECH_RATIO = 0.5
 
 
@@ -2119,8 +2142,11 @@ def _host_voice_problems(script: str, source_text: str, title: str = "") -> list
         return []
     st_src = [_stems(x) for x in sents]
     out = []
-    for sent in _CHECK_SPLIT_RE.split(script or ""):
-        sent = sent.strip()
+    parts = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    for k, sent in enumerate(parts):
+        # 다음 문장이 "~가 밝힌 내용입니다"로 받으면 누구 말인지 밝힌 것이다(11-14 지정 대본).
+        if k + 1 < len(parts) and _NEXT_SAID_RE.search(parts[k + 1]):
+            continue
         # 숫자가 든 문장은 숫자 검사들이 본다. 기관장이 밝힌 계획(겠다·도입)은 의견이 아니다
         # (10-16 HUG 사장 "사전심사제도를 도입").
         if (not sent or _SCRIPT_ATTR_RE.search(sent) or _SCRIPT_SAID_RE.search(sent)
@@ -2409,6 +2435,7 @@ def generate(art) -> ShortPlan:
                  + _partial_year_problems(text, hay)
                  + _quoted_number_problems(text, hay)
                  + _conditional_problems(text, hay)
+                 + _place_problems(text, hay)
                  + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
