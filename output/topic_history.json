@@ -2227,5 +2227,35 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "전세난에 월세난까지…무주택자 내 집 마련 압박 커진다[전월세 쇼크②]",
+    "video_id": "FuBoaupAhyE",
+    "date": "2026-11-14T21:00:00.332742",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 231,
+    "source": "뉴시스",
+    "age_days": 0.7482306150115741,
+    "topic_score": 16,
+    "recency_score": 4,
+    "media": [
+      "p37769571",
+      "p14452237",
+      "p17760623",
+      "p38009993",
+      "p11851279",
+      "p37384702",
+      "v39474349"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
