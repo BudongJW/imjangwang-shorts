@@ -7,6 +7,8 @@ name: 영상 삭제·제목변경
 #   {"action": "delete",  "video_id": "xxxx"}
 #   {"action": "retitle", "video_id": "xxxx", "title": "새 제목"}
 #   {"action": "striplinks", "dry_run": true}   # 전체 설명에서 외부 링크 제거
+#   {"action": "publish", "run_id": "123", "publish_at": "19:00"}
+#       # 파일로만 만든 초안(매일 빌드의 run id)을 승인해 그때 한 번 올린다
 on:
   push:
     branches: ['run/admin-*']
@@ -31,7 +33,10 @@ concurrency:
 jobs:
   admin:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    permissions:
+      contents: write   # publish 뒤 토픽 기록의 초안 ID를 실제 ID로 바꿔 master에 올린다
+      actions: read     # 다른 실행(매일 빌드)의 아티팩트를 받는다
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,11 +74,23 @@ jobs:
           print("description<<EOF"); print(d.get("description", "")); print("EOF")
           print(f"dry_run={'0' if d.get('dry_run') is False else '1'}")
           print(f"publish_at={d.get('publish_at','')}")
+          print(f"run_id={d.get('run_id','')}")
           PY
           fi
 
+      - name: 초안 받기 (publish)
+        if: steps.req.outputs.action == 'publish'
+        uses: actions/download-artifact@v4
+        with:
+          name: verify-frames
+          path: bundle
+          run-id: ${{ steps.req.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+
       - name: 실행
         env:
+          BUNDLE_DIR: bundle
           CI: true
           PYTHONIOENCODING: utf-8
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
@@ -85,6 +102,28 @@ jobs:
           DRY_RUN: ${{ steps.req.outputs.dry_run }}
           PUBLISH_AT: ${{ steps.req.outputs.publish_at }}
         run: python scripts/youtube_admin.py
+
+      - name: 토픽 기록에 영상 ID 연결 (publish)
+        if: success() && steps.req.outputs.action == 'publish'
+        run: |
+          set -e
+          f=bundle/published_id.txt
+          [ -f "$f" ] || { echo "published_id.txt 없음"; exit 1; }
+          read DRAFT VID < "$f"
+          [ -n "$DRAFT" ] && [ -n "$VID" ] || { echo "ID가 비었다: $DRAFT $VID"; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch origin master
+            git checkout -f -B bind-draft origin/master
+            python scripts/bind_draft.py output/topic_history.json "$DRAFT" "$VID"
+            git add output/topic_history.json
+            git diff --cached --quiet && exit 0
+            git commit -m "chore: 초안 $DRAFT 를 $VID 로 연결 [skip ci]"
+            git push origin HEAD:master && exit 0
+            sleep 5
+          done
+          echo "토픽 기록 연결 push 실패"; exit 1
 
       - name: Rotate YOUTUBE_TOKEN_JSON secret (if refreshed)
         if: always() && hashFiles('refreshed_token.json') != ''

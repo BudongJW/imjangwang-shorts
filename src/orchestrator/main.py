@@ -13,6 +13,7 @@ import re
 import sys
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 from config.settings import (
     CHANNEL_NAME, FIXED_CTA, DEFAULT_HASHTAGS, AI_THUMBNAIL,
@@ -243,7 +244,9 @@ def _review_summary(plan, art, video_id: str, final) -> None:
     lines = [
         f"# 검토 대기 — {plan.youtube_title}",
         "",
-        f"**비공개로 올라가 있다.** 승인해야 공개된다. `{video_id}`",
+        (f"**아직 유튜브에 올리지 않았다.** 승인하면 그때 한 번 올라간다. `{video_id}`"
+         if video_id.startswith("draft-") else
+         f"**비공개로 올라가 있다.** 승인해야 공개된다. `{video_id}`"),
         "",
         f"- 원문: {art.source} 「{art.title}」",
         f"- {art.url}" if getattr(art, "url", "") else "",
@@ -258,7 +261,9 @@ def _review_summary(plan, art, video_id: str, final) -> None:
         "`output/admin_request.json` 에 아래를 적고 `run/admin-*` 브랜치를 푸시한다.",
         "",
         "```json",
-        f'{{"action": "approve", "video_id": "{video_id}"}}',
+        (f'{{"action": "publish", "run_id": "{video_id[6:]}", "publish_at": "19:00"}}'
+         if video_id.startswith("draft-") else
+         f'{{"action": "approve", "video_id": "{video_id}"}}'),
         "```",
         "",
         "버리려면 `\"action\": \"delete\"`.",
@@ -519,8 +524,30 @@ def run(skip_upload: bool = False) -> int:
         log.info(f"  검토 대기 해제: 지정 대본이 {pinned_time} KST 예약 공개를 지정")
         review = False
     video_id = ""
+    # 초안은 유튜브에 올리지 않는다(DRAFT_ONLY, 기본 켬). 2026-11-15 분석: 9월 후반부터 하루
+    # 2~4.5편을 올리고(공개는 1편, 나머지는 같은 기사의 비공개 초안·재생성본) 대부분 지웠다.
+    # 같은 시기 피드 노출이 90%에서 30%로 줄었다. 유튜브가 정리하는 양산 채널의 특징(사람이
+    # 못 할 업로드 속도)과 겹치므로, 초안은 파일로만 남기고 승인된 한 편만 올린다.
+    # 승인은 run/admin-* 의 {"action": "publish", "run_id": "...", "publish_at": "HH:MM"}.
+    draft_only = review and os.getenv("DRAFT_ONLY", "1") != "0"
     if skip_upload:
         log.info(f"[skip-upload] 검증 완료: {final}")
+    elif draft_only:
+        run_id = os.getenv("GITHUB_RUN_ID", "") or datetime.now().strftime("%Y%m%d%H%M%S")
+        video_id = f"draft-{run_id}"
+        meta = {
+            "title": _title_with_tags(plan),
+            "description": _build_description(plan, art, face=face),
+            "tags": [t.lstrip("#") for t in (plan.hashtags or DEFAULT_HASHTAGS)],
+            "draft_id": video_id,
+            "article_title": art.title,
+        }
+        meta_path = Path("output/video/upload_meta.json")
+        meta_path.parent.mkdir(parents=True, exist_ok=True)
+        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+        buildnotes.note(f"초안만 만듦(유튜브 업로드 안 함): {video_id}")
+        log.info(f"  초안만 만듦: {video_id} (승인되면 publish로 올린다)")
+        _review_summary(plan, art, video_id, final)
     else:
         from src.uploader import youtube
         video_id = youtube.upload(
