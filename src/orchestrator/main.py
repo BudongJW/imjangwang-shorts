@@ -273,7 +273,7 @@ def _review_summary(plan, art, video_id: str, final) -> None:
     if path:
         with open(path, "a", encoding="utf-8") as f:
             f.write(text + "\n")
-    log.info(f"검토 대기 — 비공개 업로드 완료: {video_id}")
+    log.info(f"검토 대기 — {'초안만 만듦' if video_id.startswith('draft-') else '비공개 업로드 완료'}: {video_id}")
 
 
 _QUOTE_RE = re.compile(r'["\u201c\u201d\u2018\u2019\u300c\u300d\u300e\u300f\']')
