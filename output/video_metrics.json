@@ -1,12 +1,12 @@
 {
- "taken_at": "2026-11-14T21:32:24.286531+00:00",
+ "taken_at": "2026-11-15T02:08:29.423008+00:00",
  "videos": [
   {
    "video_id": "nomKahcSDfo",
    "title": "서울 매매 매물 연초보다 40% 이상 늘어…토허제 조정 12월 결론 #매물 #전세 #월세",
    "published_kst": "2026-11-14 19:00",
    "duration_s": 57,
-   "views": 45,
+   "views": 48,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": null,
@@ -22,7 +22,7 @@
    "title": "LH 창사 첫 총파업 위기…노조 가입률 99%, 공급·임대 차질 우려 #LH #총파업 #공공임대",
    "published_kst": "2026-11-13 19:00",
    "duration_s": 32,
-   "views": 34,
+   "views": 35,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": null,
@@ -38,7 +38,7 @@
    "title": "서울부동산정보광장, \"임대 거래 51%가 월세\" 발표 #부동산 #월세 #전세",
    "published_kst": "2026-11-13 12:30",
    "duration_s": 55,
-   "views": 20,
+   "views": 21,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 23,
@@ -303,7 +303,7 @@
    "title": "강남 주춤한 사이 외곽 급등…하위 20% 아파트 11.87% 올라 #서울아파트 #집값격차 #외곽",
    "published_kst": "2026-10-30 19:00",
    "duration_s": 41,
-   "views": 1090,
+   "views": 1091,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 18,
@@ -429,7 +429,7 @@
    "title": "올파포 첫 전세 만기…집주인 실거주에 59㎡ 전세 13억 #올림픽파크포레온 #전세 #전세난",
    "published_kst": "2026-10-23 19:00",
    "duration_s": 48,
-   "views": 501,
+   "views": 502,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 37,
@@ -550,7 +550,7 @@
    "title": "강동 3억대 새 아파트…매달 토지임대료 51만원 #고덕강일 #토지임대부 #SH",
    "published_kst": "2026-10-17 19:00",
    "duration_s": 52,
-   "views": 1428,
+   "views": 1429,
    "likes": 8,
    "comments": 2,
    "averageViewDuration": 40,
@@ -1006,7 +1006,7 @@
    "title": "청년 전세대출 보증 만 39세까지 확대, 조건 정리 #청년전세대출 #전세대출 #청년특례보증",
    "published_kst": "2026-10-01 12:00",
    "duration_s": 57,
-   "views": 824,
+   "views": 826,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 39,
@@ -4815,12 +4815,7 @@
    "shares": 0,
    "engagedViews": 52,
    "estimatedMinutesWatched": 24,
-   "traffic": {
-    "SHORTS": 319,
-    "YT_SEARCH": 3,
-    "YT_CHANNEL": 2,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "-51yCKeNKtE",
@@ -4836,12 +4831,7 @@
    "shares": 0,
    "engagedViews": 30,
    "estimatedMinutesWatched": 12,
-   "traffic": {
-    "SHORTS": 185,
-    "YT_SEARCH": 3,
-    "YT_CHANNEL": 1,
-    "YT_OTHER_PAGE": 1
-   }
+   "traffic": {}
   },
   {
    "video_id": "zRdnaivCYFc",
@@ -4857,12 +4847,7 @@
    "shares": 0,
    "engagedViews": 59,
    "estimatedMinutesWatched": 23,
-   "traffic": {
-    "SHORTS": 333,
-    "YT_CHANNEL": 1,
-    "NO_LINK_OTHER": 0,
-    "YT_OTHER_PAGE": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "Uan-Ic4BzYg",
@@ -4878,15 +4863,7 @@
    "shares": 0,
    "engagedViews": 514,
    "estimatedMinutesWatched": 225,
-   "traffic": {
-    "SHORTS": 1689,
-    "YT_SEARCH": 21,
-    "YT_CHANNEL": 10,
-    "YT_OTHER_PAGE": 4,
-    "SOUND_PAGE": 1,
-    "NO_LINK_OTHER": 0,
-    "EXT_URL": 0
-   }
+   "traffic": {}
   }
  ]
 }
