@@ -1320,7 +1320,10 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"폭증|폭등|폭락|"
                       # 11-15 초안: "서민 주거 마지노선이던 노도강, 금관구까지 월세 300만원 시대가
                       # 현실이 됐습니다". 기사는 6개 구에서 300만원 넘는 거래가 41건이라고 했다.
-                      r"마지노선|시대가\s?(?:현실|열렸|왔|도래)|시대\s?(?:돌입|개막|도래)")
+                      r"마지노선|시대가\s?(?:현실|열렸|왔|도래)|시대\s?(?:돌입|개막|도래)|"
+                      # 11-16 초안: "수도권 전셋집 구하기가 하늘의 별 따기입니다", "전세난이 극심합니다".
+                      # 기사는 "녹록지 않다", "타이트하다"였다.
+                      r"별\s?따기|극심")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -2083,6 +2086,71 @@ def _place_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 두 지역을 빗금·가운뎃점으로 묶어 숫자 하나를 붙인 문장. 11-16 초안: "동북/서남권은 125.9까지
+# 치솟았습니다". 기사는 동북권 123.0, 서남권 125.9였다. 묶인 이름마다 기사에서 그 숫자 앞
+# 가까이(60자)에 나와야 한다.
+_PAIR_SUBJ_RE = re.compile(r"([가-힣]{2,4})\s?[/·]\s?([가-힣]{2,4})(권|구|시|군)?\s?(?:은|는|이|가|도)?\s?"
+                           r"[^.\d]{0,12}?(\d[\d,]*(?:\.\d+)?)")
+
+
+def _pair_subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    # 기사에서 이름 바로 뒤(괄호 속 목록은 건너뜀)에 처음 나오는 값이 대본 숫자와 다르면 잡는다.
+    src = source_text or ""
+    flat = re.sub(r"\([^)]{0,80}\)", "", src)
+    num_re = re.compile(r"(?<![\d.])(\d[\d,]*(?:\.\d+)?)(?!\d|\s?(?:월|주|년|일|차|째|개|곳|명))")
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        for m in _PAIR_SUBJ_RE.finditer(sent):
+            a, b, suf, n = m.group(1), m.group(2), m.group(3) or "", m.group(4)
+            if not re.search(r"(?<![\d.])" + re.escape(n) + r"(?!\d)", src):
+                continue
+            bad = []
+            for w in (a, b):
+                firsts = []
+                for h in re.finditer(re.escape(w + suf), flat):
+                    nm = num_re.search(flat, h.end(), h.end() + 40)
+                    if nm:
+                        firsts.append(nm.group(1).replace(",", ""))
+                if firsts and n.replace(",", "") not in firsts:
+                    bad.append((w, firsts[0]))
+            if len(bad) == 1:
+                w, v = bad[0]
+                out.append((sent.strip()[:40], f"기사에서 '{w}{suf}'은 {v}인데 대본은 {n}으로 묶었다"))
+                break
+    return out
+
+
+# 기사가 내려간다(개선·둔화)고 쓴 숫자를 대본이 치솟았다고 한 문장. 11-16 초안: 기사는 서울
+# 전세수급지수가 "7월 128.1까지 올랐다가 이후 개선세 … 11월 둘째 주에도 120.2"였는데 대본은
+# "서울도 11월 120.2 … 치솟았습니다"였다.
+_STRONG_UP_RE = re.compile(r"치솟|급등|폭등|뛰었|껑충")
+_SRC_EASE_RE = re.compile(r"개선세|개선되|하락|떨어|내려|내렸|둔화|낮아|줄었|꺾")
+_SRC_UPWORD_RE = re.compile(r"올랐|상승|뛰|치솟|급등|높아|늘었|증가|최고")
+
+
+def _reverse_direction_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if not _STRONG_UP_RE.search(sent):
+            continue
+        for m in re.finditer(r"\d[\d,]*\.\d+|\d[\d,]{2,}", sent):
+            n = m.group(0).replace(",", "")
+            hits = [x for x in src_sents if re.search(r"(?<![\d.])" + re.escape(n) + r"(?![\d])", x.replace(",", ""))]
+            if not hits:
+                continue
+            def ease_after(x: str) -> bool:
+                # 숫자 바로 앞 절이 '개선·하락' 쪽이고 그 뒤에 다시 오른다는 말이 없으면 내림으로 본다.
+                pos = x.replace(",", "").find(n)
+                before = x.replace(",", "")[:pos]
+                e = list(_SRC_EASE_RE.finditer(before))
+                return bool(e) and not _SRC_UPWORD_RE.search(before[e[-1].end():])
+            if all(ease_after(x) for x in hits):
+                out.append((sent.strip()[:40], f"기사는 {n}을 내려가는 흐름으로 썼는데 대본은 치솟았다고 했다"))
+                break
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2439,6 +2507,7 @@ def generate(art) -> ShortPlan:
                  + _quoted_number_problems(text, hay)
                  + _conditional_problems(text, hay)
                  + _place_problems(text, hay)
+                 + _pair_subject_problems(text, hay) + _reverse_direction_problems(text, hay)
                  + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))
