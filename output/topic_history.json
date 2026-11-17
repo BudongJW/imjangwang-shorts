@@ -2287,5 +2287,34 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "서울은 식고 경기는 불붙고⋯경기 10월 매매·전세·월세 ‘트리플 강세’",
+    "video_id": "draft-43988080522",
+    "date": "2026-11-17T00:34:44.123957",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 229,
+    "source": "국민일보",
+    "age_days": 0.7148908860416666,
+    "topic_score": 9,
+    "recency_score": 4,
+    "media": [
+      "p31221014",
+      "p7642004",
+      "p8470841",
+      "p40591851",
+      "p37384707",
+      "p38043598"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
