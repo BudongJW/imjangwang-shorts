@@ -2316,36 +2316,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "내집 보유 역대 최대인데…세입자 임대료 부담 8년 만에 최고[부동산AtoZ]",
-    "video_id": "draft-44221360396",
-    "date": "2026-11-18T02:18:38.573060",
-    "title_style": "주장",
-    "len_mode": "normal",
-    "script_chars": 372,
-    "source": "아시아경제",
-    "age_days": 0.7583618871643518,
-    "topic_score": 8,
-    "recency_score": 4,
-    "media": [
-      "p37384700",
-      "p33093559",
-      "p18839130",
-      "p12640884",
-      "p20837362",
-      "p20849999",
-      "v32214386",
-      "v32214387"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "outro_q": "on",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
