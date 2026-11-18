@@ -11,6 +11,8 @@ Studio에 들어가는 것은 낭비다. Actions에서 처리할 수 있게 한�
         (TITLE/DESCRIPTION은 준 것만 바뀐다)
     ACTION=striplinks [DRY_RUN=1]      # 전체 영상 설명에서 외부 링크 제거
     ACTION=approve VIDEO_ID=xxxx       # 검토 대기(비공개) 영상을 공개로 전환
+    ACTION=publish BUNDLE_DIR=bundle PUBLISH_AT="HH:MM"|"YYYY-MM-DD HH:MM"|"now"
+        # 파일로만 만든 초안(DRAFT_ONLY)을 승인해 그때 한 번 올린다
     ACTION=delete_below MAX_VIEWS=200 [MIN_AGE_H=24] [DRY_RUN=1]
         # 조회수가 기준 이하인 영상을 일괄 삭제. 되돌릴 수 없다.
 """
@@ -222,6 +224,68 @@ def schedule(video_id: str, when: str) -> int:
     return 0
 
 
+def _target_time(when: str):
+    """'HH:MM'(오늘) 또는 'YYYY-MM-DD HH:MM'(KST)을 datetime으로. 형식이 틀리면 None."""
+    from datetime import datetime, timedelta, timezone
+    kst = timezone(timedelta(hours=9))
+    now = datetime.now(kst)
+    try:
+        if len(when.strip()) <= 5:
+            hh, mm = (int(x) for x in when.strip().split(":"))
+            return now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        return datetime.strptime(when.strip(), "%Y-%m-%d %H:%M").replace(tzinfo=kst)
+    except ValueError:
+        return None
+
+
+def publish(bundle_dir: str, when: str) -> int:
+    """파일로만 만든 초안을 승인해 유튜브에 한 번 올린다.
+
+    2026-11-15부터 매일 빌드는 유튜브에 올리지 않고 영상·썸네일·제목·설명을 파일로만
+    남긴다(DRAFT_ONLY). 사람이 승인하면 이 함수가 그 파일을 올리고, 예약 시각을 건다.
+    올린 영상 ID는 BUNDLE_DIR/published_id.txt 에 써서 다음 단계가 토픽 기록을 고친다.
+    """
+    import json
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+    from src.uploader.youtube import upload, set_thumbnail
+    b = Path(bundle_dir)
+    found = {p.name: p for p in b.rglob("*") if p.is_file()}
+    video, meta_p, thumb = found.get("final.mp4"), found.get("upload_meta.json"), found.get("title_card.png")
+    if not video or not meta_p:
+        _summary(f"## 초안 파일이 없습니다 ({bundle_dir}): final.mp4={bool(video)}, upload_meta.json={bool(meta_p)}")
+        return 1
+    meta = json.loads(meta_p.read_text(encoding="utf-8"))
+    publish_at = None
+    label = "바로 공개"
+    if when.strip().lower() not in ("", "now"):
+        target = _target_time(when)
+        if target is None:
+            _summary(f"## 공개 시각 형식 오류: `{when}` (HH:MM, YYYY-MM-DD HH:MM, now)")
+            return 1
+        if target - datetime.now(target.tzinfo) < timedelta(minutes=15):
+            _summary(f"## 공개 시각이 너무 가깝거나 지났습니다: {target:%Y-%m-%d %H:%M} KST")
+            return 1
+        publish_at = target.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        label = f"예약 완료: {target:%Y-%m-%d %H:%M} KST"
+    try:
+        vid = upload(video, title=meta["title"], description=meta.get("description", ""),
+                     tags=meta.get("tags") or [], publish_at=publish_at,
+                     privacy=None if publish_at else "public")
+    except HttpError as e:
+        status = getattr(e.resp, "status", "?")
+        _summary(f"## 업로드 실패 (status={status})\n```\n"
+                 f"{(e.content or b'').decode('utf-8', 'replace')[:300]}\n```")
+        return 1
+    if thumb:
+        set_thumbnail(vid, thumb)
+    (b / "published_id.txt").write_text(f"{meta.get('draft_id', '')} {vid}\n", encoding="utf-8")
+    _summary(f"## 업로드 {label} — {meta['title']}")
+    _summary(f"- 초안 `{meta.get('draft_id', '')}` 에서 올림")
+    _summary(f"- https://youtube.com/shorts/{vid}")
+    return 0
+
+
 def unschedule(video_id: str) -> int:
     """예약 공개를 취소하고 비공개로 둔다. 영상은 지우지 않는다.
 
@@ -430,6 +494,8 @@ if __name__ == "__main__":
             os.getenv("DRY_RUN", "1") != "0"))
     if action == "striplinks":
         raise SystemExit(striplinks(os.getenv("DRY_RUN", "1") != "0"))
+    if action == "publish":
+        raise SystemExit(publish(os.getenv("BUNDLE_DIR", "bundle"), os.getenv("PUBLISH_AT", "")))
     vid = os.getenv("VIDEO_ID", "").strip()
     if not vid:
         _summary("VIDEO_ID가 비어 있습니다."); raise SystemExit(1)
@@ -452,5 +518,5 @@ if __name__ == "__main__":
         if not t:
             _summary("TITLE이 비어 있습니다."); raise SystemExit(1)
         raise SystemExit(retitle(vid, t))
-    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | schedule | unschedule | delete_below)")
+    _summary(f"알 수 없는 ACTION: {action!r} (show | edit | delete | retitle | striplinks | approve | schedule | unschedule | delete_below | publish)")
     raise SystemExit(1)

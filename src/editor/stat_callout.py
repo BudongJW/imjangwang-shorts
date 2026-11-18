@@ -167,6 +167,11 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
         if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
             continue
+        # "6개 구", "외곽 10개 구"는 다루는 범위의 개수지 뉴스 숫자가 아니다. 11-05·11-15
+        # 영상이 "10개", "6개"를 숫자 카드로 크게 띄웠다.
+        if re.match(r"개\s?(?:구|자치구|시|군|동|도|지역|도시|권역|기관|부처)(?![가-힣])|개\s?(?:구|시|군)\s?(?:의|에서|에|는|가)",
+                    phrase[m.end() - 1:]):
+            continue
         # "1세대 1주택"은 세제 용어지 가구 수가 아니다. 자막 줄이 "1세대"에서
         # 끊겨도 띄우지 않는다.
         if cand.replace(" ", "") == "1세대":

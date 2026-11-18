@@ -1384,7 +1384,19 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"기현상|생존|"
                       # 11-10 초안: "서민 주거 대안이 사라진다는 경고등이 켜진 건데요", "임대 물량은
                       # 줄고 가격은 오르는 악순환입니다". 기사(서울 빌라 전월세 출회량)에 둘 다 없었다.
-                      r"경고등|악순환")
+                      r"경고등|악순환|"
+                      # 11-14 초안: "서울 아파트 매물이 연초 대비 40% 폭증했습니다". 기사는 "40% 이상 증가".
+                      r"폭증|폭등|폭락|"
+                      # 11-15 초안: "서민 주거 마지노선이던 노도강, 금관구까지 월세 300만원 시대가
+                      # 현실이 됐습니다". 기사는 6개 구에서 300만원 넘는 거래가 41건이라고 했다.
+                      r"마지노선|시대가\s?(?:현실|열렸|왔|도래)|시대\s?(?:돌입|개막|도래)|"
+                      # 11-16 초안: "수도권 전셋집 구하기가 하늘의 별 따기입니다", "전세난이 극심합니다".
+                      # 기사는 "녹록지 않다", "타이트하다"였다.
+                      r"별\s?따기|극심|"
+                      # 11-17 초안: "서울 집값 잡혔다고요. 착각입니다." 기사는 상승폭이 줄었다는 말뿐.
+                      r"착각|"
+                      # 11-18 재생성본: "자가보유율 62.0%와 극명한 대비를 이룹니다".
+                      r"극명")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -1537,7 +1549,9 @@ _SCRIPT_ATTR_RE = re.compile(
     r"분석|전망|진단|지적|주장|설명|말했|밝혔|경고|강조|조언|평가|따르면|라고|이라며|라며|"
     r"고\s?봤|본다|봅니다|예상|규정|기대|우려|관계자|측은|내다봤|"
     # 간접 인용으로 맺는 꼴과 직접 인용(따옴표)은 누구 말인지가 이미 드러난다.
-    r"다는\s?겁니다|라는\s?겁니다|다는\s?거죠|라고\s?합니다|답니다|랍니다|[\"“”]")
+    r"다는\s?겁니다|라는\s?겁니다|다는\s?거죠|라고\s?합니다|답니다|랍니다|[\"“”]|"
+    # "~해야 한다고도 했습니다"(11-11 지정 대본). 누구 말인지 앞에서 밝히고 이 꼴로 맺는다.
+    r"[다라]고\s?(?:도\s?)?했")
 OPINION_SHARED_STRONG = 5
 OPINION_SHARED_WEAK = 3
 
@@ -2041,6 +2055,262 @@ def _back_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]
     return out
 
 
+# 기사에서 따옴표 속 누구 말로만 나온 숫자를 출처 없이 사실로 말한 문장. 11-13 초안: 기사는
+# 장효수 LH 노조위원장 말 "지난해 LH가 600명을 채용했지만 휴직하거나 퇴직한 직원은 1000명"을
+# 옮겼는데 대본은 "작년 LH는 600명 채용했지만, 1000명이 퇴직·휴직했죠"였다.
+_SRC_QUOTE_SPAN_RE = re.compile(r"[“\"]([^”\"]{4,300})[”\"]")
+_QNUM_TOKEN_RE = re.compile(r"(\d[\d,.]*)\s?(만|억|천)?\s?(명|가구|건|원|%|채|곳|개(?!월|년))")
+
+
+def _quoted_number_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    spans = [(m.start(), m.end()) for m in _SRC_QUOTE_SPAN_RE.finditer(src)]
+    if not spans:
+        return []
+    def key(m):
+        return (m.group(1).replace(",", ""), m.group(2) or "", m.group(3))
+    inside, outside = set(), set()
+    for m in _QNUM_TOKEN_RE.finditer(src):
+        (inside if any(a <= m.start() < b for a, b in spans) else outside).add(key(m))
+    only_q = inside - outside
+    out = []
+    sents = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    def said(x: str) -> bool:
+        return bool(_SCRIPT_ATTR_RE.search(x) or _SCRIPT_SAID_RE.search(x) or re.search(r"한\s?말", x))
+    for k, sent in enumerate(sents):
+        # 바로 앞뒤 문장이 누구 말인지 밝히면 이어지는 말로 본다(10-15 "… 3000억 원. 정재훈
+        # 단국대 교수가 … 한 말입니다", 10-10 "장관 … 겁니다. 그간 수도권 공급의 80% …").
+        if said(sent) or any(said(sents[j]) for j in (k - 1, k + 1) if 0 <= j < len(sents)):
+            continue
+        keys = {key(m) for m in _QNUM_TOKEN_RE.finditer(sent)}
+        hit = keys & only_q
+        if hit and hit == keys:
+            n = sorted(hit)[0]
+            out.append((sent[:40], f"기사에서는 따옴표 속 누구 말인 숫자({n[0]}{n[1]}{n[2]})인데 누구 말인지 뺐다"))
+    return out
+
+
+# 기사에서 조건·우려 속에만 나온 동사를 대본이 일어날 일로 단정한 문장. 11-13 초안: 기사는
+# "총파업이 실행된다면 … 공공임대주택 운영·관리가 멈추는 것"(우려)이었는데 대본은 "이재명
+# 정부 주택 공급이 멈춥니다"였다. 대본 문장 끝 동사의 어간이 기사에서 조건(~면, ~경우)이나
+# 가능성·우려 문장에만 나오면 잡는다.
+_SRC_COND_RE = re.compile(r"된다면|한다면|된다면|되면|하면|할\s?경우|될\s?경우|수\s?있")
+_PRED_STOP = {"있", "없", "됩", "합", "입", "봅", "옵", "갑", "삽", "답", "랍"}
+
+
+def _pred_stem(word: str) -> str:
+    w = re.sub(r"[^가-힣]", "", word)[:2]
+    if len(w) < 2:
+        return ""
+    c = ord(w[1]) - 0xAC00
+    if 0 <= c < 11172 and c % 28 == 17:     # 받침 ㅂ(멈춥니다)을 떼어 기본형(멈추)으로
+        w = w[0] + chr(0xAC00 + c - 17)
+    return w
+
+
+def _conditional_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if (not sent or _SCRIPT_MAYBE_RE.search(sent) or _SCRIPT_ATTR_RE.search(sent)
+                or _SCRIPT_SAID_RE.search(sent) or re.search(r"면\s|경우|\?|까요|세요", sent)):
+            continue
+        words = sent.split()
+        if len(words) < 2:
+            continue
+        # 끝 낱말이 동사 현재형 줄임('멈춥니다', '늦춥니다')일 때만 본다. 명사+입니다, 과거형은
+        # 다른 검사가 본다(첫 판에서 '억원입니다', '줄었습니다'가 걸렸다).
+        last = re.sub(r"[^가-힣]", "", words[-1])
+        if not re.fullmatch(r"[가-힣]{1,3}니다", last) or len(last) > 5:
+            continue
+        b = ord(last[-3]) - 0xAC00
+        if not (0 <= b < 11172 and b % 28 == 17) or last[-3] in _PRED_STOP or last[-3] == "습":
+            continue
+        stem = _pred_stem(last)
+        if not stem:
+            continue
+        hits = [x for x in src_sents if stem in x]
+        if not hits or not all(_SRC_COND_RE.search(x) for x in hits):
+            continue
+        rest = _stems(" ".join(words[:-1]))
+        if any(rest & _stems(x) for x in hits):
+            out.append((sent[:40], f"기사는 '{stem}'을 조건·우려로만 썼는데 대본은 단정했다"))
+    return out
+
+
+# 기사에 없는 지명. 11-14 초안(국토부 브리핑, 토허제 12월 결론): 대본이 "서울 강남 압구정,
+# 여의도, 목동, 성수 등 토허제 구역"을 댔는데 기사에는 넷 다 없었다. 기사가 다룬 토허제는
+# 10·15 대책(서울 전역)과 올해 경기 지정분이었고, 넷은 예전 서울시 지정 구역이다.
+_PLACES = ("강남", "서초", "송파", "강동", "용산", "마포", "성동", "광진", "동작", "영등포", "양천",
+           "강서", "구로", "금천", "관악", "노원", "도봉", "강북", "성북", "중랑", "동대문", "은평",
+           "서대문", "종로", "압구정", "여의도", "목동", "성수", "반포", "잠실", "대치", "청담",
+           "한남", "개포", "둔촌", "상계", "위례", "판교", "분당", "과천", "광명", "하남", "동탄")
+_PLACE_RE = re.compile(r"(?<![가-힣])(" + "|".join(_PLACES) + r")")
+
+
+def _place_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        miss = [m.group(1) for m in _PLACE_RE.finditer(sent) if m.group(1) not in src]
+        if miss:
+            out.append((sent.strip()[:40], f"기사에 없는 지명: {', '.join(dict.fromkeys(miss))}"))
+    return out
+
+
+# 두 지역을 빗금·가운뎃점으로 묶어 숫자 하나를 붙인 문장. 11-16 초안: "동북/서남권은 125.9까지
+# 치솟았습니다". 기사는 동북권 123.0, 서남권 125.9였다. 묶인 이름마다 기사에서 그 숫자 앞
+# 가까이(60자)에 나와야 한다.
+_PAIR_SUBJ_RE = re.compile(r"([가-힣]{2,4})\s?[/·]\s?([가-힣]{2,4})(권|구|시|군)?\s?(?:은|는|이|가|도)?\s?"
+                           r"[^.\d]{0,12}?(\d[\d,]*(?:\.\d+)?)")
+
+
+def _pair_subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    # 기사에서 이름 바로 뒤(괄호 속 목록은 건너뜀)에 처음 나오는 값이 대본 숫자와 다르면 잡는다.
+    src = source_text or ""
+    flat = re.sub(r"\([^)]{0,80}\)", "", src)
+    num_re = re.compile(r"(?<![\d.])(\d[\d,]*(?:\.\d+)?)(?!\d|\s?(?:월|주|년|일|차|째|개|곳|명))")
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        for m in _PAIR_SUBJ_RE.finditer(sent):
+            a, b, suf, n = m.group(1), m.group(2), m.group(3) or "", m.group(4)
+            if not re.search(r"(?<![\d.])" + re.escape(n) + r"(?!\d)", src):
+                continue
+            bad = []
+            for w in (a, b):
+                firsts = []
+                for h in re.finditer(re.escape(w + suf), flat):
+                    nm = num_re.search(flat, h.end(), h.end() + 40)
+                    if nm:
+                        firsts.append(nm.group(1).replace(",", ""))
+                if firsts and n.replace(",", "") not in firsts:
+                    bad.append((w, firsts[0]))
+            if len(bad) == 1:
+                w, v = bad[0]
+                out.append((sent.strip()[:40], f"기사에서 '{w}{suf}'은 {v}인데 대본은 {n}으로 묶었다"))
+                break
+    return out
+
+
+# 기사가 내려간다(개선·둔화)고 쓴 숫자를 대본이 치솟았다고 한 문장. 11-16 초안: 기사는 서울
+# 전세수급지수가 "7월 128.1까지 올랐다가 이후 개선세 … 11월 둘째 주에도 120.2"였는데 대본은
+# "서울도 11월 120.2 … 치솟았습니다"였다.
+_STRONG_UP_RE = re.compile(r"치솟|급등|폭등|뛰었|껑충")
+_SRC_EASE_RE = re.compile(r"개선세|개선되|하락|떨어|내려|내렸|둔화|낮아|줄었|꺾")
+_SRC_UPWORD_RE = re.compile(r"올랐|상승|뛰|치솟|급등|높아|늘었|증가|최고")
+
+
+def _reverse_direction_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if not _STRONG_UP_RE.search(sent):
+            continue
+        for m in re.finditer(r"\d[\d,]*\.\d+|\d[\d,]{2,}", sent):
+            n = m.group(0).replace(",", "")
+            hits = [x for x in src_sents if re.search(r"(?<![\d.])" + re.escape(n) + r"(?![\d])", x.replace(",", ""))]
+            if not hits:
+                continue
+            def ease_after(x: str) -> bool:
+                # 숫자 바로 앞 절이 '개선·하락' 쪽이고 그 뒤에 다시 오른다는 말이 없으면 내림으로 본다.
+                pos = x.replace(",", "").find(n)
+                before = x.replace(",", "")[:pos]
+                e = list(_SRC_EASE_RE.finditer(before))
+                return bool(e) and not _SRC_UPWORD_RE.search(before[e[-1].end():])
+            if all(ease_after(x) for x in hits):
+                out.append((sent.strip()[:40], f"기사는 {n}을 내려가는 흐름으로 썼는데 대본은 치솟았다고 했다"))
+                break
+    return out
+
+
+# 원인을 하나로 못 박은 문장. 11-17 초안: 기사는 "서울의 상승률 둔화는 강남권 하락 영향이
+# 큰 것으로 해석된다"였는데 대본은 "서울은 강남권 하락 영향일 뿐"이었다.
+_ONLY_CAUSE_RE = re.compile(r"(?:영향|때문|탓|효과|착시)일\s?뿐")
+
+
+def _only_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if "뿐" in (source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _ONLY_CAUSE_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사는 원인을 '{m.group(0)}'처럼 하나로 단정하지 않았다"))
+    return out
+
+
+# 이번 달을 '지난 N월'이라고 쓴 문장. 11-18 초안(11월): "지난 11월, 광교 단지에 2만 명이
+# 몰려". 이번 달 일이라 '지난 11월'이면 작년 11월로 들린다.
+def _this_month_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    mon = datetime.now(timezone(timedelta(hours=9))).month
+    pat = re.compile(rf"(?<![해년])\s?지난\s?{mon}월")
+    if pat.search(source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if pat.search(sent):
+            out.append((sent.strip()[:40], f"지금이 {mon}월인데 '지난 {mon}월'이라고 했다"))
+    return out
+
+
+# 확인하라는 끝맺음에 기사에 없는 기관·시스템을 댄 문장. 11-17 초안: 한국부동산원 통계 기사에
+# "국토교통부 실거래가 시스템에서 현황을 꼭 확인하세요"를 붙였다.
+_CTA_RE = re.compile(r"확인하(?:세요|셔야|십시오|시길)|확인해\s?(?:보세요|두세요)")
+_CTA_ORG_RE = re.compile(r"국토교통부|국토부|한국부동산원|부동산원|실거래가?\s?(?:공개\s?)?시스템|청약홈|"
+                         r"주택도시보증공사|HUG|LH|정부24|홈택스|인터넷등기소|복지로|마이홈")
+
+
+def _cta_source_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if not _CTA_RE.search(sent):
+            continue
+        for m in _CTA_ORG_RE.finditer(sent):
+            if m.group(0) not in src:
+                out.append((sent.strip()[:40], f"기사에 없는 '{m.group(0)}'에서 확인하라고 했다"))
+                break
+    return out
+
+
+# 기사가 "~한 측면도 있다"로 쓴 원인을 대본이 "영향이 크다"로 키운 문장. 11-18 재생성본:
+# 국토부 관계자 "연립·다세대주택 전셋값이 다시 올라온 측면도 있다"가 대본에서 "다시 오른
+# 영향도 크다고 덧붙였죠"가 됐다.
+_BIG_CAUSE_RE = re.compile(r"(?:영향|요인|측면|원인|탓)[이도가은는]?\s?(?:가장\s?|매우\s?|더\s?)?크")
+
+
+def _big_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if _BIG_CAUSE_RE.search(source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _BIG_CAUSE_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사는 원인이 크다고 하지 않았는데 대본은 '{m.group(0)}'라고 했다"))
+    return out
+
+
+# 기사가 '임대료'(전세 포함)라고 쓴 숫자를 대본이 '월세'로 바꾼 문장. 11-18 재생성본: 기사
+# "월급 100만원을 벌면 17만원을 임대료로 내는 셈"이 대본에서 "17만 원이 월세로 나가는 셈"이
+# 됐다. 대본 문장의 숫자 둘 이상이 함께 든 기사 문장이 모두 '임대료'만 쓰면 잡는다.
+def _rent_word_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if "월세" not in sent:
+            continue
+        unit = r"\d+(?:\.\d+)?(?:억|만)?원"
+        nums = set(re.findall(unit, sent.replace(" ", "")))
+        if len(nums) < 2:
+            continue
+        hits = [x for x in src_sents
+                if len(nums & set(re.findall(unit, x.replace(" ", "")))) >= 2]
+        if hits and all("임대료" in x and "월세" not in x for x in hits):
+            out.append((sent.strip()[:40], "기사는 '임대료'(전세 포함)라고 썼는데 대본은 '월세'라고 했다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2087,6 +2357,7 @@ _FACT_SRC_RE = re.compile(r"집계|기록했|따르면|조사|통계|발표했")
 _SCRIPT_SAID_RE = re.compile(r"다며|라며|고\s?했|탓했|비판했|반박했|지적했|요구했|촉구했|했다고|"
                              r"밝혔|말했|주장했|강조했|설명했|진단했|분석했")
 HOST_VOICE_MIN_SHARED = 3
+_NEXT_SAID_RE = re.compile(r"(?:밝힌|발표한|말한|전한)\s?(?:내용|것)|한\s?말")
 HOST_VOICE_SPEECH_RATIO = 0.5
 
 
@@ -2102,8 +2373,11 @@ def _host_voice_problems(script: str, source_text: str, title: str = "") -> list
         return []
     st_src = [_stems(x) for x in sents]
     out = []
-    for sent in _CHECK_SPLIT_RE.split(script or ""):
-        sent = sent.strip()
+    parts = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    for k, sent in enumerate(parts):
+        # 다음 문장이 "~가 밝힌 내용입니다"로 받으면 누구 말인지 밝힌 것이다(11-14 지정 대본).
+        if k + 1 < len(parts) and _NEXT_SAID_RE.search(parts[k + 1]):
+            continue
         # 숫자가 든 문장은 숫자 검사들이 본다. 기관장이 밝힌 계획(겠다·도입)은 의견이 아니다
         # (10-16 HUG 사장 "사전심사제도를 도입").
         if (not sent or _SCRIPT_ATTR_RE.search(sent) or _SCRIPT_SAID_RE.search(sent)
@@ -2325,6 +2599,13 @@ def script_defects(text: str, hay: str, title: str = "",
          + _hedge_drop_problems(text, hay) + _back_cause_problems(text, hay)
          + _cumulative_problems(text, hay) + _endpoint_problems(text, hay)
          + _partial_year_problems(text, hay)
+         + _quoted_number_problems(text, hay)
+         + _conditional_problems(text, hay)
+         + _place_problems(text, hay)
+         + _pair_subject_problems(text, hay) + _reverse_direction_problems(text, hay)
+         + _only_cause_problems(text, hay) + _this_month_problems(text, hay)
+         + _cta_source_problems(text, hay) + _big_cause_problems(text, hay)
+         + _rent_word_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))

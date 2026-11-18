@@ -244,12 +244,19 @@ _BODY_SELECTORS = (
     ".story-news", "#articleWrap",  # 연합뉴스
     ".article-text", ".text",       # 한겨레
     "#articleBody", ".art_body",    # 경향신문
+    # 11-18 초안: 한국경제는 맞는 선택자가 없어 'article' 전체를 가져왔고, 본문 뒤에
+    # '관련 뉴스'와 '많이 본 뉴스'가 붙었다. 대본의 "광교 2만 명"은 관련 뉴스 제목에서 왔다.
+    "#articletxt",                  # 한국경제
     "article",                      # 일반
 )
 _BODY_JUNK = ("script, style, iframe, figure, figcaption, "
               ".ad, .banner, .relate, .reporter, .share, .copyright, "
               ".txt-copyright, .comp-box-title, .end-photo, .article-photo, "
-              ".photo, .caption, .img-con, .adrs")
+              ".photo, .caption, .img-con, .adrs, "
+              # 11-17 초안: 국민일보 본문 중간에 '추천기사' 상자(다른 기사 제목)가 끼었다.
+              ".article_recommend")
+# 'article' 같은 넓은 선택자로 잡았을 때 본문 뒤에 붙는 다른 기사 목록. 여기서 자른다.
+_BODY_TAIL_RE = re.compile(r"\s(?:관련\s?뉴스\s?1\s|많이\s?본\s?뉴스|좋아요\s?싫어요\s?후속기사)")
 # 본문 앞에 붙는 위젯·사진설명 찌꺼기. 태그로 못 걸러지는 것만 여기서 턴다.
 # 실측으로 확인된 것만 넣는다 — 일반화하려다 본문 첫 문장을 날리면 손해가 크다.
 _BODY_LEAD_JUNK = re.compile(
@@ -266,6 +273,9 @@ def _extract_body(soup) -> str:
         for junk in node.select(_BODY_JUNK):
             junk.decompose()
         text = _BODY_LEAD_JUNK.sub("", re.sub(r"\s+", " ", node.get_text(" ")).strip())
+        tail = _BODY_TAIL_RE.search(text, 200)
+        if tail:
+            text = text[:tail.start()]
         if len(text) >= _MIN_BODY:
             return text
     # 폴백: 한글이 든 충분한 길이의 <p>를 모은다(중복 제거).
@@ -388,12 +398,19 @@ BRIEF_PENALTY = 8
 _OFFICIAL_RE = re.compile(
     r"사장|장관|차관|청장|위원장|국감|국정감사|간담회|협약|정례브리핑|상황판|매입확약|발언|정부\s?[\"“]")
 _CONTRAST_RE = re.compile(r"격차|사이|대비|만에|껑충|해지|깬다|배(?![가-힣])|보다\s")
+# 2026-11-15 넓힘: 검색으로 오래 들어온 영상(청년 전세대출 조건 779회, 고덕강일 토지임대부
+# 본청약 1,320회, 빌라 4층 허용 316회)은 제도·공급 조건을 정리한 것이었다. 피드 노출이 줄어든
+# 뒤로는 검색이 피드와 상관없이 쌓이는 유입이라 이런 기사를 더 자주 고른다.
 _RULE_CHANGE_RE = re.compile(
     r"(?:대출|보증|청약|특공|특별공급|디딤돌|버팀목|보금자리|세액공제|취득세|양도세|종부세|재산세|"
-    r"임대차|갱신|월세\s?지원).{0,15}(?:확대|완화|강화|변경|개편|시행|부터|문턱|자격|대상|조건|기준|한도)")
+    r"임대차|갱신|월세\s?지원|토지임대부|공공분양|공공임대|매입임대|전세임대|안심전세|안심신탁|보증보험|"
+    r"신혼|청년|생애최초|본청약|사전청약|입주자\s?모집|분양가상한제|실거주\s?의무|토허제|토지거래허가|"
+    r"다가구|다세대|빌라)"
+    r".{0,15}(?:확대|완화|강화|변경|개편|시행|부터|문턱|자격|대상|조건|기준|한도|모집|접수|신청|공고|"
+    r"유예|연장|면제|폐지|도입|시작|허용)")
 OFFICIAL_PENALTY = 5
 CONTRAST_BONUS = 2
-RULE_CHANGE_BONUS = 3
+RULE_CHANGE_BONUS = 6
 
 
 def is_rule_change(title: str) -> bool:
@@ -605,8 +622,18 @@ def _is_event_notice(art) -> bool:
     return bool(_EVENT_NOTICE_RE.search(lead))
 
 
+# 기관 수상 보도. 11-18 초안: 한국경제 "GH, 전세피해지원·지분적립형 주택정책 선도…
+# 주거복지대상 최우수상"은 GH 보도자료라 시청자에게 바뀌는 사실이 없었고, 대본은 "경기도에서
+# 답을 내놨습니다" 같은 홍보 문장으로 채워졌다. '수상한 거래'는 빼려고 뒤를 본다.
+_AWARD_TITLE_RE = re.compile(
+    r"최우수상|우수상|혁신상|대상\s?수상|(?<![가-힣])수상(?!한|하게|쩍|택시)|표창|시상식|"
+    r"우수\s?(?:기관|사례)\s?선정")
+
+
 def _is_promo(art) -> bool:
     if _PROMO_TITLE_RE.search(getattr(art, "title", "") or ""):
+        return True
+    if _AWARD_TITLE_RE.search(getattr(art, "title", "") or ""):
         return True
     return len(_PROMO_RE.findall(getattr(art, "summary", "") or "")) >= PROMO_MIN_HITS
 
@@ -643,8 +670,8 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
             time.sleep(0.5)
             continue
         if _is_promo(art):
-            log.info(f"분양 홍보 기사라 건너뜀: {art.title[:40]} ({art.source})")
-            note(f"분양 홍보 기사라 건너뜀: {art.title[:40]}")
+            log.info(f"홍보·수상 기사라 건너뜀: {art.title[:40]} ({art.source})")
+            note(f"홍보·수상 기사라 건너뜀: {art.title[:40]}")
             time.sleep(0.5)
             continue
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:

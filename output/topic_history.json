@@ -2113,5 +2113,236 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "조국 “종부세 감세보다 공공임대…육사·태릉에 최고급 주택 3만가구 짓자”",
+    "video_id": "rM1zWO5h6kc",
+    "date": "2026-11-11T02:13:22.668558",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 241,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p6863192",
+      "p6929032",
+      "p6863282",
+      "p2246789",
+      "p37384711",
+      "p2122447"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "전세난에 '월세살이'…임대 거래 51%가 월세",
+    "video_id": "3X8FJRhoVbk",
+    "date": "2026-11-11T23:09:46.664603",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 335,
+    "source": "한국경제",
+    "age_days": 0.6014088172106482,
+    "topic_score": 11,
+    "recency_score": 4,
+    "media": [
+      "p37323647",
+      "p10502211",
+      "p2376712",
+      "p19511931",
+      "p11687639",
+      "p32028726",
+      "v29918215"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "LH 창사 첫 총파업 가나⋯ “공급·임대 업무 마비 우려”",
+    "video_id": "8mPjwL6JY5I",
+    "date": "2026-11-13T02:15:11.250137",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 229,
+    "source": "국민일보",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p40559532",
+      "p31752211",
+      "p34643209",
+      "p39474791",
+      "p20849990",
+      "p27459663"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "국토부 \"서울 매매·전월세 매물 동시에 늘어…토허제 12월중 결론\"",
+    "video_id": "nomKahcSDfo",
+    "date": "2026-11-14T02:12:58.328193",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 366,
+    "source": "뉴시스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p39848588",
+      "p37384703",
+      "p17949765",
+      "p31872710",
+      "p12640886",
+      "p6647660"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "전세난에 월세난까지…무주택자 내 집 마련 압박 커진다[전월세 쇼크②]",
+    "video_id": "M-hMKPlR5C8",
+    "date": "2026-11-15T02:48:06.208962",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 228,
+    "source": "뉴시스",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p37769571",
+      "p14452237",
+      "p17760623",
+      "p11851279",
+      "p37384702",
+      "p37384704",
+      "v39474349"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "경기도 전세난 5년 만에 최고…“매물 적어 전셋값 상승 압력”",
+    "video_id": "RIpqLu9FGvQ",
+    "date": "2026-11-16T02:16:09.705153",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 334,
+    "source": "매일경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p34642280",
+      "p7641904",
+      "p7578984",
+      "p20849998",
+      "p17448981",
+      "p33019189",
+      "v6781912",
+      "v7688135",
+      "v7247861"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "off",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "내집 보유 역대 최대인데…세입자 임대료 부담 8년 만에 최고[부동산AtoZ]",
+    "video_id": "ZWVqT3ArN8k",
+    "date": "2026-11-18T02:36:50.811309",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 361,
+    "source": "아시아경제",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p37384700",
+      "p33093559",
+      "p18839130",
+      "p36565231",
+      "p12640884",
+      "p20837362"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
+  },
+  {
+    "title": "‘10년 실거주’ 버텼는데 되레 세금 폭탄 … 양도세 장특공 한도의 역설",
+    "video_id": "draft-44418091087",
+    "date": "2026-11-18T23:12:44.331279",
+    "title_style": "인용",
+    "len_mode": "short",
+    "script_chars": 249,
+    "source": "매일경제",
+    "age_days": -0.2431689270949074,
+    "topic_score": 14,
+    "recency_score": 4,
+    "media": [
+      "p8292798",
+      "p6964332",
+      "p18880909",
+      "p40591851",
+      "p20849999",
+      "p38043598"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
