@@ -119,6 +119,13 @@ def _apply_outro_arm(plan):
     cap = plan.caption_script.rstrip()
     if cap.endswith("?"):
         return plan
+    # 11-18 초안: 대본이 "여러분의 내 집 마련은 어떤가요."로 끝났는데 마침표라 질문으로 안 보고
+    # 질문을 하나 더 붙였다. 물음꼴로 끝나면 마침표만 물음표로 바꾼다.
+    if re.search(r"(?:까요|나요|가요|는지요|습니까|합니까|던가요)[.!]$", cap):
+        plan.caption_script = cap[:-1] + "?"
+        plan.speech_script = to_speech(plan.caption_script)
+        buildnotes.note("실험 끝맺음 질문: 대본이 이미 물음꼴로 끝나 물음표만 붙임")
+        return plan
     t = f"{getattr(plan, 'youtube_title', '')} {cap}"
     if re.search(r"전세|월세|임대|세입자", t):
         q = "여러분이 사는 곳 전월세는 어떤가요? 댓글로 알려 주세요."

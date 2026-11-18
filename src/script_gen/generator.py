@@ -1323,7 +1323,9 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"마지노선|시대가\s?(?:현실|열렸|왔|도래)|시대\s?(?:돌입|개막|도래)|"
                       # 11-16 초안: "수도권 전셋집 구하기가 하늘의 별 따기입니다", "전세난이 극심합니다".
                       # 기사는 "녹록지 않다", "타이트하다"였다.
-                      r"별\s?따기|극심")
+                      r"별\s?따기|극심|"
+                      # 11-17 초안: "서울 집값 잡혔다고요. 착각입니다." 기사는 상승폭이 줄었다는 말뿐.
+                      r"착각")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -2151,6 +2153,56 @@ def _reverse_direction_problems(script: str, source_text: str) -> list[tuple[str
     return out
 
 
+# 원인을 하나로 못 박은 문장. 11-17 초안: 기사는 "서울의 상승률 둔화는 강남권 하락 영향이
+# 큰 것으로 해석된다"였는데 대본은 "서울은 강남권 하락 영향일 뿐"이었다.
+_ONLY_CAUSE_RE = re.compile(r"(?:영향|때문|탓|효과|착시)일\s?뿐")
+
+
+def _only_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if "뿐" in (source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _ONLY_CAUSE_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사는 원인을 '{m.group(0)}'처럼 하나로 단정하지 않았다"))
+    return out
+
+
+# 이번 달을 '지난 N월'이라고 쓴 문장. 11-18 초안(11월): "지난 11월, 광교 단지에 2만 명이
+# 몰려". 이번 달 일이라 '지난 11월'이면 작년 11월로 들린다.
+def _this_month_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    mon = datetime.now(timezone(timedelta(hours=9))).month
+    pat = re.compile(rf"(?<![해년])\s?지난\s?{mon}월")
+    if pat.search(source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if pat.search(sent):
+            out.append((sent.strip()[:40], f"지금이 {mon}월인데 '지난 {mon}월'이라고 했다"))
+    return out
+
+
+# 확인하라는 끝맺음에 기사에 없는 기관·시스템을 댄 문장. 11-17 초안: 한국부동산원 통계 기사에
+# "국토교통부 실거래가 시스템에서 현황을 꼭 확인하세요"를 붙였다.
+_CTA_RE = re.compile(r"확인하(?:세요|셔야|십시오|시길)|확인해\s?(?:보세요|두세요)")
+_CTA_ORG_RE = re.compile(r"국토교통부|국토부|한국부동산원|부동산원|실거래가?\s?(?:공개\s?)?시스템|청약홈|"
+                         r"주택도시보증공사|HUG|LH|정부24|홈택스|인터넷등기소|복지로|마이홈")
+
+
+def _cta_source_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if not _CTA_RE.search(sent):
+            continue
+        for m in _CTA_ORG_RE.finditer(sent):
+            if m.group(0) not in src:
+                out.append((sent.strip()[:40], f"기사에 없는 '{m.group(0)}'에서 확인하라고 했다"))
+                break
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2508,6 +2560,8 @@ def generate(art) -> ShortPlan:
                  + _conditional_problems(text, hay)
                  + _place_problems(text, hay)
                  + _pair_subject_problems(text, hay) + _reverse_direction_problems(text, hay)
+                 + _only_cause_problems(text, hay) + _this_month_problems(text, hay)
+                 + _cta_source_problems(text, hay)
                  + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))

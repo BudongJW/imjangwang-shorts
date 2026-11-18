@@ -244,12 +244,19 @@ _BODY_SELECTORS = (
     ".story-news", "#articleWrap",  # 연합뉴스
     ".article-text", ".text",       # 한겨레
     "#articleBody", ".art_body",    # 경향신문
+    # 11-18 초안: 한국경제는 맞는 선택자가 없어 'article' 전체를 가져왔고, 본문 뒤에
+    # '관련 뉴스'와 '많이 본 뉴스'가 붙었다. 대본의 "광교 2만 명"은 관련 뉴스 제목에서 왔다.
+    "#articletxt",                  # 한국경제
     "article",                      # 일반
 )
 _BODY_JUNK = ("script, style, iframe, figure, figcaption, "
               ".ad, .banner, .relate, .reporter, .share, .copyright, "
               ".txt-copyright, .comp-box-title, .end-photo, .article-photo, "
-              ".photo, .caption, .img-con, .adrs")
+              ".photo, .caption, .img-con, .adrs, "
+              # 11-17 초안: 국민일보 본문 중간에 '추천기사' 상자(다른 기사 제목)가 끼었다.
+              ".article_recommend")
+# 'article' 같은 넓은 선택자로 잡았을 때 본문 뒤에 붙는 다른 기사 목록. 여기서 자른다.
+_BODY_TAIL_RE = re.compile(r"\s(?:관련\s?뉴스\s?1\s|많이\s?본\s?뉴스|좋아요\s?싫어요\s?후속기사)")
 # 본문 앞에 붙는 위젯·사진설명 찌꺼기. 태그로 못 걸러지는 것만 여기서 턴다.
 # 실측으로 확인된 것만 넣는다 — 일반화하려다 본문 첫 문장을 날리면 손해가 크다.
 _BODY_LEAD_JUNK = re.compile(
@@ -266,6 +273,9 @@ def _extract_body(soup) -> str:
         for junk in node.select(_BODY_JUNK):
             junk.decompose()
         text = _BODY_LEAD_JUNK.sub("", re.sub(r"\s+", " ", node.get_text(" ")).strip())
+        tail = _BODY_TAIL_RE.search(text, 200)
+        if tail:
+            text = text[:tail.start()]
         if len(text) >= _MIN_BODY:
             return text
     # 폴백: 한글이 든 충분한 길이의 <p>를 모은다(중복 제거).
@@ -609,8 +619,18 @@ def _is_event_notice(art) -> bool:
     return bool(_EVENT_NOTICE_RE.search(lead))
 
 
+# 기관 수상 보도. 11-18 초안: 한국경제 "GH, 전세피해지원·지분적립형 주택정책 선도…
+# 주거복지대상 최우수상"은 GH 보도자료라 시청자에게 바뀌는 사실이 없었고, 대본은 "경기도에서
+# 답을 내놨습니다" 같은 홍보 문장으로 채워졌다. '수상한 거래'는 빼려고 뒤를 본다.
+_AWARD_TITLE_RE = re.compile(
+    r"최우수상|우수상|혁신상|대상\s?수상|(?<![가-힣])수상(?!한|하게|쩍|택시)|표창|시상식|"
+    r"우수\s?(?:기관|사례)\s?선정")
+
+
 def _is_promo(art) -> bool:
     if _PROMO_TITLE_RE.search(getattr(art, "title", "") or ""):
+        return True
+    if _AWARD_TITLE_RE.search(getattr(art, "title", "") or ""):
         return True
     return len(_PROMO_RE.findall(getattr(art, "summary", "") or "")) >= PROMO_MIN_HITS
 
