@@ -1325,7 +1325,9 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       # 기사는 "녹록지 않다", "타이트하다"였다.
                       r"별\s?따기|극심|"
                       # 11-17 초안: "서울 집값 잡혔다고요. 착각입니다." 기사는 상승폭이 줄었다는 말뿐.
-                      r"착각")
+                      r"착각|"
+                      # 11-18 재생성본: "자가보유율 62.0%와 극명한 대비를 이룹니다".
+                      r"극명")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
@@ -2203,6 +2205,43 @@ def _cta_source_problems(script: str, source_text: str) -> list[tuple[str, str]]
     return out
 
 
+# 기사가 "~한 측면도 있다"로 쓴 원인을 대본이 "영향이 크다"로 키운 문장. 11-18 재생성본:
+# 국토부 관계자 "연립·다세대주택 전셋값이 다시 올라온 측면도 있다"가 대본에서 "다시 오른
+# 영향도 크다고 덧붙였죠"가 됐다.
+_BIG_CAUSE_RE = re.compile(r"(?:영향|요인|측면|원인|탓)[이도가은는]?\s?(?:가장\s?|매우\s?|더\s?)?크")
+
+
+def _big_cause_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if _BIG_CAUSE_RE.search(source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _BIG_CAUSE_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사는 원인이 크다고 하지 않았는데 대본은 '{m.group(0)}'라고 했다"))
+    return out
+
+
+# 기사가 '임대료'(전세 포함)라고 쓴 숫자를 대본이 '월세'로 바꾼 문장. 11-18 재생성본: 기사
+# "월급 100만원을 벌면 17만원을 임대료로 내는 셈"이 대본에서 "17만 원이 월세로 나가는 셈"이
+# 됐다. 대본 문장의 숫자 둘 이상이 함께 든 기사 문장이 모두 '임대료'만 쓰면 잡는다.
+def _rent_word_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        if "월세" not in sent:
+            continue
+        unit = r"\d+(?:\.\d+)?(?:억|만)?원"
+        nums = set(re.findall(unit, sent.replace(" ", "")))
+        if len(nums) < 2:
+            continue
+        hits = [x for x in src_sents
+                if len(nums & set(re.findall(unit, x.replace(" ", "")))) >= 2]
+        if hits and all("임대료" in x and "월세" not in x for x in hits):
+            out.append((sent.strip()[:40], "기사는 '임대료'(전세 포함)라고 썼는데 대본은 '월세'라고 했다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2561,7 +2600,8 @@ def generate(art) -> ShortPlan:
                  + _place_problems(text, hay)
                  + _pair_subject_problems(text, hay) + _reverse_direction_problems(text, hay)
                  + _only_cause_problems(text, hay) + _this_month_problems(text, hay)
-                 + _cta_source_problems(text, hay)
+                 + _cta_source_problems(text, hay) + _big_cause_problems(text, hay)
+                 + _rent_word_problems(text, hay)
                  + _host_voice_problems(text, hay, getattr(art, "title", ""))
                  + _dequoted_title_problems(text, getattr(art, "title", ""))
                  + _direction_problems(text))

@@ -667,8 +667,8 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
             time.sleep(0.5)
             continue
         if _is_promo(art):
-            log.info(f"분양 홍보 기사라 건너뜀: {art.title[:40]} ({art.source})")
-            note(f"분양 홍보 기사라 건너뜀: {art.title[:40]}")
+            log.info(f"홍보·수상 기사라 건너뜀: {art.title[:40]} ({art.source})")
+            note(f"홍보·수상 기사라 건너뜀: {art.title[:40]}")
             time.sleep(0.5)
             continue
         if art.url and not _blocked(art.url) and len(art.summary) >= 80:
