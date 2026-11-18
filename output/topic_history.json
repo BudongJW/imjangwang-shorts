@@ -2316,34 +2316,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "GH, 전세피해지원·지분적립형 주택정책 선도…주거복지대상 최우수상",
-    "video_id": "draft-44201237728",
-    "date": "2026-11-17T23:43:10.167290",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 349,
-    "source": "한국경제",
-    "age_days": 0.7601345658101851,
-    "topic_score": 10,
-    "recency_score": 4,
-    "media": [
-      "p20815235",
-      "p37384700",
-      "p16145852",
-      "p5039003",
-      "p12640884",
-      "p20837362"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "outro_q": "on",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
