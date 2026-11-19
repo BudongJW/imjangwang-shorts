@@ -2696,6 +2696,16 @@ def generate(art) -> ShortPlan:
         note("대본: 제도·조건 기사 → 조건 정리형으로 요청")
     # 실험: 끝맺음 질문. 좋아요·댓글이 10월에 줄었다(좋아요 비율 8월 0.91%, 10월 0.30%).
     from src.experiments import arm as exp_arm
+    # 실험: 질문형 제목(11-19). on 팔은 규칙 12(따옴표 인용 + 주체)를 쓰지 않는다.
+    title_q = exp_arm("title_q") == "on"
+    if title_q:
+        prompt += ("\n\n[제목·첫 문장 — 질문형, 규칙 12보다 우선] youtube_title은 기사 헤드라인을 "
+                   "옮기거나 '누가 무슨 말을 했다' 꼴로 쓰지 않는다. 세입자·실수요자가 '내 돈·내 집에 "
+                   "무슨 일인가' 하고 멈출 질문 하나로 쓴다. 25자 안팎, 물음표로 끝낸다. 따옴표는 "
+                   "쓰지 않는다. 질문에 숫자를 넣으면 기사 숫자를 그대로 쓴다(예: '월급 100만원 중 "
+                   "17만원이 임대료?'). script의 첫 문장도 같은 질문으로 시작하고, 둘째 문장부터 "
+                   "기사 사실로 답한다. 질문이 기사에 없는 사실을 암시하면 안 된다. 제도·조건 기사면 "
+                   "질문에 제도 이름을 넣는다(예: '청년 전세대출 보증, 나도 대상일까?').")
     if exp_arm("outro_q") == "on":
         prompt += ("\n\n[끝맺음] script의 마지막 문장은 시청자에게 묻는 짧은 질문 하나로 "
                    "끝낸다. 기사 사실을 바꾸지 않고 시청자 자신의 상황을 묻는다(예: '여러분이 "
@@ -2815,6 +2825,8 @@ def generate(art) -> ShortPlan:
     if has_body and data.get("youtube_title"):
         t = _soften_verdict(str(data["youtube_title"]), f"{getattr(art, 'title', '')} {body}")
         data["youtube_title"] = t or _headline_title(getattr(art, "title", ""))
+    if title_q and not str(data.get("youtube_title", "")).strip()[:38].rstrip().endswith("?"):
+        note(f"실험 질문형 제목: on 팔인데 제목이 질문이 아니다({str(data.get('youtube_title', ''))[:30]})")
     plan = ShortPlan(
         headline=headline,
         hook_word=_clean_script(normalize_caption(str(data.get("hook_word", headline[0].split()[0] if headline else "")))),

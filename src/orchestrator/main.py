@@ -313,7 +313,11 @@ def _title_style(title: str) -> str:
       주장형  이재명 정부 1년, 서울 집값 14% 폭등 미스터리!
       인용형  뉴시스 "서울 월세 160만원 시대"
     """
-    return "인용" if _QUOTE_RE.search(title or "") else "주장"
+    # 11-19 질문형 제목 실험부터: 따옴표 없이 물음표로 끝나면 '질문'으로 따로 센다.
+    # 인용형·주장형 비교(과제 #25)에 섞이지 않게 한다.
+    if _QUOTE_RE.search(title or ""):
+        return "인용"
+    return "질문" if (title or "").rstrip().endswith("?") else "주장"
 
 
 def _title_with_tags(plan) -> str:
@@ -437,6 +441,10 @@ def run(skip_upload: bool = False) -> int:
                 buildnotes.note("정부명 표기 생략: 기사가 중앙정부를 주체로 다루지 않는다")
 
     plan = _apply_outro_arm(plan)
+    # 질문형 제목 실험. 지정 대본은 사람이 팔에 맞춰 쓴다. 안 맞으면 기록만 남긴다.
+    if exp_arm("title_q") == "on" and pinned and not plan.youtube_title.rstrip().endswith("?"):
+        buildnotes.note(f"실험 질문형 제목: on 팔인데 지정 제목이 질문이 아니다({plan.youtube_title[:30]})")
+    buildnotes.note(f"실험 질문형 제목: {exp_arm('title_q')}")
 
     # 3) TTS
     audio, srt = narrate(plan.speech_script)

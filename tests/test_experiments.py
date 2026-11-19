@@ -81,6 +81,7 @@ def test_verdict_frees_the_slot_for_the_next_queued_experiment_in_registry_order
                    hook_card={"status": "decided", "winner": "off"},
                    bg_mode={"status": "running", "slot": 2, "started": "2026-10-10"},
                    outro_q={"status": "running", "slot": 1, "started": "2026-11-08"},
+                   title_q={"status": "running", "slot": "x01", "started": "2026-11-20"},
                    article_pos={"status": "queued"}, bgm={"status": "queued"},
                    cut_pace={"status": "queued"})
     notes = ex.apply_verdicts(
@@ -121,3 +122,19 @@ def test_broken_state_file_falls_back_to_defaults(tmp_path, monkeypatch):
 @pytest.mark.parametrize("key", [e["key"] for e in ex.REGISTRY])
 def test_committed_state_file_resolves_every_experiment(key):
     assert ex.arm(key, "2026-11-10") in ex.BY_KEY[key]["arms"]
+
+
+def test_xor_slot_is_balanced_against_every_other_slot():
+    # 칸 x01(칸 0과 1의 엇갈림)은 나흘마다 두 팔이 두 번씩 나오고, 칸 0·1·2 각각과
+    # 여드레 동안 네 조합이 두 번씩 나온다.
+    from collections import Counter
+    from datetime import date, timedelta
+    st = _state(title_q={"status": "running", "slot": "x01", "started": "2026-11-20"})
+    days = [(date(2026, 11, 20) + timedelta(days=i)).isoformat() for i in range(8)]
+    arms = [ex.arm("title_q", d, st) for d in days]
+    assert arms[0] == "on"
+    for i in range(0, 8, 4):
+        assert Counter(arms[i:i + 4]) == {"on": 2, "off": 2}
+    for slot in (0, 1, 2):
+        pairs = Counter((a, ex._slot_bit(d, slot)) for a, d in zip(arms, days))
+        assert set(pairs.values()) == {2}

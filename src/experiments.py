@@ -17,6 +17,9 @@
     slot 2: 날짜를 4로 나눈 홀짝  (나흘씩 번갈아)
 여드레면 세 실험의 여덟 조합이 한 번씩 나온다. 한 실험의 효과가 다른 실험의
 팔에 몰려 섞이지 않는다.
+    slot "x01": 칸 0과 칸 1의 엇갈림(XOR). 11-19 사용자 지시로 칸 셋이 찬 채 실험을
+                하나 더 바로 열었다. 나흘마다 두 팔이 두 번씩 나오고, 칸 0·1·2 어느
+                실험과도 조합이 고르게 나온다(칸 0과 1의 겹친 효과와만 섞인다).
 
 판정 규칙(evaluate)은 보수적으로 둔다. 표본이 적은 상관계수로 방향을 정했다가
 뒤집힌 적이 있다(2026-09-13 길이↔지속률 -0.52가 09-16에 +0.58).
@@ -60,6 +63,14 @@ REGISTRY: list[dict] = [
     # 11-10 프로젝트 검토에서 넣었다. 구간별 시청 유지에서 3초에 남은 시청자의 40%가
     # 8초 전에 떠나고(10-10판 9편 중앙값), 그 구간이 글자만 있는 기사 화면이다.
     # late 팔은 기사 화면을 영상 중간으로 옮기고 그 자리에 배경 컷과 첫 숫자 카드를 둔다.
+    # 11-19 조회수 재분석 뒤 사용자 승인으로 바로 열었다. 피드에 실린 영상끼리 보면 첫 화면
+    # 통과율·좋아요가 높을수록 피드 조회가 많았고(상관 +0.45, +0.44), 8월 영상 28편 중 23편이
+    # 정책 비판형·느낌표/물음표 제목이었던 데 비해 10월 중순 이후 32편은 기사 헤드라인형이었다.
+    # on 팔은 제목과 첫 문장을 시청자 입장 질문으로 쓴다. 사실 검사는 그대로다.
+    {"key": "title_q", "title": "질문형 제목", "arms": ["on", "off"],
+     "control": "off", "metric": "views_48h", "also": ["pass_rate", "like_rate"],
+     "pinned": True,
+     "about": "제목과 첫 문장을 기사 헤드라인 대신 시청자 입장의 질문으로 쓰는지"},
     {"key": "article_pos", "title": "기사 화면 위치", "arms": ["early", "late"],
      "control": "early", "metric": "avg_pct", "also": ["pass_rate", "views_48h"],
      "pinned": True,
@@ -74,7 +85,7 @@ REGISTRY: list[dict] = [
      "about": "배경 사진·영상 한 컷을 3초까지 두는지 2초까지 두는지"},
 ]
 BY_KEY = {e["key"]: e for e in REGISTRY}
-MAX_RUNNING = 3
+MAX_RUNNING = 4
 # 팔마다 이만큼 모이면 판정을 시도한다. 구간이 0을 안 넘으면 이긴 쪽으로,
 # 두 배가 모여도 넘으면 '차이 없음'으로 닫는다.
 MIN_N = 10
@@ -118,9 +129,14 @@ def save_state(state: dict) -> None:
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def _slot_bit(day: str, slot: int) -> int:
+def _slot_bit(day: str, slot) -> int:
+    if isinstance(slot, str) and slot.startswith("x"):
+        bit = 0
+        for c in slot[1:]:
+            bit ^= _slot_bit(day, int(c))
+        return bit
     o = datetime.strptime(day, "%Y-%m-%d").date().toordinal()
-    return (o // (2 ** slot)) % 2
+    return (o // (2 ** int(slot))) % 2
 
 
 def arm(key: str, day: str | None = None, state: dict | None = None) -> str:
@@ -132,7 +148,7 @@ def arm(key: str, day: str | None = None, state: dict | None = None) -> str:
         return st.get("winner") or exp["control"]
     day = day or today_kst()
     if status == "running" and day >= st.get("started", day):
-        return exp["arms"][_slot_bit(day, int(st.get("slot", 0)))]
+        return exp["arms"][_slot_bit(day, st.get("slot", 0))]
     return exp["control"]
 
 
