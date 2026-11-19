@@ -2315,34 +2315,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "‘10년 실거주’ 버텼는데 되레 세금 폭탄 … 양도세 장특공 한도의 역설",
-    "video_id": "draft-44418091087",
-    "date": "2026-11-18T23:12:44.331279",
-    "title_style": "인용",
-    "len_mode": "short",
-    "script_chars": 249,
-    "source": "매일경제",
-    "age_days": -0.2431689270949074,
-    "topic_score": 14,
-    "recency_score": 4,
-    "media": [
-      "p8292798",
-      "p6964332",
-      "p18880909",
-      "p40591851",
-      "p20849999",
-      "p38043598"
-    ],
-    "layout": "2026-10-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "outro_q": "on",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
