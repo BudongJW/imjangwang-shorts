@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import io
-import math
 import random
 from pathlib import Path
 
