@@ -48,7 +48,10 @@
    "status": "running",
    "slot": "x01",
    "started": "2026-11-20"
+  },
+  "article_pos": {
+   "status": "queued"
   }
  },
- "updated": "2026-11-19T11:08:08+09:00"
+ "updated": "2026-11-20T08:36:12+09:00"
 }
