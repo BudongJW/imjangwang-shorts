@@ -2315,5 +2315,33 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "서울 집값 식으니⋯ 경기도 매매·전세·월세 강세",
+    "video_id": "draft-44445387639",
+    "date": "2026-11-19T02:38:42.793879",
+    "title_style": "주장",
+    "len_mode": "short",
+    "script_chars": 268,
+    "source": "국민일보",
+    "topic_score": 0,
+    "recency_score": 0,
+    "media": [
+      "p37384707",
+      "p20839149",
+      "p18495178",
+      "p5581897",
+      "p2122443",
+      "p39521417"
+    ],
+    "layout": "2026-10-10",
+    "exp": {
+      "len_mode": "short",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "on",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
