@@ -1785,7 +1785,7 @@ def _stale_month_problems(script: str, published: str) -> list[tuple[str, str]]:
     try:
         from email.utils import parsedate_to_datetime
         kst = timezone(timedelta(hours=9))
-        pub = parsedate_to_datetime(published).astimezone(kst)
+        pub = parsedate_to_datetime(re.sub(r"([+-]\d{2}):(\d{2})\s*$", r"\1\2", (published or "").strip())).astimezone(kst)
     except Exception:
         return []
     now = datetime.now(timezone(timedelta(hours=9)))
@@ -2311,6 +2311,48 @@ def _rent_word_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사가 '~로 해석된다·풀이된다'로 쓴 원인을 대본이 "~탓입니다"로 못 박은 문장. 11-19 재생성본:
+# 기사는 "서울의 상승률 둔화는 강남권 하락 영향이 큰 것으로 해석된다"였는데 대본은 "서울 집값 겉만
+# 둔화, 강남 3구 하락 탓입니다"였다. 대본 문장과 낱말 2개 이상 겹치고 원인 말(탓·때문·영향·결과)이
+# 든 기사 문장이 모두 해석·풀이·분석으로 쓰였으면 잡는다.
+_SCRIPT_CAUSE_END_RE = re.compile(r"(?:탓|때문|영향|결과)(?:입니다|이죠|이에요|이다)[.!]?\s*$")
+_SRC_CAUSE_WORD_RE = re.compile(r"탓|때문|영향|결과|여파")
+_SRC_READING_RE = re.compile(r"해석|풀이|분석|것으로\s?보|으로\s?보인|추정|관측|평가")
+
+
+def _cause_hedge_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_st = [(x, _stems(x)) for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not _SCRIPT_CAUSE_END_RE.search(sent):
+            continue
+        st = _stems(sent)
+        cands = [x for x, ss in src_st if len(st & ss) >= 2 and _SRC_CAUSE_WORD_RE.search(x)]
+        if cands and all(_SRC_READING_RE.search(x) for x in cands):
+            out.append((sent[:40], "기사는 원인을 '~로 해석된다'로 썼는데 대본은 단정했다"))
+    return out
+
+
+# 기사 제목의 말을 기관 발언처럼 따옴표로 붙인 유튜브 제목. 11-19 재생성본: 기사 제목 "서울 집값
+# 식으니⋯ 경기도 매매·전세·월세 강세"가 제목에서 '한국부동산원 "서울 집값 식으니"'가 됐다.
+_TITLE_OWNER_RE = re.compile(r"^\s*([가-힣A-Za-z0-9·]{2,14})\s?[\"“'‘]([^\"”'’]{2,30})[\"”'’]")
+
+
+def _title_owner_problems(youtube_title: str, art_title: str, body: str) -> list[str]:
+    m = _TITLE_OWNER_RE.search(youtube_title or "")
+    if not m:
+        return []
+    q = m.group(2).strip()
+    # 기사 제목에서도 따옴표 안에 있던 말이면 기사가 이미 누군가의 말로 단 것이다
+    # (10-08 '장관 "연말가면 서울 집값 진정"'). 따옴표 없이 기사 제목의 서술이었을 때만 잡는다.
+    if re.search(r"[\"“'‘][^\"”'’]*" + re.escape(q), art_title or ""):
+        return []
+    if q in (art_title or "") and q not in (body or ""):
+        return [f"기사 제목의 '{q}'를 {m.group(1)}의 말처럼 붙였다"]
+    return []
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2605,7 +2647,7 @@ def script_defects(text: str, hay: str, title: str = "",
          + _pair_subject_problems(text, hay) + _reverse_direction_problems(text, hay)
          + _only_cause_problems(text, hay) + _this_month_problems(text, hay)
          + _cta_source_problems(text, hay) + _big_cause_problems(text, hay)
-         + _rent_word_problems(text, hay)
+         + _rent_word_problems(text, hay) + _cause_hedge_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
@@ -2751,6 +2793,11 @@ def generate(art) -> ShortPlan:
         if tbad:
             data["youtube_title"] = _headline_title(getattr(art, "title", ""))
             note(f"제목: 기사에 없는 인용 → 기사 헤드라인으로 교체 ({tbad[0][:30]})")
+        else:
+            towner = _title_owner_problems(str(data.get("youtube_title", "")), getattr(art, "title", ""), body)
+            if towner:
+                data["youtube_title"] = _headline_title(getattr(art, "title", ""))
+                note(f"제목: {towner[0][:40]} → 기사 헤드라인으로 교체")
 
     script = _trim_incomplete_tail(
         _cap_length(_clean_script(normalize_caption(str(data["script"]).strip()))))

@@ -435,7 +435,9 @@ def _age_days(published: str) -> float | None:
     if not published:
         return None
     try:
-        dt = parsedate_to_datetime(published)
+        # 11-19: 매일경제 피드는 "+09:00"처럼 콜론 든 시간대를 쓴다. parsedate_to_datetime은
+        # 이걸 못 읽고 시간대 없는 값으로 돌려줘, 05:00 KST 기사가 05:00 UTC가 됐다("-0.2일 전").
+        dt = parsedate_to_datetime(re.sub(r"([+-]\d{2}):(\d{2})\s*$", r"\1\2", published.strip()))
     except (TypeError, ValueError):
         dt = None
     if dt is None:
@@ -630,6 +632,20 @@ _AWARD_TITLE_RE = re.compile(
     r"우수\s?(?:기관|사례)\s?선정")
 
 
+# 유료 기사의 맛보기 본문. 11-19 초안: 매일경제 "'10년 실거주' 버텼는데 되레 세금 폭탄 …
+# 양도세 장특공 한도의 역설"은 본문이 407자 머리말과 "<플러스 포인트> ▶… ▶…" 목차뿐이었다.
+# 대본은 사례 하나의 '2.46배'를 모든 10년 실거주자 이야기로 넓혔다. 본문 없이 목차만 있으면 뺀다.
+_PAYWALL_RE = re.compile(r"플러스\s?포인트|유료\s?(?:기사|회원|구독)|프리미엄\s?(?:회원|구독)\s?전용|이하\s?생략")
+PAYWALL_SHORT = 600
+
+
+def _is_paywall_teaser(art) -> bool:
+    s = getattr(art, "summary", "") or ""
+    if _PAYWALL_RE.search(s):
+        return True
+    return len(s) < PAYWALL_SHORT and s.count("▶") >= 2
+
+
 def _is_promo(art) -> bool:
     if _PROMO_TITLE_RE.search(getattr(art, "title", "") or ""):
         return True
@@ -667,6 +683,11 @@ def pick_and_enrich(candidates: list[Article], top_n: int = PICK_TOP_N) -> Artic
         if _is_event_notice(art):
             log.info(f"행사 안내 기사라 건너뜀: {art.title[:40]} ({art.source})")
             note(f"행사 안내 기사라 건너뜀: {art.title[:40]}")
+            time.sleep(0.5)
+            continue
+        if _is_paywall_teaser(art):
+            log.info(f"유료 기사 맛보기라 건너뜀: {art.title[:40]} ({art.source})")
+            note(f"유료 기사 맛보기라 건너뜀: {art.title[:40]}")
             time.sleep(0.5)
             continue
         if _is_promo(art):
