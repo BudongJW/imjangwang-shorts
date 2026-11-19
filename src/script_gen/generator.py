@@ -1716,7 +1716,7 @@ def _stale_month_problems(script: str, published: str) -> list[tuple[str, str]]:
     try:
         from email.utils import parsedate_to_datetime
         kst = timezone(timedelta(hours=9))
-        pub = parsedate_to_datetime(published).astimezone(kst)
+        pub = parsedate_to_datetime(re.sub(r"([+-]\d{2}):(\d{2})\s*$", r"\1\2", (published or "").strip())).astimezone(kst)
     except Exception:
         return []
     now = datetime.now(timezone(timedelta(hours=9)))
