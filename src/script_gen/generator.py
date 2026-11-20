@@ -1399,6 +1399,24 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"극명")
 
 
+# 첫 문장 질문에 숫자를 걸어 놓고 대본 어디서도 그 숫자로 답하지 않는 것. 11-20 초안(질문형 제목
+# 실험 on): "경희궁 에피트, 청약 당첨되면 현금 7억이 필요할까요."로 시작했는데 7억을 말한 문장이
+# 사실 검사에서 지워져 질문만 남았다(기사: 입주 전 약 7억7245만원).
+_Q_END_RE = re.compile(r"(?:까요|나요|가요|는지요|일까|을까|ㄹ까)\s*[?.!]?\s*$|\?\s*$")
+_Q_NUM_RE = re.compile(r"\d+(?:[.,]\d+)?\s?(?:억|만|천|%|배|명|가구|건|년|개월)?")
+
+
+def _unanswered_question_problems(script: str) -> list[tuple[str, str]]:
+    sents = [x.strip() for x in _CHECK_SPLIT_RE.split(script or "") if x.strip()]
+    if len(sents) < 2 or not _Q_END_RE.search(sents[0]):
+        return []
+    rest = " ".join(sents[1:]).replace(" ", "")
+    nums = [m.group(0).replace(" ", "") for m in _Q_NUM_RE.finditer(sents[0])]
+    if nums and not any(n in rest for n in nums):
+        return [(sents[0][:40], f"첫 질문의 '{nums[0]}'에 대본이 답하지 않는다")]
+    return []
+
+
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
 # 융자 금리를 "2.6~3.4%→2.0~2.8%"로 낮췄다고 썼는데, 대본은 범위의 양 끝을
 # 전후로 읽어 "연 2.0에서 2.8%로 낮춰"라고 했다. 숫자는 모두 기사에 있어서
@@ -2353,6 +2371,23 @@ def _title_owner_problems(youtube_title: str, art_title: str, body: str) -> list
     return []
 
 
+# 기사가 '상대적으로 ~에게 유리할 수 있다'고 쓴 것을 대본이 '~에게만 유리하다'로 좁힌 문장.
+# 11-20 초안: 기사 "상대적으로 자금 여력이 풍부한 수요자에게 유리한 청약 환경이 조성될 수 있다는
+# 지적"이 대본에서 "현금 부자에게만 유리하다는 지적입니다"가 됐다.
+_ONLY_GAIN_RE = re.compile(r"(?:에게|들|에)만\s?(?:유리|이득|혜택이|좋은|돌아)")
+
+
+def _only_gain_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if _ONLY_GAIN_RE.search(source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _ONLY_GAIN_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사에 없는 '{m.group(0)}'로 대상을 좁혔다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2648,6 +2683,7 @@ def script_defects(text: str, hay: str, title: str = "",
          + _only_cause_problems(text, hay) + _this_month_problems(text, hay)
          + _cta_source_problems(text, hay) + _big_cause_problems(text, hay)
          + _rent_word_problems(text, hay) + _cause_hedge_problems(text, hay)
+         + _only_gain_problems(text, hay) + _unanswered_question_problems(text)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
