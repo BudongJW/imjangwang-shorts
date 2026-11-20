@@ -2343,5 +2343,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“경희궁자이보다 저렴해 설렜는데”…대출규제에 ‘현금부자’ 청약 지적도",
+    "video_id": "draft-44658802305",
+    "date": "2026-11-20T02:12:38.682119",
+    "title_style": "질문",
+    "len_mode": "normal",
+    "script_chars": 330,
+    "source": "매일경제",
+    "age_days": 0.8550367092939815,
+    "topic_score": 8,
+    "recency_score": 4,
+    "media": [
+      "p30484434",
+      "p34717351",
+      "p20130529",
+      "p8297220",
+      "p8292798",
+      "p8296984"
+    ],
+    "layout": "2026-11-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "off",
+      "title_q": "on",
+      "article_pos": "early",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
