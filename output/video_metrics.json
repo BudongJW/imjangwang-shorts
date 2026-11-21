@@ -1,12 +1,12 @@
 {
- "taken_at": "2026-11-20T23:07:23.643895+00:00",
+ "taken_at": "2026-11-21T02:08:12.342024+00:00",
  "videos": [
   {
    "video_id": "KMo5KZRV8fs",
    "title": "경희궁 에피트, 당첨돼도 현금 7억 넘게 필요? #청약 #경희궁에피트 #대출규제",
    "published_kst": "2026-11-20 19:00",
    "duration_s": 54,
-   "views": 16,
+   "views": 18,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": null,
@@ -1025,7 +1025,7 @@
    "title": "집 없다는데 LH 임대 1만 가구가 2년 넘게 빈집 #LH #공공임대 #임대주택",
    "published_kst": "2026-10-03 19:00",
    "duration_s": 45,
-   "views": 991,
+   "views": 992,
    "likes": 5,
    "comments": 0,
    "averageViewDuration": 50,
@@ -4589,14 +4589,7 @@
    "shares": 0,
    "engagedViews": 544,
    "estimatedMinutesWatched": 626,
-   "traffic": {
-    "SHORTS": 1397,
-    "YT_SEARCH": 10,
-    "YT_OTHER_PAGE": 9,
-    "YT_CHANNEL": 4,
-    "SOUND_PAGE": 1,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "1ykXuMpTuzI",
@@ -4612,14 +4605,7 @@
    "shares": 0,
    "engagedViews": 800,
    "estimatedMinutesWatched": 18,
-   "traffic": {
-    "EXT_URL": 793,
-    "YT_SEARCH": 10,
-    "YT_CHANNEL": 3,
-    "SUBSCRIBER": 1,
-    "YT_OTHER_PAGE": 1,
-    "SHORTS": 1
-   }
+   "traffic": {}
   },
   {
    "video_id": "-EOBTluTVj8",
@@ -4635,13 +4621,7 @@
    "shares": 0,
    "engagedViews": 598,
    "estimatedMinutesWatched": 238,
-   "traffic": {
-    "SHORTS": 1400,
-    "YT_SEARCH": 14,
-    "YT_OTHER_PAGE": 11,
-    "YT_CHANNEL": 3,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "SxJ7zgSeddw",
@@ -4657,13 +4637,7 @@
    "shares": 0,
    "engagedViews": 557,
    "estimatedMinutesWatched": 367,
-   "traffic": {
-    "SHORTS": 1064,
-    "YT_SEARCH": 12,
-    "YT_OTHER_PAGE": 8,
-    "YT_CHANNEL": 5,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "dLc2NOK9ZWY",
@@ -4679,13 +4653,7 @@
    "shares": 5,
    "engagedViews": 1021,
    "estimatedMinutesWatched": 623,
-   "traffic": {
-    "SHORTS": 2379,
-    "YT_SEARCH": 39,
-    "YT_OTHER_PAGE": 12,
-    "YT_CHANNEL": 4,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "JXzP5HFDP0k",
@@ -4701,15 +4669,7 @@
    "shares": 2,
    "engagedViews": 615,
    "estimatedMinutesWatched": 324,
-   "traffic": {
-    "SHORTS": 859,
-    "EXT_URL": 261,
-    "YT_SEARCH": 9,
-    "YT_OTHER_PAGE": 8,
-    "YT_CHANNEL": 4,
-    "NO_LINK_OTHER": 1,
-    "SUBSCRIBER": 1
-   }
+   "traffic": {}
   },
   {
    "video_id": "LJlamKBceMU",
@@ -4725,13 +4685,7 @@
    "shares": 0,
    "engagedViews": 570,
    "estimatedMinutesWatched": 285,
-   "traffic": {
-    "SHORTS": 1626,
-    "YT_SEARCH": 9,
-    "YT_OTHER_PAGE": 8,
-    "YT_CHANNEL": 4,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "N9rce1p1tIQ",
@@ -4747,13 +4701,7 @@
    "shares": 2,
    "engagedViews": 623,
    "estimatedMinutesWatched": 261,
-   "traffic": {
-    "SHORTS": 1323,
-    "YT_SEARCH": 18,
-    "YT_OTHER_PAGE": 5,
-    "YT_CHANNEL": 3,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "PDuR_pw6BM4",
@@ -4769,13 +4717,7 @@
    "shares": 0,
    "engagedViews": 599,
    "estimatedMinutesWatched": 386,
-   "traffic": {
-    "SHORTS": 1378,
-    "YT_SEARCH": 13,
-    "YT_OTHER_PAGE": 9,
-    "YT_CHANNEL": 3,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "bi1DYZN35-c",
@@ -4791,13 +4733,7 @@
    "shares": 1,
    "engagedViews": 545,
    "estimatedMinutesWatched": 405,
-   "traffic": {
-    "SHORTS": 2190,
-    "YT_SEARCH": 26,
-    "YT_OTHER_PAGE": 18,
-    "YT_CHANNEL": 2,
-    "NO_LINK_OTHER": 0
-   }
+   "traffic": {}
   },
   {
    "video_id": "-zq6zK7gk_U",
