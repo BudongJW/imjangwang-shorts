@@ -1338,6 +1338,9 @@ def _causal_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # 같은 날 재생성본: "이 감소는 시장 회복 신호가 아닙니다", "공급이 씨가
 # 말랐기 때문". 기사는 감소를 평가하지 않았고 "신규 공급이 줄어든 영향"이라고만 했다.
 _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|충격적인\s?실태|대참사|거짓말이\s?드러|착시|"
+                      # 11-21 초안: "미분양 대란이 현실이 될 거란 우려", "분양가가 치솟고 있습니다".
+                      # 기사는 "미분양 해소가 쉽지 않을 것이란 우려", 기본형 건축비 4.07% 상승이었다.
+                      r"대란|현실이\s?(?:될|된다|되고|됐)|치솟|"
                       r"신호가\s?아닙|씨가\s?말랐|참사|"
                       # 10-03 초안 배너 "청약 당첨의 역설 … 지방 미분양 70%의 진실".
                       # 최근 배너 넷에 셋이 '역설'이었고 기사에는 한 번도 없었다.
@@ -2180,8 +2183,8 @@ def _place_problems(script: str, source_text: str) -> list[tuple[str, str]]:
 # 두 지역을 빗금·가운뎃점으로 묶어 숫자 하나를 붙인 문장. 11-16 초안: "동북/서남권은 125.9까지
 # 치솟았습니다". 기사는 동북권 123.0, 서남권 125.9였다. 묶인 이름마다 기사에서 그 숫자 앞
 # 가까이(60자)에 나와야 한다.
-_PAIR_SUBJ_RE = re.compile(r"([가-힣]{2,4})\s?[/·]\s?([가-힣]{2,4})(권|구|시|군)?\s?(?:은|는|이|가|도)?\s?"
-                           r"[^.\d]{0,12}?(\d[\d,]*(?:\.\d+)?)")
+_PAIR_SUBJ_RE = re.compile(r"([가-힣]{2,4}?)\s?[/·]\s?([가-힣]{2,4}?)(권|구|시|군)?\s?(?:은|는|이|가|도)?\s?"
+                           r"[^.\d]{0,12}?(\d[\d,]*(?:\.\d+)?)\s?(배|%|포인트|만원|억|원)?")
 
 
 def _pair_subject_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -2192,14 +2195,17 @@ def _pair_subject_problems(script: str, source_text: str) -> list[tuple[str, str
     out = []
     for sent in _CHECK_SPLIT_RE.split(script or ""):
         for m in _PAIR_SUBJ_RE.finditer(sent):
-            a, b, suf, n = m.group(1), m.group(2), m.group(3) or "", m.group(4)
+            a, b, suf, n, unit = m.group(1), m.group(2), m.group(3) or "", m.group(4), m.group(5) or ""
             if not re.search(r"(?<![\d.])" + re.escape(n) + r"(?!\d)", src):
                 continue
+            # 11-21: 단위가 있으면 같은 단위의 숫자끼리만 견준다. "전남·광주도 2.1배"를 기사의
+            # "전남·광주도 분양가가 1934만원"과 견줘 잘못 잡았다.
+            nre = (re.compile(num_re.pattern + r"(?=\s?" + re.escape(unit) + ")") if unit else num_re)
             bad = []
             for w in (a, b):
                 firsts = []
                 for h in re.finditer(re.escape(w + suf), flat):
-                    nm = num_re.search(flat, h.end(), h.end() + 40)
+                    nm = nre.search(flat, h.end(), h.end() + 40)
                     if nm:
                         firsts.append(nm.group(1).replace(",", ""))
                 if firsts and n.replace(",", "") not in firsts:
@@ -2388,6 +2394,27 @@ def _only_gain_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     return out
 
 
+# 기사가 'N배 안팎·가까이'로 쓴 배수를 대본이 'N배를 (훌쩍) 넘었다'로 키운 문장. 11-21 초안:
+# 기사는 지방 분양가가 시세의 "두 배 안팎"(경남·강원 1.98배)이었는데 대본은 "두 배를 훌쩍
+# 넘었습니다"였다.
+_OVER_MULT_RE = re.compile(r"(두|세|네|다섯|\d+(?:\.\d+)?)\s?배를?\s?(?:훌쩍\s?|크게\s?|훨씬\s?)?(?:넘|웃돌|초과)")
+
+
+def _mult_overstate_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _OVER_MULT_RE.search(sent)
+        if not m:
+            continue
+        w = re.escape(m.group(1))
+        if re.search(w + r"\s?배를?\s?(?:훌쩍\s?|크게\s?|훨씬\s?)?(?:넘|웃돌|초과)", src):
+            continue
+        if re.search(w + r"\s?배\s?(?:안팎|가까이|정도|수준|에\s?육박|에\s?가까)|약\s?" + w + r"\s?배", src):
+            out.append((sent.strip()[:40], f"기사는 '{m.group(1)} 배 안팎'인데 대본은 넘었다고 했다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2544,7 +2571,9 @@ _JARGON_RE = re.compile(
     r"월세화|전세\s?(?:소멸|종말|실종)|"
     # 11-07 초안: "건설사들이 분양 시기를 늦추거나 물량을 줄이는 움직임이 포착됩니다".
     # 기사(주산연 분양전망지수)에 그런 움직임은 없었다. 관찰했다는 말은 기사에 있어야 한다.
-    r"포착|감지되")
+    r"포착|감지되|"
+    # 11-21 초안: "양극화가 심화하는 겁니다". 기사에 양극화 얘기가 없었다.
+    r"양극화")
 
 
 def _hype_problems(script: str, source_text: str) -> list[tuple[str, str]]:
@@ -2684,6 +2713,7 @@ def script_defects(text: str, hay: str, title: str = "",
          + _cta_source_problems(text, hay) + _big_cause_problems(text, hay)
          + _rent_word_problems(text, hay) + _cause_hedge_problems(text, hay)
          + _only_gain_problems(text, hay) + _unanswered_question_problems(text)
+         + _mult_overstate_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
