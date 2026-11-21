@@ -205,6 +205,11 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         if cand.endswith(_WEAK_UNITS) and re.match(
                 r"\s?(?:평균|대비|전보다|전\s?대비|전에\s?비해|기준)", phrase[m.start() + len(cand):]):
             continue
+        # "3.3㎡당 평균 분양가"의 3.3㎡는 값을 재는 단위(평당)지 뉴스 숫자가 아니다.
+        # 11-21 지정 영상이 "3.3㎡"를 숫자 카드로 크게 띄웠다.
+        if (cand.endswith(("㎡", "제곱미터", "m²", "평"))
+                and re.match(r"\s?당", phrase[m.start() + len(cand):])):
+            continue
         if cand.endswith(_WEAK_UNITS):
             if weak is None or "에서" in phrase[weak_end:m.start()]:
                 weak, weak_end = cand, m.end()
