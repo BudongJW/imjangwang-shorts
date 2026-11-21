@@ -2374,37 +2374,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "지방 새 아파트 분양가 기존 집값의 두 배…미분양 해소 난항",
-    "video_id": "draft-44832024199",
-    "date": "2026-11-20T22:53:48.152096",
-    "title_style": "주장",
-    "len_mode": "short",
-    "script_chars": 260,
-    "source": "매일경제",
-    "age_days": 0.7678375876620371,
-    "topic_score": 12,
-    "recency_score": 4,
-    "media": [
-      "p14452238",
-      "p19763828",
-      "p34056455",
-      "p34056451",
-      "p14949111",
-      "p34356905",
-      "v37500922"
-    ],
-    "layout": "2026-11-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "graphic",
-      "outro_q": "off",
-      "title_q": "off",
-      "article_pos": "early",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
