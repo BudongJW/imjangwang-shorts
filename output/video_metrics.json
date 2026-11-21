@@ -1,12 +1,28 @@
 {
- "taken_at": "2026-11-21T02:08:12.342024+00:00",
+ "taken_at": "2026-11-21T22:11:56.361332+00:00",
  "videos": [
+  {
+   "video_id": "rU2IGgJ56yk",
+   "title": "지방 새 아파트 분양가, 기존 시세의 두 배 안팎 #미분양 #분양가 #지방아파트",
+   "published_kst": "2026-11-21 19:00",
+   "duration_s": 39,
+   "views": 13,
+   "likes": 0,
+   "comments": 0,
+   "averageViewDuration": null,
+   "averageViewPercentage": null,
+   "subscribersGained": null,
+   "shares": null,
+   "engagedViews": null,
+   "estimatedMinutesWatched": null,
+   "traffic": {}
+  },
   {
    "video_id": "KMo5KZRV8fs",
    "title": "경희궁 에피트, 당첨돼도 현금 7억 넘게 필요? #청약 #경희궁에피트 #대출규제",
    "published_kst": "2026-11-20 19:00",
    "duration_s": 54,
-   "views": 18,
+   "views": 26,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": null,
@@ -25,13 +41,17 @@
    "views": 29,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": null,
-   "averageViewPercentage": null,
-   "subscribersGained": null,
-   "shares": null,
-   "engagedViews": null,
-   "estimatedMinutesWatched": null,
-   "traffic": {}
+   "averageViewDuration": 18,
+   "averageViewPercentage": 38.72,
+   "subscribersGained": 0,
+   "shares": 0,
+   "engagedViews": 13,
+   "estimatedMinutesWatched": 4,
+   "traffic": {
+    "SHORTS": 20,
+    "YT_SEARCH": 5,
+    "YT_OTHER_PAGE": 1
+   }
   },
   {
    "video_id": "ZWVqT3ArN8k",
@@ -48,7 +68,7 @@
    "engagedViews": 9,
    "estimatedMinutesWatched": 1,
    "traffic": {
-    "SHORTS": 14,
+    "SHORTS": 15,
     "YT_CHANNEL": 2
    }
   },
@@ -68,7 +88,7 @@
    "estimatedMinutesWatched": 15,
    "traffic": {
     "SHORTS": 55,
-    "YT_SEARCH": 2,
+    "YT_SEARCH": 3,
     "NO_LINK_OTHER": 0,
     "YT_CHANNEL": 0
    }
@@ -78,7 +98,7 @@
    "title": "노도강·금관구 월세 300만원 넘는 거래 41건…1년 새 2.7배 #월세 #노도강 #금관구",
    "published_kst": "2026-11-15 19:00",
    "duration_s": 38,
-   "views": 345,
+   "views": 344,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 21,
@@ -89,7 +109,7 @@
    "estimatedMinutesWatched": 39,
    "traffic": {
     "SHORTS": 327,
-    "YT_SEARCH": 10,
+    "YT_SEARCH": 12,
     "YT_OTHER_PAGE": 3,
     "YT_CHANNEL": 2,
     "NO_LINK_OTHER": 0
@@ -100,7 +120,7 @@
    "title": "서울 매매 매물 연초보다 40% 이상 늘어…토허제 조정 12월 결론 #매물 #전세 #월세",
    "published_kst": "2026-11-14 19:00",
    "duration_s": 57,
-   "views": 73,
+   "views": 75,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 27,
@@ -111,7 +131,7 @@
    "estimatedMinutesWatched": 10,
    "traffic": {
     "SHORTS": 50,
-    "YT_SEARCH": 18,
+    "YT_SEARCH": 19,
     "YT_CHANNEL": 3,
     "NO_LINK_OTHER": 0
    }
@@ -153,7 +173,7 @@
    "estimatedMinutesWatched": 7,
    "traffic": {
     "SHORTS": 22,
-    "YT_SEARCH": 1,
+    "YT_SEARCH": 2,
     "NO_LINK_OTHER": 0
    }
   },
@@ -182,7 +202,7 @@
    "title": "내년 1분기 서울 빌라 전월세 1만8452건…집계 이래 최소 #빌라 #전월세 #서울빌라",
    "published_kst": "2026-11-10 19:00",
    "duration_s": 60,
-   "views": 100,
+   "views": 101,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 26,
@@ -203,7 +223,7 @@
    "title": "금리 올려도 집값 오르는 이유…부읽남 정태익 대표 진단 #집값 #금리 #전세",
    "published_kst": "2026-11-09 19:00",
    "duration_s": 35,
-   "views": 85,
+   "views": 87,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 193,
@@ -211,10 +231,10 @@
    "subscribersGained": 1,
    "shares": 0,
    "engagedViews": 27,
-   "estimatedMinutesWatched": 87,
+   "estimatedMinutesWatched": 88,
    "traffic": {
     "SHORTS": 50,
-    "YT_SEARCH": 34,
+    "YT_SEARCH": 35,
     "NO_LINK_OTHER": 0
    }
   },
@@ -226,15 +246,15 @@
    "views": 1016,
    "likes": 5,
    "comments": 0,
-   "averageViewDuration": 26,
-   "averageViewPercentage": 48.99,
+   "averageViewDuration": 27,
+   "averageViewPercentage": 49.09,
    "subscribersGained": 1,
    "shares": 0,
    "engagedViews": 460,
    "estimatedMinutesWatched": 223,
    "traffic": {
     "SHORTS": 972,
-    "YT_SEARCH": 29,
+    "YT_SEARCH": 30,
     "YT_OTHER_PAGE": 10,
     "YT_CHANNEL": 3,
     "SUBSCRIBER": 1,
@@ -250,14 +270,14 @@
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 17,
-   "averageViewPercentage": 47.61,
+   "averageViewPercentage": 47.86,
    "subscribersGained": 0,
    "shares": 0,
    "engagedViews": 153,
    "estimatedMinutesWatched": 58,
    "traffic": {
     "SHORTS": 658,
-    "YT_SEARCH": 34,
+    "YT_SEARCH": 35,
     "YT_OTHER_PAGE": 3,
     "NO_LINK_OTHER": 0,
     "YT_CHANNEL": 0
@@ -279,7 +299,7 @@
    "estimatedMinutesWatched": 5,
    "traffic": {
     "SHORTS": 15,
-    "YT_SEARCH": 11,
+    "YT_SEARCH": 12,
     "YT_OTHER_PAGE": 2,
     "NO_LINK_OTHER": 0
    }
@@ -299,7 +319,7 @@
    "engagedViews": 13,
    "estimatedMinutesWatched": 6,
    "traffic": {
-    "YT_SEARCH": 27,
+    "YT_SEARCH": 28,
     "SHORTS": 16
    }
   },
@@ -420,7 +440,7 @@
    "estimatedMinutesWatched": 99,
    "traffic": {
     "SHORTS": 1056,
-    "YT_SEARCH": 31,
+    "YT_SEARCH": 32,
     "YT_OTHER_PAGE": 4,
     "NOTIFICATION": 1,
     "NO_LINK_OTHER": 0
@@ -535,7 +555,7 @@
    "title": "올파포 첫 전세 만기…집주인 실거주에 59㎡ 전세 13억 #올림픽파크포레온 #전세 #전세난",
    "published_kst": "2026-10-23 19:00",
    "duration_s": 48,
-   "views": 514,
+   "views": 516,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 37,
@@ -545,7 +565,7 @@
    "engagedViews": 170,
    "estimatedMinutesWatched": 111,
    "traffic": {
-    "YT_SEARCH": 420,
+    "YT_SEARCH": 421,
     "SHORTS": 91,
     "SUBSCRIBER": 1,
     "NO_LINK_OTHER": 0
@@ -666,7 +686,7 @@
    "engagedViews": 454,
    "estimatedMinutesWatched": 321,
    "traffic": {
-    "YT_SEARCH": 1326,
+    "YT_SEARCH": 1328,
     "SHORTS": 104,
     "YT_CHANNEL": 2,
     "YT_OTHER_PAGE": 1,
@@ -861,7 +881,7 @@
    "estimatedMinutesWatched": 104,
    "traffic": {
     "SHORTS": 335,
-    "YT_SEARCH": 45,
+    "YT_SEARCH": 46,
     "YT_OTHER_PAGE": 4,
     "YT_CHANNEL": 3,
     "NOTIFICATION": 1,
@@ -1112,17 +1132,17 @@
    "title": "청년 전세대출 보증 만 39세까지 확대, 조건 정리 #청년전세대출 #전세대출 #청년특례보증",
    "published_kst": "2026-10-01 12:00",
    "duration_s": 57,
-   "views": 890,
+   "views": 896,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 39,
-   "averageViewPercentage": 68.56,
+   "averageViewPercentage": 68.62,
    "subscribersGained": 0,
    "shares": 1,
-   "engagedViews": 392,
-   "estimatedMinutesWatched": 264,
+   "engagedViews": 394,
+   "estimatedMinutesWatched": 266,
    "traffic": {
-    "YT_SEARCH": 846,
+    "YT_SEARCH": 850,
     "SHORTS": 27,
     "EXT_URL": 7,
     "YT_CHANNEL": 1,
@@ -1179,7 +1199,7 @@
    "title": "서울 대학가 원룸 월세 70만원 돌파…서울대 인근 26% 뛰어 #부동산 #월세 #원룸",
    "published_kst": "2026-09-29 19:59",
    "duration_s": 53,
-   "views": 351,
+   "views": 352,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 31,
@@ -1248,13 +1268,13 @@
    "likes": 3,
    "comments": 0,
    "averageViewDuration": 40,
-   "averageViewPercentage": 72.56,
+   "averageViewPercentage": 72.33,
    "subscribersGained": 0,
    "shares": 3,
-   "engagedViews": 229,
-   "estimatedMinutesWatched": 164,
+   "engagedViews": 231,
+   "estimatedMinutesWatched": 165,
    "traffic": {
-    "YT_SEARCH": 346,
+    "YT_SEARCH": 350,
     "SHORTS": 297,
     "YT_OTHER_PAGE": 6,
     "SUBSCRIBER": 3,
@@ -1309,7 +1329,7 @@
    "title": "\"강남 30평대 3억에 가능\"? 마곡은 건물값만 4억 #부동산 #토지임대부 #반값아파트",
    "published_kst": "2026-09-27 15:30",
    "duration_s": 61,
-   "views": 229,
+   "views": 230,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 143,
@@ -1700,7 +1720,7 @@
    "estimatedMinutesWatched": 309,
    "traffic": {
     "SHORTS": 931,
-    "YT_SEARCH": 56,
+    "YT_SEARCH": 57,
     "YT_OTHER_PAGE": 12,
     "YT_CHANNEL": 4,
     "EXT_URL": 2,
@@ -2127,7 +2147,7 @@
    "estimatedMinutesWatched": 794,
    "traffic": {
     "SHORTS": 1833,
-    "YT_SEARCH": 55,
+    "YT_SEARCH": 56,
     "YT_OTHER_PAGE": 27,
     "YT_CHANNEL": 4,
     "NOTIFICATION": 1,
@@ -2728,7 +2748,7 @@
    "title": "전세 찾다가 평택까지 갔다 #부동산 #전세난 #대출 #정부규제 #경기도",
    "published_kst": "2026-01-07 10:16",
    "duration_s": 44,
-   "views": 138,
+   "views": 139,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 59,
@@ -4086,7 +4106,7 @@
    "traffic": {
     "SHORTS": 830,
     "YT_OTHER_PAGE": 11,
-    "YT_SEARCH": 4,
+    "YT_SEARCH": 5,
     "NO_LINK_OTHER": 1,
     "YT_CHANNEL": 1
    }
@@ -4427,7 +4447,7 @@
    "title": "강남 빌라 투자 다시 불붙었다 #부동산 #빌라 #빌라투자 #집값상승",
    "published_kst": "2025-12-01 00:02",
    "duration_s": 53,
-   "views": 2132,
+   "views": 2134,
    "likes": 4,
    "comments": 0,
    "averageViewDuration": 26,
@@ -4589,7 +4609,14 @@
    "shares": 0,
    "engagedViews": 544,
    "estimatedMinutesWatched": 626,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1397,
+    "YT_SEARCH": 10,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 4,
+    "SOUND_PAGE": 1,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "1ykXuMpTuzI",
@@ -4605,7 +4632,14 @@
    "shares": 0,
    "engagedViews": 800,
    "estimatedMinutesWatched": 18,
-   "traffic": {}
+   "traffic": {
+    "EXT_URL": 793,
+    "YT_SEARCH": 10,
+    "YT_CHANNEL": 3,
+    "SUBSCRIBER": 1,
+    "YT_OTHER_PAGE": 1,
+    "SHORTS": 1
+   }
   },
   {
    "video_id": "-EOBTluTVj8",
@@ -4621,7 +4655,13 @@
    "shares": 0,
    "engagedViews": 598,
    "estimatedMinutesWatched": 238,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1400,
+    "YT_SEARCH": 14,
+    "YT_OTHER_PAGE": 11,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "SxJ7zgSeddw",
@@ -4637,7 +4677,13 @@
    "shares": 0,
    "engagedViews": 557,
    "estimatedMinutesWatched": 367,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1064,
+    "YT_SEARCH": 12,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 5,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "dLc2NOK9ZWY",
@@ -4653,7 +4699,13 @@
    "shares": 5,
    "engagedViews": 1021,
    "estimatedMinutesWatched": 623,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2379,
+    "YT_SEARCH": 39,
+    "YT_OTHER_PAGE": 12,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "JXzP5HFDP0k",
@@ -4669,7 +4721,15 @@
    "shares": 2,
    "engagedViews": 615,
    "estimatedMinutesWatched": 324,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 859,
+    "EXT_URL": 261,
+    "YT_SEARCH": 9,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 1,
+    "SUBSCRIBER": 1
+   }
   },
   {
    "video_id": "LJlamKBceMU",
@@ -4685,7 +4745,13 @@
    "shares": 0,
    "engagedViews": 570,
    "estimatedMinutesWatched": 285,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1626,
+    "YT_SEARCH": 9,
+    "YT_OTHER_PAGE": 8,
+    "YT_CHANNEL": 4,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "N9rce1p1tIQ",
@@ -4701,7 +4767,13 @@
    "shares": 2,
    "engagedViews": 623,
    "estimatedMinutesWatched": 261,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1323,
+    "YT_SEARCH": 18,
+    "YT_OTHER_PAGE": 5,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "PDuR_pw6BM4",
@@ -4717,7 +4789,13 @@
    "shares": 0,
    "engagedViews": 599,
    "estimatedMinutesWatched": 386,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 1378,
+    "YT_SEARCH": 13,
+    "YT_OTHER_PAGE": 9,
+    "YT_CHANNEL": 3,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "bi1DYZN35-c",
@@ -4733,7 +4811,13 @@
    "shares": 1,
    "engagedViews": 545,
    "estimatedMinutesWatched": 405,
-   "traffic": {}
+   "traffic": {
+    "SHORTS": 2190,
+    "YT_SEARCH": 26,
+    "YT_OTHER_PAGE": 18,
+    "YT_CHANNEL": 2,
+    "NO_LINK_OTHER": 0
+   }
   },
   {
    "video_id": "-zq6zK7gk_U",
