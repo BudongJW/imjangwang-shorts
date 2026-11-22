@@ -2408,5 +2408,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "\"한강벨트 꺾였는데 우리 동네는 왜 오르지\"…전월세난에 '풍선효과'",
+    "video_id": "draft-44975185477",
+    "date": "2026-11-22T02:18:08.722003",
+    "title_style": "인용",
+    "len_mode": "normal",
+    "script_chars": 369,
+    "source": "뉴시스",
+    "age_days": 1.1568817521180557,
+    "topic_score": 7,
+    "recency_score": 4,
+    "media": [
+      "p10264264",
+      "p31414673",
+      "p38650642",
+      "p40591851",
+      "p40591853",
+      "p20849999"
+    ],
+    "layout": "2026-11-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "graphic",
+      "outro_q": "on",
+      "title_q": "off",
+      "article_pos": "early",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
