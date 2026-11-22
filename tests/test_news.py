@@ -73,3 +73,15 @@ def test_opinion_autogen_event_and_promo_articles_are_skipped():
 def test_blocked_domains():
     assert news._blocked("https://blog.naver.com/x/1")
     assert not news._blocked("https://www.mk.co.kr/article/12201950")
+
+
+def test_newsis_body_skips_photo_caption_box():
+    # 11-22 초안: 뉴시스 '#textBody'가 사진 설명 칸이라 그것만 본문으로 잡혔다.
+    from bs4 import BeautifulSoup
+    from src.collector.news import _extract_body
+    caption = "[서울=뉴시스] 사진 기자 = " + "사진 설명 문장이다. " * 30
+    body = "[서울=뉴시스]기자 = " + "기사 본문 문장이다. " * 40
+    html = (f'<div class="viewer"><article><div class="thumCont"><div id="textBody">{caption}</div></div>'
+            f'{body}</article></div>')
+    text = _extract_body(BeautifulSoup(html, "lxml"))
+    assert "기사 본문" in text and "사진 설명" not in text

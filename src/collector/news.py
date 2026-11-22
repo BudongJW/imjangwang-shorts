@@ -240,7 +240,9 @@ def _resolve_and_enrich(art: Article, session: requests.Session) -> None:
 # "월 생활비 최저 190만원(서비스 포함)"이 대본에서 "월세 190만원"이 됐다.
 _BODY_SELECTORS = (
     ".news_cnt_detail_wrap",        # 매일경제
-    "#textBody", ".viewer",         # 뉴시스
+    # 11-22 초안: 뉴시스 기사에서 '#textBody'가 사진 설명 칸(324자)이라 그것만 본문으로
+    # 잡혔다. 본문 전체를 감싼 '.viewer'를 먼저 보고, 사진 칸(.thumCont)은 걷어낸다.
+    ".viewer", "#textBody",         # 뉴시스
     ".story-news", "#articleWrap",  # 연합뉴스
     ".article-text", ".text",       # 한겨레
     "#articleBody", ".art_body",    # 경향신문
@@ -254,7 +256,7 @@ _BODY_JUNK = ("script, style, iframe, figure, figcaption, "
               ".txt-copyright, .comp-box-title, .end-photo, .article-photo, "
               ".photo, .caption, .img-con, .adrs, "
               # 11-17 초안: 국민일보 본문 중간에 '추천기사' 상자(다른 기사 제목)가 끼었다.
-              ".article_recommend")
+              ".article_recommend, .thumCont")
 # 'article' 같은 넓은 선택자로 잡았을 때 본문 뒤에 붙는 다른 기사 목록. 여기서 자른다.
 _BODY_TAIL_RE = re.compile(r"\s(?:관련\s?뉴스\s?1\s|많이\s?본\s?뉴스|좋아요\s?싫어요\s?후속기사)")
 # 본문 앞에 붙는 위젯·사진설명 찌꺼기. 태그로 못 걸러지는 것만 여기서 턴다.
