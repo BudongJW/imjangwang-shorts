@@ -11,3 +11,9 @@ def test_per_area_basis_is_not_a_stat():
 
 def test_area_without_dang_still_counts_as_weak_stat():
     assert pick_stat("30평 아파트") is not None
+
+
+def test_range_with_unit_on_head_is_shown_whole():
+    # 11-22 지정 영상: "10억~15억원대 주택"에서 "10억"만 숫자 카드로 떴다.
+    assert pick_stat("그래서 10억~15억원대 주택은")[0] == "10억~15억원"
+    assert pick_stat("9~15%")[0] == "9~15%"

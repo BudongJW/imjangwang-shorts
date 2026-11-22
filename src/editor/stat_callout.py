@@ -164,6 +164,13 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         rng = _RANGE_HEAD_RE.search(phrase[:m.start()])
         if rng:
             cand = f"{rng.group(1)}~{cand}"
+        # 앞 값에 단위가 붙은 범위("10억~15억원대")는 앞 값에서 통째로 잇는다. 11-22 지정
+        # 영상이 "10억~15억원대 주택"에서 "10억"만 띄웠다.
+        elif phrase[m.start():].startswith(cand):
+            rm = re.match(r"\s?[~∼～]\s?", phrase[m.start() + len(cand):])
+            nxt = rm and _STAT_RE.match(phrase, m.start() + len(cand) + rm.end())
+            if nxt:
+                cand = f"{cand}~{_extend(phrase, nxt)}"
         # "12월 31일"의 31일도 날짜다. 떼어 띄우면 뜻 없는 숫자가 된다(09-28 검증).
         if cand.endswith("일") and _MONTH_BEFORE_RE.search(phrase[:m.start()]):
             continue
@@ -306,7 +313,9 @@ def with_tail(big: str, tail: str) -> str:
 LABEL_MAX_WORDS = 3
 LABEL_MAX_CHARS = 14
 _LEAD_DROP = {"그리고", "하지만", "특히", "다만", "또", "또한", "결국", "이어",
-              "반면", "그러나", "즉"}
+              "반면", "그러나", "즉",
+              # 11-22 지정 영상: "10억" 카드 이름표가 "그래서"만 남았다.
+              "그래서", "그런데", "따라서", "게다가", "그러면서", "아울러", "한편"}
 _BOUND_LEAD = {"외에", "외엔", "외에도", "중에", "중엔", "중에서", "등의", "등은", "등이",
                "때문에", "이후", "이후엔", "이전", "대비", "뒤에", "후에", "전에", "만에",
                "가운데", "사이", "사이에", "정도의", "가량의", "이상의", "이하의",
