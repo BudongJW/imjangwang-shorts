@@ -1419,7 +1419,14 @@ def _unanswered_question_problems(script: str) -> list[tuple[str, str]]:
     nums = [m.group(0).replace(" ", "") for m in _Q_NUM_RE.finditer(sents[0])]
     if nums and not any(n in rest for n in nums):
         return [(sents[0][:40], f"첫 질문의 '{nums[0]}'에 대본이 답하지 않는다")]
+    # 11-23 초안: "작은 집에만 몰리는 이유는 뭘까요."로 묻고 이유 문장이 지워져 숫자만 남았다.
+    if _WHY_Q_RE.search(sents[0]) and not _WHY_A_RE.search(" ".join(sents[1:])):
+        return [(sents[0][:40], "첫 질문이 이유를 묻는데 대본이 이유를 말하지 않는다")]
     return []
+
+
+_WHY_Q_RE = re.compile(r"이유(?:는|가)|왜|까닭|무엇\s?때문")
+_WHY_A_RE = re.compile(r"때문|탓|영향|이유|배경|풀이|분석|으로\s?인해|로\s?인해|면서|자\s|부담")
 
 
 # 'A에서 B로' 다음 동사가 숫자 방향과 반대인 문장. 10-05 재생성본: 기사는
