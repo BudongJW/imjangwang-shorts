@@ -2439,39 +2439,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "“더 작은집 없나요?”…분양가 치솟자 서울 청약신청 80% ‘소형평수’",
-    "video_id": "draft-45098482405",
-    "date": "2026-11-23T02:11:12.488072",
-    "title_style": "질문",
-    "len_mode": "short",
-    "script_chars": 250,
-    "source": "매일경제",
-    "age_days": 1.1287697476041667,
-    "topic_score": 15,
-    "recency_score": 4,
-    "media": [
-      "p37384706",
-      "p19511930",
-      "p36965350",
-      "p5039003",
-      "p14264277",
-      "p38650645",
-      "v7821798",
-      "v34719410",
-      "v7841865"
-    ],
-    "layout": "2026-11-10",
-    "exp": {
-      "len_mode": "short",
-      "hook_card": "off",
-      "bg_mode": "graphic",
-      "outro_q": "on",
-      "title_q": "on",
-      "article_pos": "early",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
