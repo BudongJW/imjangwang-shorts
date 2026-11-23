@@ -153,6 +153,12 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
 
     연도는 제외하고, 강한 단위(%·억·가구·명 …)를 기간 단위보다 우선한다.
     """
+    # 경쟁률("65.5대 1")은 그 자체가 뉴스다. 같은 구절의 면적("45㎡")보다 먼저 띄운다.
+    # 11-23 지정 영상: "45㎡는 65.5대 / 1이었지만"에서 45㎡가 숫자 카드로 떴다. 자막 줄이
+    # "대"에서 끊겨도 소수점이 있으면 경쟁률로 본다("30대"처럼 나이와 헷갈리지 않게).
+    cr = re.search(r"(?<![\d.])(\d[\d,]*\.\d+)\s?대(?:\s?1(?!\d)|\s*$)|(?<![\d.])(\d[\d,]*)\s?대\s?1(?![\d.])", phrase)
+    if cr:
+        return f"{cr.group(1) or cr.group(2)}대 1", ("up" if any(k in phrase for k in _UP) else "flat")
     best, weak = None, None
     best_end = weak_end = 0
     for m in _STAT_RE.finditer(phrase):
@@ -176,7 +182,9 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
             continue
         # "6개 구", "외곽 10개 구"는 다루는 범위의 개수지 뉴스 숫자가 아니다. 11-05·11-15
         # 영상이 "10개", "6개"를 숫자 카드로 크게 띄웠다.
-        if re.match(r"개\s?(?:구|자치구|시|군|동|도|지역|도시|권역|기관|부처)(?![가-힣])|개\s?(?:구|시|군)\s?(?:의|에서|에|는|가)",
+        # 11-23 지정 영상: "서울 7개 단지"의 "7개"도 숫자 카드로 떴다(분석 대상 단지 수).
+        if re.match(r"개\s?(?:구|자치구|시|군|동|도|지역|도시|권역|기관|부처|단지|사업장)(?![가-힣])"
+                    r"|개\s?(?:구|시|군|단지)\s?(?:의|에서|에|는|가|를|을)",
                     phrase[m.end() - 1:]):
             continue
         # "1세대 1주택"은 세제 용어지 가구 수가 아니다. 자막 줄이 "1세대"에서
@@ -216,6 +224,9 @@ def pick_stat(phrase: str) -> tuple[str, str] | None:
         # 11-21 지정 영상이 "3.3㎡"를 숫자 카드로 크게 띄웠다.
         if (cand.endswith(("㎡", "제곱미터", "m²", "평"))
                 and re.match(r"\s?당", phrase[m.start() + len(cand):])):
+            continue
+        # 자막 줄이 "서울 7개"에서 끊기면 무엇의 개수인지 화면에 없다. 11-23 지정 영상.
+        if cand.endswith("개") and not phrase[m.start() + len(cand):].strip(" ,."):
             continue
         if cand.endswith(_WEAK_UNITS):
             if weak is None or "에서" in phrase[weak_end:m.start()]:

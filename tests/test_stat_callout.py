@@ -17,3 +17,12 @@ def test_range_with_unit_on_head_is_shown_whole():
     # 11-22 지정 영상: "10억~15억원대 주택"에서 "10억"만 숫자 카드로 떴다.
     assert pick_stat("그래서 10억~15억원대 주택은")[0] == "10억~15억원"
     assert pick_stat("9~15%")[0] == "9~15%"
+
+
+def test_competition_ratio_beats_area_and_scope_count_is_skipped():
+    # 11-23 지정 영상: "45㎡는 65.5대"에서 45㎡가, "서울 7개 단지"에서 7개가 카드로 떴다.
+    assert pick_stat("45㎡는 65.5대")[0] == "65.5대 1"
+    assert pick_stat("평균 경쟁률 12대 1을")[0] == "12대 1"
+    assert pick_stat("올해 하반기 서울 7개 단지를") is None
+    assert pick_stat("올해 하반기 서울 7개") is None
+    assert pick_stat("30대가 가장 많이") is None or pick_stat("30대가 가장 많이")[0] != "30대 1"
