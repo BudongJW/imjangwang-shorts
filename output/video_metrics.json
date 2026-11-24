@@ -1,5 +1,5 @@
 {
- "taken_at": "2026-11-24T02:08:25.420008+00:00",
+ "taken_at": "2026-11-24T03:21:13.996390+00:00",
  "videos": [
   {
    "video_id": "3K65z2TeLww",
@@ -260,7 +260,7 @@
    "title": "금리 올려도 집값 오르는 이유…부읽남 정태익 대표 진단 #집값 #금리 #전세",
    "published_kst": "2026-11-09 19:00",
    "duration_s": 35,
-   "views": 87,
+   "views": 88,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 193,
@@ -990,25 +990,24 @@
    }
   },
   {
-   "video_id": "8N5VLEAJRTQ",
-   "title": "장관 \"연말가면 서울 집값 진정\"…86주째 오르는 중 #홍지선 #서울집값 #국정감사",
-   "published_kst": "2026-10-08 12:00",
-   "duration_s": 59,
-   "views": 112,
-   "likes": 1,
-   "comments": 1,
-   "averageViewDuration": 19,
-   "averageViewPercentage": 32.34,
+   "video_id": "ZopysldeIoE",
+   "title": "수도권 집값 누구 탓?…與 \"공급 부족\" 野 \"대출규제 실패\" #국정감사 #집값 #대출규제",
+   "published_kst": "2026-10-08 19:47",
+   "duration_s": 48,
+   "views": 355,
+   "likes": 4,
+   "comments": 0,
+   "averageViewDuration": 72,
+   "averageViewPercentage": 151.68,
    "subscribersGained": 0,
    "shares": 0,
    "engagedViews": 65,
-   "estimatedMinutesWatched": 21,
+   "estimatedMinutesWatched": 85,
    "traffic": {
-    "SHORTS": 105,
-    "YT_SEARCH": 3,
-    "YT_OTHER_PAGE": 3,
-    "YT_CHANNEL": 1,
-    "NO_LINK_OTHER": 0
+    "SHORTS": 340,
+    "YT_SEARCH": 13,
+    "NO_LINK_OTHER": 1,
+    "YT_CHANNEL": 1
    }
   },
   {
@@ -1082,7 +1081,7 @@
    "title": "집 없다는데 LH 임대 1만 가구가 2년 넘게 빈집 #LH #공공임대 #임대주택",
    "published_kst": "2026-10-03 19:00",
    "duration_s": 45,
-   "views": 992,
+   "views": 993,
    "likes": 5,
    "comments": 0,
    "averageViewDuration": 50,
@@ -1279,7 +1278,7 @@
    "title": "2년 안 됐는데 보증금 인상 요구? 동의부터 하지 마세요 #부동산 #전세 #월세",
    "published_kst": "2026-09-29 11:00",
    "duration_s": 54,
-   "views": 1162,
+   "views": 1164,
    "likes": 12,
    "comments": 0,
    "averageViewDuration": 71,
