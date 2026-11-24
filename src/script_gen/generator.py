@@ -1343,6 +1343,8 @@ _HYPE_RE = re.compile(r"실체가\s?드러|민낯|진실이\s?(?:드러|밝혀)|
                       r"대란|현실이\s?(?:될|된다|되고|됐)|치솟|"
                       # 11-22 초안: "그 실체는 바로 '풍선효과'입니다". 기사는 한 사람의 분석이었다.
                       r"실체는|"
+                      # 11-24 초안 제목: "평균 자기자본 3%? 내년 집값 흔들 진짜 이유!".
+                      r"진짜\s?이유|"
                       r"신호가\s?아닙|씨가\s?말랐|참사|"
                       # 10-03 초안 배너 "청약 당첨의 역설 … 지방 미분양 70%의 진실".
                       # 최근 배너 넷에 셋이 '역설'이었고 기사에는 한 번도 없었다.
@@ -1593,6 +1595,10 @@ def _opinion_problems(script: str, source_text: str) -> list[tuple[str, str]]:
     for sent in _CHECK_SPLIT_RE.split(script or ""):
         sent = sent.strip()
         if not sent or _SCRIPT_ATTR_RE.search(sent):
+            continue
+        # 묻는 문장은 단정이 아니다. 11-24 질문형 첫 문장 "PF 자기자본 규제가 강화되면 주택
+        # 공급이 줄어들까요?"가 변호사 발언과 낱말이 겹친다고 걸렸다.
+        if _Q_END_RE.search(sent):
             continue
         mine = _stems(sent)
         if not mine:
@@ -2424,6 +2430,23 @@ def _mult_overstate_problems(script: str, source_text: str) -> list[tuple[str, s
     return out
 
 
+# 기사에 없는 '집값'을 끌어온 문장. 11-24 초안: PF 자기자본 규제 기사(가격 얘기 없음)에
+# "내년 집값 흔들 진짜 이유"를 붙였다. 기사에 집값·가격을 뜻하는 말이 하나도 없을 때만 본다.
+_PRICE_WORD_RE = re.compile(r"집값|아파트값|주택\s?가격|매매\s?가|시세|가격|값이|값은|값도|전셋값|분양가")
+_SCRIPT_HOUSE_PRICE_RE = re.compile(r"집값|아파트값|주택\s?가격")
+
+
+def _injected_price_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    if _PRICE_WORD_RE.search(source_text or ""):
+        return []
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _SCRIPT_HOUSE_PRICE_RE.search(sent)
+        if m:
+            out.append((sent.strip()[:40], f"기사는 가격을 다루지 않는데 '{m.group(0)}'을 끌어왔다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2722,7 +2745,7 @@ def script_defects(text: str, hay: str, title: str = "",
          + _cta_source_problems(text, hay) + _big_cause_problems(text, hay)
          + _rent_word_problems(text, hay) + _cause_hedge_problems(text, hay)
          + _only_gain_problems(text, hay) + _unanswered_question_problems(text)
-         + _mult_overstate_problems(text, hay)
+         + _mult_overstate_problems(text, hay) + _injected_price_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
