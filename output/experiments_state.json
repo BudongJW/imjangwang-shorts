@@ -1,9 +1,27 @@
 {
  "experiments": {
   "len_mode": {
-   "status": "running",
+   "status": "decided",
    "slot": 0,
-   "started": "2026-10-02"
+   "started": "2026-10-02",
+   "winner": "normal",
+   "verdict": "no_diff",
+   "decided": "2026-11-24",
+   "result": {
+    "n": {
+     "normal": 22,
+     "short": 20
+    },
+    "verdict": "no_diff",
+    "median_normal": 82.5,
+    "median_short": 81.5,
+    "diff": -1.0,
+    "ci": [
+     -152.5,
+     396.5
+    ],
+    "winner": "normal"
+   }
   },
   "hook_card": {
    "status": "decided",
@@ -50,8 +68,10 @@
    "started": "2026-11-20"
   },
   "article_pos": {
-   "status": "queued"
+   "status": "running",
+   "slot": 0,
+   "started": "2026-11-25"
   }
  },
- "updated": "2026-11-23T11:07:39+09:00"
+ "updated": "2026-11-24T11:07:57+09:00"
 }
