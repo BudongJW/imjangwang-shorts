@@ -522,6 +522,12 @@ QUOTE_BOTTOM = 1250      # 자막 상자 위
 # 기사 화면은 4~5초 뜬다. 이보다 긴 문장은 그 사이에 못 읽고 글자만 작아진다
 # (10-10 초안: 146자가 44px 6줄). 그럴 땐 기사 제목을 크게 쓴다.
 QUOTE_MAX_CHARS = 90
+# 강조 문장이 한 줄씩 나타나는 그림(움직임 묶음). 화면이 밀려 들어오는 동안(0.22초)은
+# 증거 캡처만 보이고, 그 뒤 줄마다 왼쪽에서 오른쪽으로 닦이듯 나타난다.
+# 한꺼번에 떠 있던 때는 4초 동안 글자만 있는 정지 화면이었다.
+REVEAL_HOLD_FRAMES = 9       # 첫 줄이 나오기 전(0.3초)
+REVEAL_LINE_FRAMES = 6       # 한 줄이 다 나오는 데(0.2초)
+REVEAL_STAGGER_FRAMES = 5    # 다음 줄이 시작하기까지
 
 
 def _wrap_words(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> list[str]:
@@ -636,21 +642,63 @@ def _compose_quote_screen(shot: Path, quote: str, source: str, published: str,
         lh = int(size * 1.32)
         if y + len(lines) * lh <= QUOTE_BOTTOM:
             break
+    base = canvas.copy()          # 강조 문장을 쓰기 전 그림(증거 캡처와 출처만 있다)
+    boxes = []
     for ln in lines:
         d.rectangle([x0 - 22, y + 6, x0 - 12, y + lh - 6], fill=HL)
         d.text((x0, y), ln, font=f_q, fill=(255, 255, 255))
+        boxes.append((x0 - 22, y, min(W, x0 + inner + 8), y + lh))
         y += lh
     png = out.with_name(out.name + "_quote").with_suffix(".png")
     canvas.save(png)
+    try:
+        from config.settings import MOTION_FX
+        if MOTION_FX:
+            _reveal_frames(base, canvas, boxes, png)
+    except Exception as e:      # 그림을 못 만들어도 한 장짜리 화면으로 그대로 간다
+        note(f"기사 화면: 한 줄씩 나타나는 그림 생략({type(e).__name__})")
     note(f"기사 화면: 캡처 위 {PROOF_CROP_H}px 증거 + {'제목' if is_title else '원문 강조 문장'} "
          f"{len(quote)}자 {len(lines)}줄 ({size}px)")
     return png
+
+
+def reveal_pattern(still: Path) -> Path:
+    """한 장짜리 기사 화면(still)에 딸린, 한 줄씩 나타나는 그림들의 ffmpeg 입력 패턴."""
+    return still.with_name(still.stem + "_f%02d.png")
+
+
+def reveal_count(still: Path) -> int:
+    """still에 딸린 그림 장수. 없으면 0(그러면 한 장짜리로 쓴다)."""
+    return len(list(still.parent.glob(still.stem + "_f[0-9][0-9].png")))
+
+
+def _reveal_frames(base: Image.Image, final: Image.Image, boxes: list[tuple], still: Path) -> int:
+    """base에서 final까지, 줄(boxes)이 하나씩 닦이듯 나타나는 그림을 차례로 저장한다.
+
+    마지막 장은 final과 같은 그림이다. 글자는 final에서 오려 붙일 뿐 새로 쓰지 않는다.
+    """
+    from src.editor.motion import ease_out
+    n = REVEAL_HOLD_FRAMES + REVEAL_STAGGER_FRAMES * max(0, len(boxes) - 1) + REVEAL_LINE_FRAMES
+    pattern = str(reveal_pattern(still))
+    for i in range(n):
+        frame = base.copy()
+        for j, (bx0, by0, bx1, by1) in enumerate(boxes):
+            step = i - REVEAL_HOLD_FRAMES - REVEAL_STAGGER_FRAMES * j + 1
+            p = ease_out(step / REVEAL_LINE_FRAMES)
+            w = int((bx1 - bx0) * p)
+            if w > 0:
+                frame.paste(final.crop((bx0, by0, bx0 + w, by1)), (bx0, by0))
+        frame.save(pattern % i, compress_level=1)
+    return n
 
 
 def build_article_visual(art, highlight: str = "") -> Path:
     """모바일 기사 비주얼(세로로 긴 이미지)을 만든다. 실제 캡처 우선, 실패 시 카드."""
     VIDEO_DIR.mkdir(parents=True, exist_ok=True)
     out = VIDEO_DIR / "article"
+    # 앞 실행이 남긴 '한 줄씩 나타나는 그림'이 이번 화면에 섞이지 않게 지운다.
+    for old in VIDEO_DIR.glob("article_quote_f[0-9][0-9].png"):
+        old.unlink(missing_ok=True)
     # 앞 실행의 강조 위치가 남아 있으면 카드 폴백에 엉뚱하게 쓰인다.
     out.with_suffix(".focus.json").unlink(missing_ok=True)
     shot = None
