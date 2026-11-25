@@ -160,8 +160,25 @@ def _fit(draw, text: str, size: int, max_w: int):
     return ImageFont.truetype(font_bold(), size)
 
 
-def render_compare_card(pair: Pair, out: Path, full: bool = False) -> Path:
-    """화면 중앙에 막대 두 개짜리 비교 카드를 그린 전체 PNG(full이면 정보 화면 배경)."""
+def render_compare_frames(pair: Pair, stem: Path, full: bool = False,
+                          n: int = 15) -> tuple[Path, int]:
+    """막대가 바닥에서 자라는 그림 n장. (ffmpeg 입력 패턴, 장수)를 돌려준다.
+
+    값 글자는 첫 장부터 대본 값 그대로다. 숫자를 0에서부터 세어 올리면 그 사이에
+    기사에 없는 수가 화면에 지나가므로 하지 않는다. 자라는 것은 막대 높이뿐이다.
+    """
+    from src.editor.motion import ease_out
+    for i in range(n):
+        render_compare_card(pair, stem.with_name(f"{stem.name}_f{i:02d}.png"), full=full,
+                            grow=ease_out((i + 1) / n))
+    return stem.with_name(f"{stem.name}_f%02d.png"), n
+
+
+def render_compare_card(pair: Pair, out: Path, full: bool = False, grow: float = 1.0) -> Path:
+    """화면 중앙에 막대 두 개짜리 비교 카드를 그린 전체 PNG(full이면 정보 화면 배경).
+
+    grow는 막대가 자란 정도(0~1)다. 1이면 다 자란 그림이다.
+    """
     W, H = SHORTS_WIDTH, SHORTS_HEIGHT
     if full:
         from src.editor.slide_bg import backdrop
@@ -189,7 +206,7 @@ def render_compare_card(pair: Pair, out: Path, full: bool = False) -> Path:
     xs = (cx - 190, cx + 190)
     for x, n, v, lab, fill in ((xs[0], n1, pair.v1, pair.label1, GRAY),
                                (xs[1], n2, pair.v2, pair.label2, color)):
-        h = max(24, int(bar_max * n / top))
+        h = max(24, int(bar_max * n / top * grow))
         draw.rounded_rectangle([x - bar_w // 2, base_y - h, x + bar_w // 2, base_y],
                                radius=18, fill=fill + (255,))
         val = _short(v)
@@ -199,5 +216,6 @@ def render_compare_card(pair: Pair, out: Path, full: bool = False) -> Path:
         lf = _fit(draw, lab, 54, 380)
         draw.text((x, base_y + 30), lab, font=lf, fill=(220, 224, 232, 255), anchor="mt")
 
-    img.save(out)
+    # 자라는 중간 그림은 여러 장을 쓰므로 압축을 낮춰 빨리 쓴다.
+    img.save(out, compress_level=6 if grow >= 1.0 else 1)
     return out

@@ -8,6 +8,7 @@
     python scripts/preview_render.py path/to/pinned_plan.json
     python scripts/preview_render.py plan.json --arm article_pos=late --arm bg_mode=graphic
     python scripts/preview_render.py plan.json --bg-dir ~/사진들 --frames
+    python scripts/preview_render.py plan.json --no-motion      (움직임 묶음을 끈 화면)
 
 실제 영상과 다른 점: 목소리가 없고(무음, 길이는 글자 수로 환산), 배경은 폴백 그림이나
 --bg-dir의 사진이고, 기사 화면은 캡처 대신 카드다(네트워크를 쓰지 않는다).
@@ -64,7 +65,13 @@ def main() -> int:
     ap.add_argument("--bg-dir", help="배경으로 쓸 사진 폴더(없으면 폴백 그림)")
     ap.add_argument("--frames", action="store_true",
                     help="output/frames/ 에 확인용 프레임을 뽑는다")
+    ap.add_argument("--no-motion", action="store_true",
+                    help="움직임 묶음을 끈다(MOTION_FX=0과 같다). 켠 것과 나란히 볼 때 쓴다")
     args = ap.parse_args()
+    if args.no_motion:
+        # 설정을 읽기 전에 정해야 한다(config.settings가 import될 때 읽는다).
+        import os
+        os.environ["MOTION_FX"] = "0"
 
     data = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     a, p = data["article"], data["plan"]
@@ -114,9 +121,12 @@ def main() -> int:
     title_card = render_title_card(p["headline"], hook, background=bgs[0], accent=accent,
                                    face=face, layout=lay)
     banner = render_headline_banner(p["headline"], hook, accent=accent)
+    banner_plain = render_headline_banner(p["headline"], "", out_name="headline_banner_plain",
+                                          accent=accent)
     article_img = build_article_visual(art, highlight=p.get("highlight_sentence", ""))
     buildnotes.note(f"대본 {len(cap)}자: {cap}")
-    final = compose(cap, audio, title_card, article_img, list(bgs), banner=banner, srt_path=srt)
+    final = compose(cap, audio, title_card, article_img, list(bgs), banner=banner, srt_path=srt,
+                    banner_plain=banner_plain)
 
     print(f"\n완성: {final} ({dur:.1f}초, 무음)")
     print(f"타이틀카드: {title_card}")

@@ -109,6 +109,9 @@ jobs:
           # 변수가 비어 있으면 ab: 날짜 홀짝으로 normal과 short를 번갈아 쓴다
           # (2026-10-02부터, config/settings.py 참고).
           SCRIPT_LEN_MODE: ${{ contains(github.ref_name, 'short') && 'short' || (vars.SCRIPT_LEN_MODE || 'ab') }}
+          # 움직임 묶음(src/editor/motion.py). 리포지터리 변수 MOTION_FX=0 으로 두면
+          # 코드를 고치지 않고 2026-11-10판 화면으로 돌아간다.
+          MOTION_FX: ${{ vars.MOTION_FX || '1' }}
         run: |
           set +e
           SKIP=""
