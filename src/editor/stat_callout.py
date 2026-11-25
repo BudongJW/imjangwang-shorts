@@ -401,6 +401,11 @@ def stat_context(sentence: str, big: str, near: int = 0) -> tuple[str, str]:
     # 앞 숫자에 붙는 말("85제곱미터 이하"의 '이하')로 시작하면 뗀다.
     # 앞말에 매인 말("분양가 외에"의 '외에')도 같다. 10-17 고덕강일 영상의
     # 이름표가 "외에 매달 토지임대료"로 시작했다.
+    # 11-25 지정 영상: "1년 전과 비교하면 월세는"이 숫자 어절에서 끊겨 이름표가 "전과 비교하면
+    # 월세는"으로 떴다. 앞 기간이 잘린 비교 말은 떼고 주어만 남긴다.
+    if label and label[0] in ("전과", "전보다", "전에", "전"):
+        while label and label[0] in ("전과", "전보다", "전에", "전", "비교하면", "비교해", "비교해서", "대비"):
+            label.pop(0)
     while label and (label[0] in _LEAD_DROP or len(label[0]) == 1
                      or label[0] in ("이하", "이상", "미만", "초과", "이내", "동안", "정도", "가량")
                      or label[0] in _BOUND_LEAD):

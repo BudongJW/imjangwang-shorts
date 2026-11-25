@@ -26,3 +26,9 @@ def test_competition_ratio_beats_area_and_scope_count_is_skipped():
     assert pick_stat("올해 하반기 서울 7개 단지를") is None
     assert pick_stat("올해 하반기 서울 7개") is None
     assert pick_stat("30대가 가장 많이") is None or pick_stat("30대가 가장 많이")[0] != "30대 1"
+
+
+def test_label_drops_cut_comparison_head():
+    # 11-25 지정 영상: 이름표가 "전과 비교하면 월세는"으로 떴다.
+    from src.editor.stat_callout import stat_context
+    assert stat_context("전과 비교하면 월세는 3.53% 상승했고", "3.53%")[0] == "월세는"
