@@ -48,6 +48,44 @@ def test_times_after_a_cut_move_earlier_by_what_was_removed(measured):
     assert c._shift(TOTAL - LEAD, cuts) == pytest.approx(TOTAL - LEAD - sum(removed))
 
 
+def test_kept_spans_are_what_is_left_after_lead_and_cuts(measured):
+    cuts = c._pause_cuts("n.mp3", TOTAL, LEAD)
+    keeps = c._keep_spans(LEAD, cuts, TOTAL)
+    assert keeps[0][0] == LEAD                                   # 앞 무음 뒤에서 시작한다
+    assert len(keeps) == len(cuts)                               # 맨 끝을 잘랐으니 뒤 토막이 없다
+    for (_, b0), (a1, _) in zip(keeps, keeps[1:]):
+        assert a1 > b0
+    # 남긴 길이 = 전체 - 앞 무음 - 잘라 낸 길이. 영상 길이와 자막 시각이 이 값에 맞춰진다.
+    kept = sum(b - a for a, b in keeps)
+    assert kept == pytest.approx(TOTAL - LEAD - sum(b - a for a, b in cuts), abs=0.01)
+    # 자를 것이 없으면 앞 무음만 뺀 한 토막이다.
+    assert c._keep_spans(0.29, [], 10.0) == [(0.29, 10.0)]
+
+
+def test_tightening_is_abandoned_when_the_cut_audio_has_the_wrong_length(measured, monkeypatch, tmp_path):
+    """자른 소리의 길이가 예상과 다르면 쓰지 않는다(소리와 화면이 따로 가는 것을 막는다)."""
+    cuts = c._pause_cuts("n.mp3", TOTAL, LEAD)
+    want = sum(b - a for a, b in c._keep_spans(LEAD, cuts, TOTAL))
+    src = tmp_path / "narration.mp3"
+
+    def fake_run(cmd, **k):
+        (tmp_path / "narration_tight.wav").write_bytes(b"x")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(c, "_ffmpeg", lambda: "ffmpeg")
+    monkeypatch.setattr(c.subprocess, "run", fake_run)
+    # 제대로 잘렸을 때
+    monkeypatch.setattr(c, "_ffprobe_duration", lambda p: want + 0.03)
+    assert c._tighten_audio(src, LEAD, cuts, TOTAL) == tmp_path / "narration_tight.wav"
+    # 안 잘리고 원본 길이 그대로 나왔을 때(11-25 CI에서 실제로 있던 일)
+    monkeypatch.setattr(c, "_ffprobe_duration", lambda p: TOTAL - LEAD)
+    assert c._tighten_audio(src, LEAD, cuts, TOTAL) is None
+    # ffmpeg가 실패했을 때
+    monkeypatch.setattr(c.subprocess, "run",
+                        lambda cmd, **k: subprocess.CompletedProcess(cmd, 1, stdout="", stderr="x"))
+    assert c._tighten_audio(src, LEAD, cuts, TOTAL) is None
+
+
 def test_silent_or_unmeasured_audio_is_left_alone(monkeypatch):
     # 미리보기의 무음 나레이션: 통째로 무음이라 말소리가 어디인지 모른다.
     monkeypatch.setattr(c, "_silences", lambda path: [(0.0, 55.0)])

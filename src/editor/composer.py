@@ -157,6 +157,58 @@ def _shift(t: float, cuts: list[tuple[float, float]]) -> float:
     return t - sum(min(t, b) - a for a, b in cuts if t > a)
 
 
+def _keep_spans(lead: float, cuts: list[tuple[float, float]], total: float
+                ) -> list[tuple[float, float]]:
+    """원본 나레이션에서 남길 구간 (시작, 끝). 앞 무음(lead)과 cuts를 뺀 나머지다."""
+    keeps: list[tuple[float, float]] = []
+    t = lead
+    for a, b in cuts:                   # cuts는 lead를 자른 뒤의 시각이다
+        keeps.append((t, a + lead))
+        t = b + lead
+    keeps.append((t, total))
+    return [(round(a, 3), round(b, 3)) for a, b in keeps if b - a > 0.01]
+
+
+# 잘라 낸 나레이션의 길이가 예상과 이만큼 넘게 다르면 쓰지 않는다.
+TIGHT_TOLERANCE_SEC = 0.15
+
+
+def _tighten_audio(path: Path, lead: float, cuts: list[tuple[float, float]],
+                   total: float) -> Path | None:
+    """앞 무음과 문장 사이 공백을 잘라 낸 나레이션(WAV)을 만든다. 실패하면 None.
+
+    합성 필터 안에서 자르지 않고 여기서 먼저 잘라 길이를 재 본다. 11-25 검증 렌더에서
+    합성 필터(aselect + asetpts=N/SR/TB)로 자르던 첫 판은 로컬(ffmpeg 8.1)에서는 됐는데
+    CI(우분투 ffmpeg 6.1)에서는 소리가 안 잘렸다. 그런데 영상과 자막은 줄어든 길이로 만들어져,
+    자막이 소리보다 앞서 가고 나레이션 끝 13초가 잘려 나갔다. 에러도 없었다.
+    소리와 화면이 따로 가는 것이 가장 나쁘다. 잰 길이가 예상과 다르면 줄이기를 통째로
+    포기하고 원본 소리와 원래 시각으로 간다.
+    """
+    keeps = _keep_spans(lead, cuts, total)
+    if not keeps:
+        return None
+    n = len(keeps)
+    graph = (f"[0:a]asplit={n}" + "".join(f"[i{k}]" for k in range(n)) + ";"
+             + ";".join(f"[i{k}]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS[s{k}]"
+                        for k, (a, b) in enumerate(keeps))
+             + ";" + "".join(f"[s{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1[out]")
+    out = Path(path).with_name(Path(path).stem + "_tight.wav")
+    try:
+        r = subprocess.run(
+            [_ffmpeg(), "-y", "-v", "error", "-i", str(path), "-filter_complex", graph,
+             "-map", "[out]", "-c:a", "pcm_s16le", str(out)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    except (OSError, subprocess.SubprocessError) as e:
+        note(f"나레이션 공백 줄이기 포기: 자르다 실패({type(e).__name__})")
+        return None
+    want = sum(b - a for a, b in keeps)
+    got = _ffprobe_duration(out) if r.returncode == 0 and out.exists() else -1.0
+    if abs(got - want) > TIGHT_TOLERANCE_SEC:
+        note(f"나레이션 공백 줄이기 포기: 자른 소리가 {got:.2f}s로 예상 {want:.2f}s와 다르다")
+        return None
+    return out
+
+
 # ── 자막(교정된 표기) ASS 생성 ──────────────────────────
 # force_style은 일부 ffmpeg 빌드에서 렌더를 죽인다 → 스타일을 담은 ASS를 직접 생성.
 def _ass_time(t: float) -> str:
@@ -1083,6 +1135,10 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     lead = _lead_trim(audio_path)
     # 문장 사이와 끝의 무음도 줄인다. 잘라 낸 만큼 전체 길이와 발화 시각을 당긴다.
     cuts = _pause_cuts(audio_path, dur, lead) if PAUSE_TRIM else []
+    # 소리를 먼저 잘라 보고, 제대로 잘렸을 때만 화면 시각을 당긴다(_tighten_audio 참고).
+    tight = _tighten_audio(audio_path, lead, cuts, dur) if cuts else None
+    if tight is None:
+        cuts = []
     dur -= lead
     raw_dur = dur
     dur -= sum(b - a for a, b in cuts)
@@ -1255,7 +1311,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     tag_start_idx = stat_start_idx + len(stats)
     for path, s, e, _cx, _cy in tags:
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{e - s:.3f}", "-i", str(path)]
-    inputs += ["-i", str(audio_path)]
+    inputs += ["-i", str(tight or audio_path)]
     audio_idx = tag_start_idx + len(tags)
     # 배경음(BGM): 나레이션 아래 저음량. 랜덤 트랙, 루프.
     bgm_idx = None
@@ -1361,11 +1417,9 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 보다 넘어오면 6dB쯤 작게 들렸다. 나레이션(TTS 24kHz 모노)도 48kHz
     # 스테레오로 올려 BGM이 모노로 뭉개지지 않게 한다.
     fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
-    nar_fmt = f"atrim=start={lead:.3f},asetpts=PTS-STARTPTS,{fmt}" if lead else fmt
-    if cuts:
-        # 5ms 토막으로 잘게 나눠 무음 구간에 든 토막만 버리고, 남은 것을 이어 붙인다.
-        drop = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in cuts)
-        nar_fmt += f",asetnsamples=n=240:p=0,aselect='not({drop})',asetpts=N/SR/TB"
+    # 공백을 줄인 소리(tight)는 앞 무음까지 이미 잘려 있다.
+    nar_fmt = (f"atrim=start={lead:.3f},asetpts=PTS-STARTPTS,{fmt}"
+               if lead and tight is None else fmt)
     norm = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
     if bgm_idx is not None:
         graph += (
