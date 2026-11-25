@@ -23,7 +23,7 @@ from pathlib import Path
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
     TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO,
-    MOTION_FX, NAME_TAGS)
+    MOTION_FX, NAME_TAGS, PAUSE_TRIM)
 from src.editor import motion as mo
 from src.editor.fonts import fix_glyphs
 from src.utils.buildnotes import note
@@ -92,6 +92,69 @@ def _lead_trim(path: Path) -> float:
     """나레이션 앞에서 잘라 낼 길이(초)."""
     cut = _leading_silence(path) - LEAD_KEEP_SEC
     return round(cut, 3) if LEAD_TRIM_MIN_SEC <= cut <= LEAD_TRIM_MAX_SEC else 0.0
+
+
+# 나레이션 사이 공백. TTS는 문장이 끝날 때마다 길게 쉰다. 11-25 검증 영상(Azure, 51.6초)을
+# 재 보니 문장 사이 일곱 군데가 1.43~1.51초씩이고 끝에 1.1초가 더 붙어, 무음이 모두 12.5초
+# (영상의 4분의 1)였다. 그 동안 화면도 자막 한 줄이 멈춘 채 떠 있다. 쇼츠는 말이 끊기는
+# 자리가 넘기는 자리다. 숨 쉴 만큼만 남기고 가운데를 잘라 낸다.
+PAUSE_KEEP_SEC = 0.25       # 문장 사이에 남기는 길이
+PAUSE_MIN_SEC = 0.35        # 이보다 긴 무음만 줄인다(쉼표에서 쉬는 0.25~0.3초는 그대로 둔다)
+TAIL_KEEP_SEC = 0.2         # 마지막 말 뒤에 남기는 길이. 끝나면 바로 처음으로 돌아간다
+# 무음이 전체의 이만큼을 넘으면 말소리를 못 잡은 것이다(무음 미리보기, 측정 실패). 손대지 않는다.
+PAUSE_MAX_SILENT_RATIO = 0.6
+
+
+def _silences(path: Path) -> list[tuple[float, float]]:
+    """오디오 전체에서 0.2초 넘는 무음 구간 (시작, 끝). 못 재면 빈 리스트."""
+    try:
+        r = subprocess.run(
+            [_ffmpeg(), "-hide_banner", "-i", str(path),
+             "-af", "silencedetect=noise=-40dB:d=0.2", "-f", "null", "-"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    out: list[tuple[float, float]] = []
+    start = None
+    for m in re.finditer(r"silence_(start|end):\s*(-?[\d.]+)", r.stderr or ""):
+        t = max(0.0, float(m.group(2)))
+        if m.group(1) == "start":
+            start = t
+        elif start is not None:
+            out.append((start, t))
+            start = None
+    if start is not None:           # 끝까지 무음인데 끝 시각을 안 적어 주는 ffmpeg가 있다
+        out.append((start, float("inf")))
+    return out
+
+
+def _pause_cuts(path: Path, total: float, lead: float = 0.0) -> list[tuple[float, float]]:
+    """나레이션에서 잘라 낼 무음 구간 (시작, 끝). 앞 무음(lead)을 자른 뒤의 시각이다.
+
+    문장 사이는 PAUSE_KEEP_SEC만 남기고 가운데를, 맨 끝은 TAIL_KEEP_SEC만 남기고 뒤를 자른다.
+    맨 앞 무음은 _lead_trim이 따로 본다.
+    """
+    sil = [(s, min(e, total)) for s, e in _silences(path) if s < total]
+    if not sil or sum(e - s for s, e in sil) > total * PAUSE_MAX_SILENT_RATIO:
+        return []
+    cuts: list[tuple[float, float]] = []
+    for s, e in sil:
+        if s <= lead + 0.05:                    # 맨 앞 무음
+            continue
+        if e >= total - 0.05:                   # 맨 끝 무음
+            a, b = s + TAIL_KEEP_SEC, total
+        elif e - s >= PAUSE_MIN_SEC:            # 문장 사이
+            a, b = s + PAUSE_KEEP_SEC / 2, e - PAUSE_KEEP_SEC / 2
+        else:
+            continue
+        if b - a >= 0.05:
+            cuts.append((round(a - lead, 3), round(b - lead, 3)))
+    return cuts
+
+
+def _shift(t: float, cuts: list[tuple[float, float]]) -> float:
+    """잘라 내기 전 시각 t가 잘라 낸 뒤 몇 초가 되는지."""
+    return t - sum(min(t, b) - a for a, b in cuts if t > a)
 
 
 # ── 자막(교정된 표기) ASS 생성 ──────────────────────────
@@ -915,8 +978,9 @@ ARTICLE_LATE_AT = 0.45
 # 2026-11-25: 움직임 묶음(motion.py). 자막 어절 강조, 카드 등장 움직임, 컷 팬·펀치 줌,
 # 기사 화면 밀어 넣기. 내용과 배치는 그대로고 움직임만 달라진다.
 # 2026-11-26: 이름표(말한 사람·출처·임장왕 체크, lower_third.py)와 기사 화면의 강조 문장이
-# 한 줄씩 나타나는 연출. 화면에 새 요소가 생기므로 판을 따로 올린다.
-LAYOUT_VERSION = "2026-11-26" if MOTION_FX else "2026-11-10"
+# 한 줄씩 나타나는 연출. 나레이션의 문장 사이 공백도 줄인다(_pause_cuts). 화면에 새 요소가
+# 생기고 같은 대본의 영상 길이가 달라지므로 판을 따로 올린다.
+LAYOUT_VERSION = "2026-11-26" if (MOTION_FX or PAUSE_TRIM) else "2026-11-10"
 VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
@@ -1017,14 +1081,23 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     dur = _ffprobe_duration(audio_path)
     # 앞 무음을 잘라 내고, 그만큼 전체 길이와 발화 시각을 당긴다.
     lead = _lead_trim(audio_path)
+    # 문장 사이와 끝의 무음도 줄인다. 잘라 낸 만큼 전체 길이와 발화 시각을 당긴다.
+    cuts = _pause_cuts(audio_path, dur, lead) if PAUSE_TRIM else []
     dur -= lead
-    log.info(f"  오디오 길이 {dur:.1f}s" + (f" (앞 무음 {lead:.2f}s 제거)" if lead else ""))
+    raw_dur = dur
+    dur -= sum(b - a for a, b in cuts)
+    log.info(f"  오디오 길이 {dur:.1f}s" + (f" (앞 무음 {lead:.2f}s 제거)" if lead else "")
+             + (f" (사이 공백 {len(cuts)}곳 {raw_dur - dur:.1f}s 제거)" if cuts else ""))
     # TTS가 남긴 실제 발화 시각. 자막과 콜아웃이 같은 타임라인을 쓰도록
     # 한 번만 읽어 둘 다에 넘긴다.
     cues = parse_srt_cues(srt_path) if srt_path else []
     if lead:
         cues = [(t, max(0.0, a - lead), max(0.0, b - lead)) for t, a, b in cues]
         note(f"나레이션 앞 무음 {lead:.2f}s 제거")
+    if cuts:
+        cues = [(t, _shift(a, cuts), _shift(b, cuts)) for t, a, b in cues]
+        note(f"나레이션 사이 공백 {len(cuts)}곳 {raw_dur - dur:.1f}s 제거 "
+             f"({raw_dur:.1f}s → {dur:.1f}s, 문장 사이 {PAUSE_KEEP_SEC}s)")
     note(f"자막 타이밍: {'발화 시각 ' + str(len(cues)) + '구간' if cues else '글자수 비례(폴백)'}")
 
     # 자막 SRT·폰트는 비ASCII(한글) 경로에서 libass가 실패할 수 있어 임시 ASCII 폴더에 둔다.
@@ -1289,6 +1362,10 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 스테레오로 올려 BGM이 모노로 뭉개지지 않게 한다.
     fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
     nar_fmt = f"atrim=start={lead:.3f},asetpts=PTS-STARTPTS,{fmt}" if lead else fmt
+    if cuts:
+        # 5ms 토막으로 잘게 나눠 무음 구간에 든 토막만 버리고, 남은 것을 이어 붙인다.
+        drop = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in cuts)
+        nar_fmt += f",asetnsamples=n=240:p=0,aselect='not({drop})',asetpts=N/SR/TB"
     norm = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
     if bgm_idx is not None:
         graph += (
