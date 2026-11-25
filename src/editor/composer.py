@@ -22,7 +22,9 @@ from pathlib import Path
 
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
-    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO)
+    TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO,
+    MOTION_FX)
+from src.editor import motion as mo
 from src.editor.fonts import fix_glyphs
 from src.utils.buildnotes import note
 from src.utils.logger import setup_logger
@@ -364,14 +366,101 @@ def _phrase_timings(caption_script: str, total_sec: float,
     return out
 
 
+# ── 어절 강조(움직임 묶음) ──────────────────────────────
+# 구절이 통째로 떴다 사라지기만 하면 자막 자리도 정지 화면이다. 지금 말하는 어절만
+# 흰색으로 두고 나머지는 한 톤 낮춰, 읽는 자리가 말을 따라 움직이게 한다. 숫자와
+# 핵심어의 노랑은 늘 그대로다(소리 없이 보는 사람에게는 그 숫자가 내용이다).
+_DIM = r"{\c&HBEBEBE&}"
+# 구절이 뜨는 순간 88%에서 100%로 키운다(0.11초).
+_POP = r"{\fscx88\fscy88\t(0,110,\fscx100\fscy100)}"
+# 어절 하나가 이보다 짧게 켜지면 깜빡임으로 보인다. 다음 어절과 묶는다.
+MIN_WORD_SEC = 0.18
+
+
+def _hl_mask(text: str) -> list[bool]:
+    """글자마다 노랑으로 칠하는지. _highlight가 넣은 표시를 그대로 읽는다."""
+    marked = _highlight(text)
+    mask: list[bool] = []
+    depth = i = 0
+    while i < len(marked):
+        if marked.startswith(_HL_ON, i):
+            depth += 1
+            i += len(_HL_ON)
+        elif marked.startswith(_HL_OFF, i):
+            depth = max(0, depth - 1)
+            i += len(_HL_OFF)
+        else:
+            mask.append(depth > 0)
+            i += 1
+    return mask
+
+
+def _word_steps(ph: str, start: float, end: float) -> list[tuple[int, int, float, float]]:
+    """구절을 (글자 시작, 글자 끝, 시작초, 끝초) 어절 묶음으로 나눈다.
+
+    시간은 읽는 길이(발화 표기 글자 수)에 비례해 나눈다. TTS가 주는 시각은 문장
+    단위라 어절 시각은 어림이다. 정확한 가라오케가 아니라 '지금 이쯤을 읽는다'를
+    보여 주는 용도다.
+    """
+    spans = [(m.start(), m.end()) for m in re.finditer(r"\S+", ph)]
+    if len(spans) < 2 or end - start < 2 * MIN_WORD_SEC:
+        return [(0, len(ph), start, end)]
+    from src.script_gen.correct_terms import to_speech
+    weights = [max(1, len(to_speech(ph[a:b]))) for a, b in spans]
+    total = sum(weights)
+    out: list[tuple[int, int, float, float]] = []
+    t, head, acc = start, None, 0
+    for (a, b), w in zip(spans, weights):
+        head = a if head is None else head
+        acc += w
+        d = (end - start) * acc / total
+        if d >= MIN_WORD_SEC:
+            out.append((head, b, t, t + d))
+            t, head, acc = t + d, None, 0
+    if head is not None and out:        # 끝에 남은 짧은 어절은 앞 묶음에 붙인다
+        a0, _, s0, _ = out.pop()
+        out.append((a0, spans[-1][1], s0, end))
+    elif head is not None:
+        out.append((head, spans[-1][1], start, end))
+    a0, b0, s0, _ = out[-1]
+    out[-1] = (a0, b0, s0, end)         # 나눗셈 오차는 마지막 묶음이 받는다
+    return out
+
+
+def _step_text(ph: str, mask: list[bool], a: int, b: int, pop: bool = False) -> str:
+    """ph의 a~b 글자(지금 말하는 어절)만 밝힌 자막 한 줄(ASS 인라인 태그)."""
+    out = [_POP] if pop else []
+    cur = None
+    for i, ch in enumerate(ph):
+        if ch != " ":
+            col = _HL_ON if mask[i] else (_HL_OFF if a <= i < b else _DIM)
+            if col != cur:
+                out.append(col)
+                cur = col
+        out.append(ch)
+    return "".join(out)
+
+
 def build_caption_ass(caption_script: str, total_sec: float, out: Path,
-                      cues: list[tuple[str, float, float]] | None = None) -> Path:
-    """교정된 자막을 ASS로 저장(스타일 내장). cues가 있으면 실제 발화 시각을 쓴다."""
+                      cues: list[tuple[str, float, float]] | None = None,
+                      motion: bool | None = None) -> Path:
+    """교정된 자막을 ASS로 저장(스타일 내장). cues가 있으면 실제 발화 시각을 쓴다.
+
+    motion이면 구절이 튕기며 뜨고 말하는 어절이 차례로 밝아진다(기본은 MOTION_FX).
+    """
     out.parent.mkdir(parents=True, exist_ok=True)
+    motion = MOTION_FX if motion is None else motion
     body = []
     for ph, start, end in _phrase_timings(caption_script, total_sec, cues):
-        text = fix_glyphs(_highlight(ph.replace("\n", " ").strip()))
-        body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
+        ph = ph.replace("\n", " ").strip()
+        if not motion:
+            text = fix_glyphs(_highlight(ph))
+            body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
+            continue
+        mask = _hl_mask(ph)
+        for k, (a, b, s, e) in enumerate(_word_steps(ph, start, end)):
+            text = fix_glyphs(_step_text(ph, mask, a, b, pop=(k == 0)))
+            body.append(f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Cap,,0,0,0,,{text}")
     out.write_text(ASS_HEADER + "\n".join(body) + "\n", encoding="utf-8")
     return out
 
@@ -690,7 +779,9 @@ def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
 def _seg_filter(idx: int, dur: float, zoom_in: bool,
                 scroll: bool = False, fit: bool = False,
                 punch: bool = False, is_video: bool = False,
-                scroll_to: int | None = None) -> str:
+                scroll_to: int | None = None,
+                kind: str | None = None, cut_punch: bool = False,
+                exact: bool = False) -> str:
     """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
     scroll=True(긴 기사): 폭 맞추고 위→아래로 천천히 세로 스크롤.
@@ -699,6 +790,8 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
         속도는 프레임당 고정이라 1.5초짜리에서는 5%밖에 안 움직여 사실상 정지
         화면으로 보인다. 첫 화면이 움직이는지 아닌지가 이 변경의 핵심이다.
     그 외: zoompan 켄번즈(d=1, 출력프레임 on 으로 줌 구동).
+    kind가 있으면(움직임 묶음) 가운데 줌 대신 그 움직임을 쓴다(motion.kenburns).
+        cut_punch: 컷이 바뀌는 순간 짧게 당겼다 놓는다. exact: 줌을 이 컷 안에 다 쓴다.
     """
     if scroll:
         # 폭 1080에 맞춘 세로 긴 기사 이미지를 위에서 아래로 스크롤한다.
@@ -722,7 +815,10 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
         chain = (f"fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase,"
                  f"crop={W}:{H}")
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
-    if KENBURNS:
+    if KENBURNS and kind and not punch:
+        chain = ("scale=1296:2304:force_original_aspect_ratio=increase,crop=1296:2304,"
+                 + mo.kenburns(kind, dur, punch=cut_punch, exact=exact))
+    elif KENBURNS:
         # 과도한 업스케일은 CI에서 느리다 → 1.2배(1296x2304)면 충분.
         rate = 0.0012
         if punch:
@@ -750,7 +846,9 @@ ARTICLE_LATE_AT = 0.45
 # 자막 묶음 규칙.
 # 2026-11-10: 첫 자막을 0초부터, 나레이션 앞 무음 제거, 자막 숫자 강조 단위,
 # 썸네일 화살표 방향. 첫 화면이 달라지므로 3초·8초 유지를 이 판부터 따로 모은다.
-LAYOUT_VERSION = "2026-11-10"
+# 2026-11-25: 움직임 묶음(motion.py). 자막 어절 강조, 카드 등장 움직임, 컷 팬·펀치 줌,
+# 기사 화면 밀어 넣기, 진행 막대. 내용과 배치는 그대로고 움직임만 달라진다.
+LAYOUT_VERSION = "2026-11-25" if MOTION_FX else "2026-11-10"
 VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
@@ -759,7 +857,8 @@ def _is_video(path) -> bool:
 
 
 def _plan_segments(title_card: Path, article_img: Path | None,
-                   bg_paths: list[Path], dur: float) -> list[tuple[Path, float]]:
+                   bg_paths: list[Path], dur: float,
+                   motion: bool | None = None) -> list[tuple[Path, float]]:
     """도입 3~4초 룰 + 3초 컷 + 기사 중간 배치.
 
     TITLE_CARD_IN_VIDEO가 꺼져 있으면 타이틀카드 컷을 아예 넣지 않는다.
@@ -769,6 +868,9 @@ def _plan_segments(title_card: Path, article_img: Path | None,
     # 기사 화면은 출처를 보여 주는 컷이다. 8초 동안 글자로 꽉 찬 페이지를
     # 스크롤하던 것을 5초 안쪽으로 줄이고, 강조 문장까지만 내려간다(10-02).
     t_article = min(ARTICLE_MAX_SEC, max(4.0, dur * 0.09)) if article_img else 0.0
+    # 움직임 묶음에서는 3~3.5초로 더 줄인다(motion.ARTICLE_MAX_SEC의 설명 참고).
+    if article_img and (MOTION_FX if motion is None else motion):
+        t_article = min(mo.ARTICLE_MAX_SEC, max(mo.ARTICLE_MIN_SEC, dur * 0.07))
     rest = max(1.0, dur - t_title - t_article)
     # 실험: 컷 길이. 2초 팔이면 같은 길이에 컷이 1.5배 많아진다.
     from src.experiments import arm
@@ -828,8 +930,13 @@ def _sub_filter(ass_path: Path, fonts_dir: Path) -> str:
 def compose(caption_script: str, audio_path: Path, title_card: Path,
             article_img: Path | None, bg_paths: list[Path],
             out_name: str = "final", banner: Path | None = None,
-            srt_path: Path | None = None) -> Path:
+            srt_path: Path | None = None, banner_plain: Path | None = None,
+            motion: bool | None = None) -> Path:
     """단일 filter_complex 패스로 켄번즈+concat+(상단배너)+자막번인+오디오mux.
+
+    motion(기본 MOTION_FX)이면 움직임 묶음을 켠다(src/editor/motion.py).
+    banner_plain은 강조어를 칠하지 않은 배너다. 주면 첫 0.45초는 그것을 띄우고
+    그 뒤 banner로 바꿔, 강조어가 노랗게 켜지는 것처럼 보이게 한다.
 
     per-세그먼트 클립을 만들어 concat 데뮤서로 잇는 방식은 zoompan 타임스탬프
     문제로 세그먼트가 유실될 수 있어, concat '필터'로 한 번에 합친다.
@@ -838,6 +945,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     """
     FINAL_DIR.mkdir(parents=True, exist_ok=True)
     out_path = FINAL_DIR / f"{out_name}.mp4"
+    motion = MOTION_FX if motion is None else motion
     dur = _ffprobe_duration(audio_path)
     # 앞 무음을 잘라 내고, 그만큼 전체 길이와 발화 시각을 당긴다.
     lead = _lead_trim(audio_path)
@@ -858,19 +966,33 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         dst = asset_dir / ttf.name
         if not dst.exists():
             shutil.copyfile(ttf, dst)
-    ass = build_caption_ass(caption_script, dur, asset_dir / "display.ass", cues=cues)
-    segs = _plan_segments(title_card, article_img, bg_paths, dur)
+    ass = build_caption_ass(caption_script, dur, asset_dir / "display.ass", cues=cues,
+                            motion=motion)
+    segs = _plan_segments(title_card, article_img, bg_paths, dur, motion=motion)
     # 배너 등장 시점과 콜아웃 시작 기준. 타이틀카드를 안 넣으면 0이고,
     # 그러면 배너가 0초부터 뜨고 콜아웃도 곧바로 시작할 수 있다.
     title_dur = (segs[0][1] if segs and str(segs[0][0]) == str(title_card) else 0.0)
     log.info(f"  세그먼트 {len(segs)}개 (타이틀 {title_dur:.1f}s 등)")
+    # 구간 전환(움직임 묶음). 기사 화면만 밀어 넣고 밀어 낸다. 전환이 걸린 자리의 앞
+    # 세그먼트는 그만큼 길게 렌더한다. 컷 시각과 전체 길이는 전환이 없을 때와 같다.
+    trans: list[str | None] = [None] * max(0, len(segs) - 1)
+    if motion and article_img:
+        for i in range(len(trans)):
+            if str(segs[i + 1][0]) == str(article_img):
+                trans[i] = mo.XFADE_IN
+            elif str(segs[i][0]) == str(article_img):
+                trans[i] = mo.XFADE_OUT
+    seg_len = [d + (mo.XFADE_SEC if i < len(trans) and trans[i] else 0.0)
+               for i, (_, d) in enumerate(segs)]
     # 기사 캡처 세그먼트의 시간대를 구해 콜아웃 금지 구간으로 넘긴다.
     blocked = None
     if article_img:
         t = 0.0
-        for img, d in segs:
+        for i, (img, d) in enumerate(segs):
             if str(img) == str(article_img):
-                blocked = (t, t + d)
+                # 밀려 나가는 동안에도 기사 화면이 보인다. 그만큼 더 막는다.
+                out_tail = mo.XFADE_SEC if i < len(trans) and trans[i] else 0.0
+                blocked = (t, t + d + out_tail)
                 break
             t += d
     from src.experiments import arm
@@ -898,6 +1020,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         from src.editor.compare_card import _short
         for c in compares:
             shown |= {_short(c[3].v1), _short(c[3].v2)}
+    pair_of = {str(c[0]): c[3] for c in compares}
     compares = [c[:3] for c in compares]
     stats = _plan_stat_overlays(caption_script, dur, title_dur, blocked=blocked, cues=cues,
                                 avoid=avoid, skip_values=shown or None, full=graphic,
@@ -915,10 +1038,30 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         note("콜아웃 없음")
     log.info(f"  숫자 콜아웃 {len(stats)}개"
              + (f" (기사 구간 {blocked[0]:.1f}~{blocked[1]:.1f}s 제외)" if blocked else ""))
+    # 카드가 나타나는 방식(움직임 묶음). 비교 카드는 막대가 자라고, 전체 화면 카드는
+    # 옆에서 밀려 들어오고, 사진 위 카드는 튕기며 커진다.
+    anim: dict[str, dict] = {}
+    if motion:
+        from src.editor.compare_card import render_compare_frames
+        for pth, _s, _e in stats:
+            key = str(pth)
+            if key in pair_of:
+                src, n = render_compare_frames(pair_of[key], Path(pth).with_suffix(""),
+                                               full=graphic, n=mo.BARS_FRAMES)
+                anim[key] = {"kind": "bars", "src": src, "frames": n}
+            elif graphic:
+                anim[key] = {"kind": "slide", "src": pth}
+            else:
+                crop = mo.crop_card(pth)
+                if crop:
+                    anim[key] = {"kind": "pop", "src": crop[0], "cx": crop[1], "cy": crop[2]}
+    note(f"움직임 묶음: {'켬' if motion else '끔'}"
+         + (f" (기사 전환 {sum(1 for x in trans if x)}곳, 카드 움직임 {len(anim)}개)"
+            if motion else ""))
 
     # 입력 구성: 각 세그먼트 이미지 (+상단 배너 +스탯카드) + 오디오
     inputs: list[str] = []
-    for img, d in segs:
+    for (img, _d), d in zip(segs, seg_len):
         if _is_video(img):
             # 클립이 컷보다 짧으면 이어 붙여 채운다. -t 로 잘라 길이를 맞춘다.
             inputs += ["-stream_loop", "-1", "-t", f"{d:.3f}", "-i", str(img)]
@@ -930,9 +1073,26 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     if banner and Path(banner).exists():
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(banner)]
         banner_idx = len(segs)
-    stat_start_idx = len(segs) + (1 if banner_idx is not None else 0)
-    for path, _s, _e in stats:
-        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(path)]
+    # 강조어를 칠하지 않은 배너. 첫 HOOK_HL_AT초만 쓴다.
+    plain_idx = None
+    if (motion and banner_idx is not None and title_dur == 0
+            and banner_plain and Path(banner_plain).exists()):
+        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{mo.HOOK_HL_AT + 0.2:.3f}",
+                   "-i", str(banner_plain)]
+        plain_idx = banner_idx + 1
+    stat_start_idx = (len(segs) + (1 if banner_idx is not None else 0)
+                      + (1 if plain_idx is not None else 0))
+    for path, s, e in stats:
+        a = anim.get(str(path))
+        if not a:
+            inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", str(path)]
+        elif a["kind"] == "bars":
+            # 막대가 자라는 그림 여러 장. 마지막 장은 필터에서 붙든다.
+            inputs += ["-framerate", str(FPS), "-start_number", "0", "-i", str(a["src"])]
+        else:
+            # 카드가 떠 있는 동안만 읽는다(움직임이 없을 때는 영상 길이 내내 읽는다).
+            inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{e - s:.3f}",
+                       "-i", str(a["src"])]
     inputs += ["-i", str(audio_path)]
     audio_idx = stat_start_idx + len(stats)
     # 배경음(BGM): 나레이션 아래 저음량. 랜덤 트랙, 루프.
@@ -968,8 +1128,10 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
         is_art = str(img) == art_p
         # 마지막 컷이 첫 컷과 같은 사진이면 줌아웃으로 끝내 첫 화면과 이어 붙인다.
         loop_end = (i == len(segs) - 1 and i > 0 and str(img) == str(segs[0][0]))
+        kind = (mo.cut_kind(i, loop_end)
+                if motion and not is_art and not _is_video(img) else None)
         parts.append(_seg_filter(
-            i, d, zoom_in=(i % 2 == 0) and not loop_end,
+            i, seg_len[i], zoom_in=(i % 2 == 0) and not loop_end,
             scroll=(is_art and art_h >= H),
             fit=(is_art and art_h < H),
             # punch는 타이틀카드 전용 줌이다. 카드를 영상에서 뺀 뒤로는
@@ -977,20 +1139,47 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             punch=(i == 0 and str(img) == str(title_card)),
             is_video=_is_video(img),
             scroll_to=(art_focus if is_art else None),
+            kind=kind,
+            # 첫 컷은 튕기지 않는다(끝 컷과 이어지는 자리다). 밀려 들어온 컷도 뺀다.
+            cut_punch=(i > 0 and not trans[i - 1]),
+            exact=loop_end,
         ))
-    concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
-    graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
+    if any(trans):
+        graph = ";".join(parts) + ";" + mo.join_graph(seg_len, trans)
+    else:
+        concat_ins = "".join(f"[v{i}]" for i in range(len(segs)))
+        graph = ";".join(parts) + f";{concat_ins}concat=n={len(segs)}:v=1:a=0[vc]"
     cur = "vc"
     for i, (path, s, e) in enumerate(stats):
         idx = stat_start_idx + i
-        graph += (
-            f";[{idx}:v]scale={W}:{H}[sc{i}]"
-            f";[{cur}][sc{i}]overlay=0:0:enable='between(t,{s:.2f},{e:.2f})'[vs{i}]"
-        )
+        a = anim.get(str(path))
+        if not a:
+            graph += (
+                f";[{idx}:v]scale={W}:{H}[sc{i}]"
+                f";[{cur}][sc{i}]overlay=0:0:enable='between(t,{s:.2f},{e:.2f})'[vs{i}]"
+            )
+        elif a["kind"] == "pop":
+            graph += (f";{mo.pop_filter(idx, f'sc{i}', s, e - s)}"
+                      f";[{cur}][sc{i}]{mo.pop_overlay(a['cx'], a['cy'])}[vs{i}]")
+        else:
+            # 전체 화면 카드(정보 화면)는 옆에서 밀려 들어온다. 사진 위 비교 카드는
+            # 제자리에서 막대만 자란다.
+            ov = mo.slide_overlay(s) if graphic else "overlay=0:0:eof_action=pass"
+            graph += (f";{mo.hold_filter(idx, f'sc{i}', s, e - s, frames=a.get('frames', 0))}"
+                      f";[{cur}][sc{i}]{ov}[vs{i}]")
         cur = f"vs{i}"
     # 배너는 카드 위에 얹는다. 정보 화면(graphic 팔)은 화면 전체를 덮어서,
     # 배너를 먼저 깔면 그 구간 동안 제목이 사라진다.
-    if banner_idx is not None:
+    if banner_idx is not None and plain_idx is not None:
+        # 제목은 첫 프레임부터 떠 있고, 강조어만 HOOK_HL_AT초에 노랗게 켜진다.
+        graph += (
+            f";[{plain_idx}:v]scale={W}:{H}[bp]"
+            f";[{cur}][bp]overlay=0:0:enable='lt(t,{mo.HOOK_HL_AT})':eof_action=pass[vp]"
+            f";[{banner_idx}:v]scale={W}:{H}[bn]"
+            f";[vp][bn]overlay=0:0:enable='gte(t,{mo.HOOK_HL_AT})'[vb]"
+        )
+        cur = "vb"
+    elif banner_idx is not None:
         graph += (
             f";[{banner_idx}:v]scale={W}:{H}[bn]"
             f";[{cur}][bn]overlay=0:0:enable='gte(t,{title_dur:.2f})'[vb]"

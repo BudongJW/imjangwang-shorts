@@ -516,6 +516,10 @@ def run(skip_upload: bool = False) -> int:
         bg_paths.insert(min(len(bg_paths), 5), face)
     # 상단 헤드라인 배너(타이틀카드 이후 전 구간) — 자동 프레임 썸네일 품질 개선
     banner = render_headline_banner(plan.headline, plan.hook_word, accent=accent)
+    # 강조어를 칠하지 않은 같은 배너. 첫 0.45초에 띄웠다가 위 배너로 바꿔, 강조어가
+    # 노랗게 켜지는 것처럼 보이게 한다(움직임 묶음, src/editor/motion.py).
+    banner_plain = render_headline_banner(plan.headline, "", out_name="headline_banner_plain",
+                                          accent=accent)
     try:
         article_img = build_article_visual(art, highlight=plan.highlight_sentence)
     except Exception as e:
@@ -525,7 +529,7 @@ def run(skip_upload: bool = False) -> int:
     # 5) 합성
     buildnotes.note(f"대본 {len(plan.caption_script)}자: {plan.caption_script}")
     final = compose(plan.caption_script, audio, title_card, article_img, bg_paths,
-                    banner=banner, srt_path=srt)
+                    banner=banner, srt_path=srt, banner_plain=banner_plain)
 
     # 6) 업로드
     #

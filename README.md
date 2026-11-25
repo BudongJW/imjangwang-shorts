@@ -15,7 +15,7 @@ collector/news   script_gen/generator          tts/    collector/images   editor
 | 수집·선정 | `src/collector/news.py` | 언론사 RSS와 구글뉴스에서 후보를 모아 소재 점수와 신선도로 고른다. 칼럼·분양 홍보·자동 생성 기사는 뺀다 |
 | 대본 | `src/script_gen/generator.py` | Gemini로 대본을 쓰고 `script_defects`로 기사와 대조한다. 안 맞는 문장은 다시 쓰게 하거나 지운다 |
 | 음성 | `src/tts/` | Azure Speech(키가 있을 때), 없으면 edge-tts |
-| 화면 | `src/editor/` | 타이틀카드(썸네일), 상단 배너, 숫자 카드, 비교 카드, 자막, ffmpeg 합성 |
+| 화면 | `src/editor/` | 타이틀카드(썸네일), 상단 배너, 숫자 카드, 비교 카드, 자막, ffmpeg 합성. 요소가 나타나고 움직이는 방식은 `motion.py`(움직임 묶음)에 있다 |
 | 업로드 | `src/uploader/youtube.py` | 비공개로 올려 두고 승인하면 공개(`REVIEW_MODE`) |
 | 진입점 | `src/orchestrator/main.py` | 위 단계를 잇고 토픽 기록(`output/topic_history.json`)을 남긴다 |
 | 실험 | `src/experiments.py` | 날짜별로 실험 팔을 정하고 성과로 판정한다. [docs/improvement-loop.md](docs/improvement-loop.md) |
@@ -73,7 +73,8 @@ python scripts/preview_render.py path/to/pinned_plan.json --frames
 - `check_corpus.py`: 커밋 기록에 남은 지정 대본 전부에 사실 검사를 돌려, 사람이 검수한
   대본이 새로 걸리지 않는지 본다. 의도한 변화면 `--update`로 기준선을 갱신한다.
 - `preview_render.py`: 키 없이 화면 구성만 렌더한다(무음, 폴백 배경). `--arm article_pos=late`
-  처럼 실험 팔을 고정해 볼 수 있다. ffmpeg가 필요하다.
+  처럼 실험 팔을 고정해 볼 수 있다. `--no-motion`을 주면 움직임 묶음을 끈 화면이 나와
+  켠 것과 나란히 볼 수 있다. ffmpeg가 필요하다.
 
 같은 검사가 `.github/workflows/tests.yml`에서 코드가 바뀔 때마다 돈다.
 
@@ -83,3 +84,7 @@ python scripts/preview_render.py path/to/pinned_plan.json --frames
 ## 설정
 
 키와 선택 항목은 [.env.example](.env.example), 기본값과 그 근거는 `config/settings.py`에 있다.
+
+움직임 묶음은 `MOTION_FX`로 켜고 끈다(기본 켬). 리포지터리 변수 `MOTION_FX=0`을 두면 코드를
+고치지 않고 2026-11-10판 화면으로 돌아간다. 무엇이 움직이고 왜 그렇게 정했는지는
+[docs/improvement-loop.md](docs/improvement-loop.md#화면-구성-판)에 있다.
