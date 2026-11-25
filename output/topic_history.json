@@ -2504,5 +2504,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "서울 오피스텔 매매 22개월 만에 하락…전월세 오름세는 계속",
+    "video_id": "draft-45530895252",
+    "date": "2026-11-25T02:12:43.507757",
+    "title_style": "주장",
+    "len_mode": "normal",
+    "script_chars": 315,
+    "source": "뉴시스",
+    "age_days": 0.8176863953125,
+    "topic_score": 12,
+    "recency_score": 4,
+    "media": [
+      "p37319814",
+      "p37384714",
+      "p40591839",
+      "p7578992",
+      "p8470846",
+      "p7937958"
+    ],
+    "layout": "2026-11-10",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "off",
+      "title_q": "off",
+      "article_pos": "late",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
