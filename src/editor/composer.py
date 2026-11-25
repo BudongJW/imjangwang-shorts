@@ -23,7 +23,7 @@ from pathlib import Path
 from config.settings import (
     SHORTS_WIDTH, SHORTS_HEIGHT, SHORTS_FPS, FINAL_DIR, VIDEO_DIR, FONT_DIR, BGM_DIR,
     TITLE_CARD_MAX_SEC, IMAGE_MAX_SEC, STAT_MAX_SEC, KENBURNS, BGM_VOLUME, TITLE_CARD_IN_VIDEO,
-    MOTION_FX)
+    MOTION_FX, NAME_TAGS, PAUSE_TRIM)
 from src.editor import motion as mo
 from src.editor.fonts import fix_glyphs
 from src.utils.buildnotes import note
@@ -92,6 +92,121 @@ def _lead_trim(path: Path) -> float:
     """나레이션 앞에서 잘라 낼 길이(초)."""
     cut = _leading_silence(path) - LEAD_KEEP_SEC
     return round(cut, 3) if LEAD_TRIM_MIN_SEC <= cut <= LEAD_TRIM_MAX_SEC else 0.0
+
+
+# 나레이션 사이 공백. TTS는 문장이 끝날 때마다 길게 쉰다. 11-25 검증 영상(Azure, 51.6초)을
+# 재 보니 문장 사이 일곱 군데가 1.43~1.51초씩이고 끝에 1.1초가 더 붙어, 무음이 모두 12.5초
+# (영상의 4분의 1)였다. 그 동안 화면도 자막 한 줄이 멈춘 채 떠 있다. 쇼츠는 말이 끊기는
+# 자리가 넘기는 자리다. 숨 쉴 만큼만 남기고 가운데를 잘라 낸다.
+PAUSE_KEEP_SEC = 0.25       # 문장 사이에 남기는 길이
+PAUSE_MIN_SEC = 0.35        # 이보다 긴 무음만 줄인다(쉼표에서 쉬는 0.25~0.3초는 그대로 둔다)
+TAIL_KEEP_SEC = 0.2         # 마지막 말 뒤에 남기는 길이. 끝나면 바로 처음으로 돌아간다
+# 무음이 전체의 이만큼을 넘으면 말소리를 못 잡은 것이다(무음 미리보기, 측정 실패). 손대지 않는다.
+PAUSE_MAX_SILENT_RATIO = 0.6
+
+
+def _silences(path: Path) -> list[tuple[float, float]]:
+    """오디오 전체에서 0.2초 넘는 무음 구간 (시작, 끝). 못 재면 빈 리스트."""
+    try:
+        r = subprocess.run(
+            [_ffmpeg(), "-hide_banner", "-i", str(path),
+             "-af", "silencedetect=noise=-40dB:d=0.2", "-f", "null", "-"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    out: list[tuple[float, float]] = []
+    start = None
+    for m in re.finditer(r"silence_(start|end):\s*(-?[\d.]+)", r.stderr or ""):
+        t = max(0.0, float(m.group(2)))
+        if m.group(1) == "start":
+            start = t
+        elif start is not None:
+            out.append((start, t))
+            start = None
+    if start is not None:           # 끝까지 무음인데 끝 시각을 안 적어 주는 ffmpeg가 있다
+        out.append((start, float("inf")))
+    return out
+
+
+def _pause_cuts(path: Path, total: float, lead: float = 0.0) -> list[tuple[float, float]]:
+    """나레이션에서 잘라 낼 무음 구간 (시작, 끝). 앞 무음(lead)을 자른 뒤의 시각이다.
+
+    문장 사이는 PAUSE_KEEP_SEC만 남기고 가운데를, 맨 끝은 TAIL_KEEP_SEC만 남기고 뒤를 자른다.
+    맨 앞 무음은 _lead_trim이 따로 본다.
+    """
+    sil = [(s, min(e, total)) for s, e in _silences(path) if s < total]
+    if not sil or sum(e - s for s, e in sil) > total * PAUSE_MAX_SILENT_RATIO:
+        return []
+    cuts: list[tuple[float, float]] = []
+    for s, e in sil:
+        if s <= lead + 0.05:                    # 맨 앞 무음
+            continue
+        if e >= total - 0.05:                   # 맨 끝 무음
+            a, b = s + TAIL_KEEP_SEC, total
+        elif e - s >= PAUSE_MIN_SEC:            # 문장 사이
+            a, b = s + PAUSE_KEEP_SEC / 2, e - PAUSE_KEEP_SEC / 2
+        else:
+            continue
+        if b - a >= 0.05:
+            cuts.append((round(a - lead, 3), round(b - lead, 3)))
+    return cuts
+
+
+def _shift(t: float, cuts: list[tuple[float, float]]) -> float:
+    """잘라 내기 전 시각 t가 잘라 낸 뒤 몇 초가 되는지."""
+    return t - sum(min(t, b) - a for a, b in cuts if t > a)
+
+
+def _keep_spans(lead: float, cuts: list[tuple[float, float]], total: float
+                ) -> list[tuple[float, float]]:
+    """원본 나레이션에서 남길 구간 (시작, 끝). 앞 무음(lead)과 cuts를 뺀 나머지다."""
+    keeps: list[tuple[float, float]] = []
+    t = lead
+    for a, b in cuts:                   # cuts는 lead를 자른 뒤의 시각이다
+        keeps.append((t, a + lead))
+        t = b + lead
+    keeps.append((t, total))
+    return [(round(a, 3), round(b, 3)) for a, b in keeps if b - a > 0.01]
+
+
+# 잘라 낸 나레이션의 길이가 예상과 이만큼 넘게 다르면 쓰지 않는다.
+TIGHT_TOLERANCE_SEC = 0.15
+
+
+def _tighten_audio(path: Path, lead: float, cuts: list[tuple[float, float]],
+                   total: float) -> Path | None:
+    """앞 무음과 문장 사이 공백을 잘라 낸 나레이션(WAV)을 만든다. 실패하면 None.
+
+    합성 필터 안에서 자르지 않고 여기서 먼저 잘라 길이를 재 본다. 11-25 검증 렌더에서
+    합성 필터(aselect + asetpts=N/SR/TB)로 자르던 첫 판은 로컬(ffmpeg 8.1)에서는 됐는데
+    CI(우분투 ffmpeg 6.1)에서는 소리가 안 잘렸다. 그런데 영상과 자막은 줄어든 길이로 만들어져,
+    자막이 소리보다 앞서 가고 나레이션 끝 13초가 잘려 나갔다. 에러도 없었다.
+    소리와 화면이 따로 가는 것이 가장 나쁘다. 잰 길이가 예상과 다르면 줄이기를 통째로
+    포기하고 원본 소리와 원래 시각으로 간다.
+    """
+    keeps = _keep_spans(lead, cuts, total)
+    if not keeps:
+        return None
+    n = len(keeps)
+    graph = (f"[0:a]asplit={n}" + "".join(f"[i{k}]" for k in range(n)) + ";"
+             + ";".join(f"[i{k}]atrim=start={a:.3f}:end={b:.3f},asetpts=PTS-STARTPTS[s{k}]"
+                        for k, (a, b) in enumerate(keeps))
+             + ";" + "".join(f"[s{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1[out]")
+    out = Path(path).with_name(Path(path).stem + "_tight.wav")
+    try:
+        r = subprocess.run(
+            [_ffmpeg(), "-y", "-v", "error", "-i", str(path), "-filter_complex", graph,
+             "-map", "[out]", "-c:a", "pcm_s16le", str(out)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+    except (OSError, subprocess.SubprocessError) as e:
+        note(f"나레이션 공백 줄이기 포기: 자르다 실패({type(e).__name__})")
+        return None
+    want = sum(b - a for a, b in keeps)
+    got = _ffprobe_duration(out) if r.returncode == 0 and out.exists() else -1.0
+    if abs(got - want) > TIGHT_TOLERANCE_SEC:
+        note(f"나레이션 공백 줄이기 포기: 자른 소리가 {got:.2f}s로 예상 {want:.2f}s와 다르다")
+        return None
+    return out
 
 
 # ── 자막(교정된 표기) ASS 생성 ──────────────────────────
@@ -637,6 +752,58 @@ def _plan_compare_overlays(caption_script: str, total_sec: float, title_dur: flo
     return out
 
 
+# 이름표가 이보다 짧게 뜨면 읽기 전에 사라진다. 긴 문장이라도 이보다 오래 두지 않는다.
+TAG_MIN_SEC = 1.2
+TAG_MAX_SEC = 7.0
+
+
+def _plan_tag_overlays(caption_script: str, total_sec: float,
+                       cues: list[tuple[str, float, float]] | None = None,
+                       blocked: tuple[float, float] | None = None,
+                       avoid: list[tuple[float, float]] | None = None,
+                       clear_until: float = 0.0) -> list[tuple[Path, float, float]]:
+    """말한 사람·출처·해설 이름표를 띄울 (경로, 시작, 끝) 계획.
+
+    그 문장을 읽는 동안 띄운다. 기사 화면(blocked)과 비교 카드(avoid, 이름표 자리까지
+    내려온다)가 떠 있는 동안은 피하고, 비워 두는 첫 화면(clear_until)에는 띄우지 않는다.
+    """
+    from src.editor.lower_third import find_tags, render_tag
+    tags = find_tags(caption_script)
+    if not tags:
+        return []
+    norm = re.sub(r"\s+", " ", caption_script or "").strip()
+    spans, pos = [], 0
+    for ph, s, e in _phrase_timings(caption_script, total_sec, cues):
+        i = norm.find(ph, pos)
+        if i < 0:
+            i = pos
+        spans.append((i, i + len(ph), s, e))
+        pos = i + len(ph)
+
+    def _at(char_pos: int) -> tuple[float, float]:
+        for a, b, s, e in spans:
+            if a <= char_pos < b:
+                return s, e
+        return spans[-1][2], spans[-1][3]
+
+    out: list[tuple[Path, float, float]] = []
+    for t in tags:
+        s, _ = _at(t.start_pos)
+        _, e = _at(max(0, t.end_pos - 1))
+        s = max(s, clear_until, out[-1][2] + 0.15 if out else 0.0)
+        # 끝 프레임은 첫 프레임과 이어지는 자리라 이름표를 남기지 않는다.
+        e = min(e, s + TAG_MAX_SEC, total_sec - 0.25)
+        for win in [blocked] + list(avoid or []):
+            s, e = _clip_blocked(s, e, win)
+        if e - s < TAG_MIN_SEC:
+            continue
+        path = VIDEO_DIR / f"tag_{len(out)}.png"
+        render_tag(t, path)
+        out.append((path, s, e))
+        note(f"이름표 {s:6.1f}~{e:5.1f}s  {t.kind}: {t.text}")
+    return out
+
+
 def _plan_stat_overlays(caption_script: str, total_sec: float, title_dur: float,
                         max_n: int | None = None,
                         blocked: tuple[float, float] | None = None,
@@ -791,7 +958,7 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
                 punch: bool = False, is_video: bool = False,
                 scroll_to: int | None = None,
                 kind: str | None = None, cut_punch: bool = False,
-                exact: bool = False) -> str:
+                exact: bool = False, hold: float = 0.0) -> str:
     """한 세그먼트의 필터 체인([idx:v] → [vidx]).
 
     scroll=True(긴 기사): 폭 맞추고 위→아래로 천천히 세로 스크롤.
@@ -802,21 +969,25 @@ def _seg_filter(idx: int, dur: float, zoom_in: bool,
     그 외: zoompan 켄번즈(d=1, 출력프레임 on 으로 줌 구동).
     kind가 있으면(움직임 묶음) 가운데 줌 대신 그 움직임을 쓴다(motion.kenburns).
         cut_punch: 컷이 바뀌는 순간 짧게 당겼다 놓는다. exact: 줌을 이 컷 안에 다 쓴다.
+    hold가 있으면 입력이 그림 여러 장(한 줄씩 나타나는 기사 화면)이다. 마지막 장을
+        hold초까지 붙든다.
     """
+    pre = (f"tpad=stop_mode=clone:stop_duration={hold:.3f},trim=duration={hold:.3f},"
+           if hold else "")
     if scroll:
         # 폭 1080에 맞춘 세로 긴 기사 이미지를 위에서 아래로 스크롤한다.
         # scroll_to가 있으면(강조 문장 위치) 거기까지만 내려가 멈춘다.
         # 끝까지 내려가면 5초 안에 3400px을 지나가 아무것도 못 읽는다.
-        hold = max(0.1, dur - (1.2 if scroll_to is not None else 0.4))
+        scroll_sec = max(0.1, dur - (1.2 if scroll_to is not None else 0.4))
         dist = f"min(ih-{H},{scroll_to})" if scroll_to is not None else f"(ih-{H})"
         chain = (
-            f"scale={W}:-2,"
-            f"crop={W}:{H}:0:'{dist}*min(1,t/{hold:.3f})'"
+            f"{pre}scale={W}:-2,"
+            f"crop={W}:{H}:0:'{dist}*min(1,t/{scroll_sec:.3f})'"
         )
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if fit:
         # 짧은 카드: 폭 맞춘 뒤 어두운 캔버스 중앙에 배치(패딩)
-        chain = (f"scale={W}:-2,"
+        chain = (f"{pre}scale={W}:-2,"
                  f"pad={W}:{H}:0:(oh-ih)/2:color=0x101624")
         return f"[{idx}:v]{chain},setsar=1[v{idx}]"
     if is_video:
@@ -857,8 +1028,11 @@ ARTICLE_LATE_AT = 0.45
 # 2026-11-10: 첫 자막을 0초부터, 나레이션 앞 무음 제거, 자막 숫자 강조 단위,
 # 썸네일 화살표 방향. 첫 화면이 달라지므로 3초·8초 유지를 이 판부터 따로 모은다.
 # 2026-11-25: 움직임 묶음(motion.py). 자막 어절 강조, 카드 등장 움직임, 컷 팬·펀치 줌,
-# 기사 화면 밀어 넣기, 진행 막대. 내용과 배치는 그대로고 움직임만 달라진다.
-LAYOUT_VERSION = "2026-11-25" if MOTION_FX else "2026-11-10"
+# 기사 화면 밀어 넣기. 내용과 배치는 그대로고 움직임만 달라진다.
+# 2026-11-26: 이름표(말한 사람·출처·임장왕 체크, lower_third.py)와 기사 화면의 강조 문장이
+# 한 줄씩 나타나는 연출. 나레이션의 문장 사이 공백도 줄인다(_pause_cuts). 화면에 새 요소가
+# 생기고 같은 대본의 영상 길이가 달라지므로 판을 따로 올린다.
+LAYOUT_VERSION = "2026-11-26" if (MOTION_FX or PAUSE_TRIM) else "2026-11-10"
 VIDEO_EXTS = (".mp4", ".mov", ".webm", ".m4v")
 
 
@@ -959,14 +1133,27 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     dur = _ffprobe_duration(audio_path)
     # 앞 무음을 잘라 내고, 그만큼 전체 길이와 발화 시각을 당긴다.
     lead = _lead_trim(audio_path)
+    # 문장 사이와 끝의 무음도 줄인다. 잘라 낸 만큼 전체 길이와 발화 시각을 당긴다.
+    cuts = _pause_cuts(audio_path, dur, lead) if PAUSE_TRIM else []
+    # 소리를 먼저 잘라 보고, 제대로 잘렸을 때만 화면 시각을 당긴다(_tighten_audio 참고).
+    tight = _tighten_audio(audio_path, lead, cuts, dur) if cuts else None
+    if tight is None:
+        cuts = []
     dur -= lead
-    log.info(f"  오디오 길이 {dur:.1f}s" + (f" (앞 무음 {lead:.2f}s 제거)" if lead else ""))
+    raw_dur = dur
+    dur -= sum(b - a for a, b in cuts)
+    log.info(f"  오디오 길이 {dur:.1f}s" + (f" (앞 무음 {lead:.2f}s 제거)" if lead else "")
+             + (f" (사이 공백 {len(cuts)}곳 {raw_dur - dur:.1f}s 제거)" if cuts else ""))
     # TTS가 남긴 실제 발화 시각. 자막과 콜아웃이 같은 타임라인을 쓰도록
     # 한 번만 읽어 둘 다에 넘긴다.
     cues = parse_srt_cues(srt_path) if srt_path else []
     if lead:
         cues = [(t, max(0.0, a - lead), max(0.0, b - lead)) for t, a, b in cues]
         note(f"나레이션 앞 무음 {lead:.2f}s 제거")
+    if cuts:
+        cues = [(t, _shift(a, cuts), _shift(b, cuts)) for t, a, b in cues]
+        note(f"나레이션 사이 공백 {len(cuts)}곳 {raw_dur - dur:.1f}s 제거 "
+             f"({raw_dur:.1f}s → {dur:.1f}s, 문장 사이 {PAUSE_KEEP_SEC}s)")
     note(f"자막 타이밍: {'발화 시각 ' + str(len(cues)) + '구간' if cues else '글자수 비례(폴백)'}")
 
     # 자막 SRT·폰트는 비ASCII(한글) 경로에서 libass가 실패할 수 있어 임시 ASCII 폴더에 둔다.
@@ -1065,14 +1252,32 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
                 crop = mo.crop_card(pth)
                 if crop:
                     anim[key] = {"kind": "pop", "src": crop[0], "cx": crop[1], "cy": crop[2]}
+    # 이름표(말한 사람·출처·임장왕 체크). 잘라 낸 그림과 그 중심을 같이 들고 간다.
+    tags: list[tuple[Path, float, float, int, int]] = []
+    if motion and NAME_TAGS:
+        for pth, s, e in _plan_tag_overlays(
+                caption_script, dur, cues=cues, blocked=blocked,
+                avoid=[(a, b) for p, a, b in stats if str(p) in pair_of],
+                clear_until=HOOK_MAX_SEC if first_clear else 0.0):
+            crop = mo.crop_card(pth)
+            if crop:
+                tags.append((crop[0], s, e, crop[1], crop[2]))
     note(f"움직임 묶음: {'켬' if motion else '끔'}"
-         + (f" (기사 전환 {sum(1 for x in trans if x)}곳, 카드 움직임 {len(anim)}개)"
-            if motion else ""))
+         + (f" (기사 전환 {sum(1 for x in trans if x)}곳, 카드 움직임 {len(anim)}개, "
+            f"이름표 {len(tags)}개)" if motion else ""))
 
     # 입력 구성: 각 세그먼트 이미지 (+상단 배너 +스탯카드) + 오디오
     inputs: list[str] = []
+    # 기사 화면에 '한 줄씩 나타나는 그림'이 딸려 있으면 그것을 쓴다(움직임 묶음).
+    art_frames = 0
+    if motion and article_img:
+        from src.collector.article_capture import reveal_count, reveal_pattern
+        art_frames = reveal_count(Path(article_img))
     for (img, _d), d in zip(segs, seg_len):
-        if _is_video(img):
+        if art_frames >= 2 and str(img) == str(article_img):
+            inputs += ["-framerate", str(FPS), "-start_number", "0",
+                       "-i", str(reveal_pattern(Path(article_img)))]
+        elif _is_video(img):
             # 클립이 컷보다 짧으면 이어 붙여 채운다. -t 로 잘라 길이를 맞춘다.
             inputs += ["-stream_loop", "-1", "-t", f"{d:.3f}", "-i", str(img)]
         else:
@@ -1103,8 +1308,11 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             # 카드가 떠 있는 동안만 읽는다(움직임이 없을 때는 영상 길이 내내 읽는다).
             inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{e - s:.3f}",
                        "-i", str(a["src"])]
-    inputs += ["-i", str(audio_path)]
-    audio_idx = stat_start_idx + len(stats)
+    tag_start_idx = stat_start_idx + len(stats)
+    for path, s, e, _cx, _cy in tags:
+        inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{e - s:.3f}", "-i", str(path)]
+    inputs += ["-i", str(tight or audio_path)]
+    audio_idx = tag_start_idx + len(tags)
     # 배경음(BGM): 나레이션 아래 저음량. 랜덤 트랙, 루프.
     bgm_idx = None
     bgm_on = arm("bgm") == "on"             # 실험: 배경음
@@ -1150,6 +1358,7 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             is_video=_is_video(img),
             scroll_to=(art_focus if is_art else None),
             kind=kind,
+            hold=(seg_len[i] if is_art and art_frames >= 2 else 0.0),
             # 첫 컷은 튕기지 않는다(끝 컷과 이어지는 자리다). 밀려 들어온 컷도 뺀다.
             cut_punch=(i > 0 and not trans[i - 1]),
             exact=loop_end,
@@ -1178,6 +1387,10 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
             graph += (f";{mo.hold_filter(idx, f'sc{i}', s, e - s, frames=a.get('frames', 0))}"
                       f";[{cur}][sc{i}]{ov}[vs{i}]")
         cur = f"vs{i}"
+    for i, (_path, s, e, cx, cy) in enumerate(tags):
+        graph += (f";{mo.hold_filter(tag_start_idx + i, f'tg{i}', s, e - s)}"
+                  f";[{cur}][tg{i}]{mo.tag_overlay(cx, cy, s)}[vt{i}]")
+        cur = f"vt{i}"
     # 배너는 카드 위에 얹는다. 정보 화면(graphic 팔)은 화면 전체를 덮어서,
     # 배너를 먼저 깔면 그 구간 동안 제목이 사라진다.
     if banner_idx is not None and plain_idx is not None:
@@ -1204,7 +1417,9 @@ def compose(caption_script: str, audio_path: Path, title_card: Path,
     # 보다 넘어오면 6dB쯤 작게 들렸다. 나레이션(TTS 24kHz 모노)도 48kHz
     # 스테레오로 올려 BGM이 모노로 뭉개지지 않게 한다.
     fmt = "aformat=sample_rates=48000:channel_layouts=stereo"
-    nar_fmt = f"atrim=start={lead:.3f},asetpts=PTS-STARTPTS,{fmt}" if lead else fmt
+    # 공백을 줄인 소리(tight)는 앞 무음까지 이미 잘려 있다.
+    nar_fmt = (f"atrim=start={lead:.3f},asetpts=PTS-STARTPTS,{fmt}"
+               if lead and tight is None else fmt)
     norm = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
     if bgm_idx is not None:
         graph += (

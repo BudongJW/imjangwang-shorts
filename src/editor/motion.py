@@ -10,6 +10,8 @@
     비교 막대: 막대가 바닥에서 자란다(값 글자는 처음부터 대본 값 그대로다).
     기사 화면: 아래에서 밀려 올라왔다가 도로 내려가고, 머무는 시간을 줄인다.
     제목 배너: 강조어가 0.45초에 노랗게 켜진다(제목은 첫 프레임부터 떠 있다).
+    이름표   : 말한 사람·출처·'임장왕 체크'가 왼쪽에서 밀려 들어온다(lower_third.py).
+    기사 문장: 기사 화면의 강조 문장이 한 줄씩 나타난다(article_capture.py가 그림을 만든다).
 자막의 어절 강조는 자막을 만드는 composer에 있다.
 
 근거는 2026-11-25 레퍼런스 조사다. 조회수가 나오는 뉴스·경제 쇼츠(WSJ, KBS 크랩 등)는
@@ -179,6 +181,16 @@ def slide_overlay(start: float) -> str:
     """오른쪽에서 밀려 들어와 제자리에 선다."""
     x = f"if(lt(t-{start:.3f},{SLIDE_SEC}),W*pow(1-(t-{start:.3f})/{SLIDE_SEC},3),0)"
     return f"overlay=x='{x}':y=0:eof_action=pass"
+
+
+TAG_SLIDE_PX = 90           # 이름표가 왼쪽에서 밀려 들어오는 거리
+TAG_SLIDE_SEC = 0.2
+
+
+def tag_overlay(cx: int, cy: int, start: float) -> str:
+    """이름표가 왼쪽에서 짧게 밀려 들어와 제자리에 선다(cx, cy는 이름표의 중심)."""
+    slide = f"{TAG_SLIDE_PX}*pow(max(0,1-(t-{start:.3f})/{TAG_SLIDE_SEC}),2)"
+    return f"overlay=x='{cx}-w/2-{slide}':y='{cy}-h/2':eof_action=pass"
 
 
 def ease_out(p: float) -> float:

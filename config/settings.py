@@ -106,6 +106,8 @@ PUBLISH_MIN_LEAD_MIN = int(os.getenv("PUBLISH_MIN_LEAD_MIN", "15"))
 # 9/20에 만든 short는 변수를 바꾸지 않아 한 번도 돌지 않았다. 기간을 통째로
 # 바꾸면 같은 날 바뀐 화면 구성(첫 화면 숫자 카드 등)과 효과가 섞이므로,
 # 새 화면 구성 아래에서 격일로 나눠 길이만 비교한다.
+# 2026-11-26판부터는 문장 사이 공백을 줄여(PAUSE_TRIM) 같은 글자 수가 더 짧게 나온다.
+# 위 초 환산은 공백을 줄이기 전 값이다. 글자 수 기준은 그대로 둔다.
 CHARS_PER_SEC = 6.4
 _LEN_MODE_RAW = os.getenv("SCRIPT_LEN_MODE", "normal").strip().lower()
 if _LEN_MODE_RAW == "ab":
@@ -134,6 +136,13 @@ ARTICLE_HIGHLIGHT = True      # 기사 캡처에 형광펜 하이라이트
 # 움직임, 컷 팬·펀치 줌, 기사 화면 밀어 넣기, 진행 막대를 한 묶음으로 켠다.
 # 0이면 2026-11-10판 화면 그대로다.
 MOTION_FX = os.getenv("MOTION_FX", "1") == "1"
+# 나레이션 사이 공백 줄이기(src/editor/composer.py의 _pause_cuts). 2026-11-25 사용자 지시.
+# TTS가 문장마다 1.4초쯤 쉬어서 51.6초 영상에 무음이 12.5초였다. 문장 사이를 0.25초로 줄인다.
+# 0이면 TTS가 준 그대로 쓴다.
+PAUSE_TRIM = os.getenv("PAUSE_TRIM", "1") == "1"
+# 이름표(src/editor/lower_third.py). 말한 사람·출처·이 채널의 해설 대목에 이름표를 붙인다.
+# 움직임 묶음이 켜져 있을 때만 쓴다. 이름을 잘못 집는 일이 생기면 이것만 0으로 끈다.
+NAME_TAGS = os.getenv("NAME_TAGS", "1") == "1"
 
 # ── 채널 브랜딩 ─────────────────────────────────────────
 CHANNEL_NAME = "공인중개사 임장왕"
