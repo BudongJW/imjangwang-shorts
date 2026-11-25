@@ -2447,6 +2447,38 @@ def _injected_price_problems(script: str, source_text: str) -> list[tuple[str, s
     return out
 
 
+# 사람(평론가·교수 등)이 따옴표로 한 말을 누구 말인지 빼고 진행자 말처럼 옮긴 문장. 11-25 초안:
+# 윤지해 부동산평론가의 "오피스텔은 자본 차익보다 임대 수익을 목적으로 하는 자산"이 대본에서
+# "자본 차익보다 임대 수익을 노리는 투자 상품인 오피스텔의 특성상 높은 금리는 매수 심리를
+# 위축시킬 수밖에 없습니다"가 됐다. _opinion_problems는 '전망·우려' 같은 의견 표지가 있는
+# 따옴표만 보므로 이런 설명형 발언을 놓친다. 기관 발표(부동산원 등)는 보지 않는다.
+_PERSON_BEFORE_QUOTE_RE = re.compile(
+    r"([가-힣]{2,4})\s?(?:[가-힣A-Za-z]{0,12}\s)?[가-힣]{0,8}(?:평론가|교수|위원|대표|연구원|소장|팀장|실장|"
+    r"애널리스트|전문가|센터장|이사|변호사|세무사|회계사|중개사)\s?(?:은|는|이|가)?\s*$")
+
+
+def _uncited_expert_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    spans = []
+    for m in re.finditer(r"[“\"]([^”\"]{10,200})[”\"]", src):
+        pm = _PERSON_BEFORE_QUOTE_RE.search(src[max(0, m.start() - 40):m.start()])
+        if pm:
+            spans.append((m.group(1), pm.group(1)))
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not sent or _SCRIPT_ATTR_RE.search(sent) or _Q_END_RE.search(sent):
+            continue
+        st = _stems(sent)
+        for sp, name in spans:
+            if name in sent:
+                continue
+            if len(st & _stems(sp)) >= OPINION_SHARED_STRONG:
+                out.append((sent[:40], f"{name}의 따옴표 발언을 누구 말인지 빼고 옮겼다: \"{sp[:30]}\""))
+                break
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2746,6 +2778,7 @@ def script_defects(text: str, hay: str, title: str = "",
          + _rent_word_problems(text, hay) + _cause_hedge_problems(text, hay)
          + _only_gain_problems(text, hay) + _unanswered_question_problems(text)
          + _mult_overstate_problems(text, hay) + _injected_price_problems(text, hay)
+         + _uncited_expert_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
