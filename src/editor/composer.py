@@ -125,6 +125,8 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Cap,NanumGothic,72,&H00FFFFFF,&H000000FF,&H80101010,&H00000000,-1,0,0,0,100,100,0,0,3,12,0,2,60,60,480,1
+Style: CapBox,NanumGothic,72,&HFF000000,&H000000FF,&H4D101010,&H00000000,-1,0,0,0,100,100,0,0,3,12,0,2,60,60,480,1
+Style: CapText,NanumGothic,72,&H00FFFFFF,&H000000FF,&H00101010,&H00000000,-1,0,0,0,100,100,0,0,1,2,0,2,60,60,480,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -370,7 +372,13 @@ def _phrase_timings(caption_script: str, total_sec: float,
 # 구절이 통째로 떴다 사라지기만 하면 자막 자리도 정지 화면이다. 지금 말하는 어절만
 # 흰색으로 두고 나머지는 한 톤 낮춰, 읽는 자리가 말을 따라 움직이게 한다. 숫자와
 # 핵심어의 노랑은 늘 그대로다(소리 없이 보는 사람에게는 그 숫자가 내용이다).
-_DIM = r"{\c&HBEBEBE&}"
+#
+# 상자와 글자는 층을 나눠 그린다(CapBox 위에 CapText). 상자 스타일(BorderStyle 3)은
+# 색이 바뀌는 자리마다 상자를 따로 그려서, 한 줄 안에서 색을 바꾸면 상자끼리 겹친
+# 자리에 진한 세로 띠가 생긴다(11-25 검증 렌더: 어절 경계마다 띠가 섰다. 그 전에도
+# 노란 숫자 양옆에 같은 띠가 있었다). 상자는 글자가 투명한 한 줄로 한 번만 그린다.
+# 흐린 어절이 밝은 사진 위에서도 읽히게 이 상자는 조금 더 짙다(50% → 70%).
+_DIM = r"{\c&HC3C3C3&}"
 # 구절이 뜨는 순간 88%에서 100%로 키운다(0.11초).
 _POP = r"{\fscx88\fscy88\t(0,110,\fscx100\fscy100)}"
 # 어절 하나가 이보다 짧게 켜지면 깜빡임으로 보인다. 다음 어절과 묶는다.
@@ -458,9 +466,11 @@ def build_caption_ass(caption_script: str, total_sec: float, out: Path,
             body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{text}")
             continue
         mask = _hl_mask(ph)
+        body.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},CapBox,,0,0,0,,"
+                    f"{_POP}{fix_glyphs(ph)}")
         for k, (a, b, s, e) in enumerate(_word_steps(ph, start, end)):
             text = fix_glyphs(_step_text(ph, mask, a, b, pop=(k == 0)))
-            body.append(f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Cap,,0,0,0,,{text}")
+            body.append(f"Dialogue: 1,{_ass_time(s)},{_ass_time(e)},CapText,,0,0,0,,{text}")
     out.write_text(ASS_HEADER + "\n".join(body) + "\n", encoding="utf-8")
     return out
 

@@ -56,14 +56,17 @@ def test_step_text_lights_one_word_and_keeps_numbers_yellow():
 def test_caption_ass_motion_keeps_the_text_and_timeline(tmp_path):
     script = "서울 오피스텔 매매가격이 22개월 만에 내렸습니다. 반면 전세는 0.12% 올랐습니다."
 
-    def events(motion):
+    def events(motion, style):
         out = c.build_caption_ass(script, 8.0, tmp_path / f"m{int(motion)}.ass", motion=motion)
         rows = [ln.split(",", 9) for ln in out.read_text(encoding="utf-8").splitlines()
                 if ln.startswith("Dialogue:")]
-        return [(r[1], r[2], r[9]) for r in rows]
+        return [(r[1], r[2], r[9]) for r in rows if r[3] == style]
 
-    still, moving = events(False), events(True)
+    still, moving, boxes = events(False, "Cap"), events(True, "CapText"), events(True, "CapBox")
     assert len(moving) > len(still)
+    # 상자는 구절마다 한 번, 색을 바꾸지 않고 그린다(색이 바뀌면 상자가 쪼개져 띠가 선다).
+    assert [(s, e, plain(t)) for s, e, t in boxes] == [(s, e, plain(t)) for s, e, t in still]
+    assert not any("\\c&H" in t for _, _, t in boxes)
     assert not any(c._POP in t or c._DIM in t for _, _, t in still)      # 끈 쪽은 예전 그대로
     # 구절마다 첫 줄만 튕긴다. 구절 수는 같다.
     assert sum(c._POP in t for _, _, t in moving) == len(still)
