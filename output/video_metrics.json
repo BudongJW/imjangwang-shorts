@@ -1,12 +1,28 @@
 {
- "taken_at": "2026-11-24T03:21:13.996390+00:00",
+ "taken_at": "2026-11-25T01:26:57.243158+00:00",
  "videos": [
+  {
+   "video_id": "O9u7SbXBqmw",
+   "title": "PF 자기자본 규제 강화, 주택 공급 줄어들까? #PF규제 #주택공급 #시행사",
+   "published_kst": "2026-11-24 19:00",
+   "duration_s": 49,
+   "views": 3,
+   "likes": 0,
+   "comments": 0,
+   "averageViewDuration": null,
+   "averageViewPercentage": null,
+   "subscribersGained": null,
+   "shares": null,
+   "engagedViews": null,
+   "estimatedMinutesWatched": null,
+   "traffic": {}
+  },
   {
    "video_id": "3K65z2TeLww",
    "title": "서울 청약자들, 왜 작은 집으로 몰릴까? #청약 #소형아파트 #서울청약",
    "published_kst": "2026-11-23 19:00",
    "duration_s": 41,
-   "views": 26,
+   "views": 27,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": null,
@@ -25,13 +41,16 @@
    "views": 19,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": null,
-   "averageViewPercentage": null,
-   "subscribersGained": null,
-   "shares": null,
-   "engagedViews": null,
-   "estimatedMinutesWatched": null,
-   "traffic": {}
+   "averageViewDuration": 17,
+   "averageViewPercentage": 32.07,
+   "subscribersGained": 0,
+   "shares": 0,
+   "engagedViews": 5,
+   "estimatedMinutesWatched": 1,
+   "traffic": {
+    "SHORTS": 11,
+    "YT_SEARCH": 6
+   }
   },
   {
    "video_id": "rU2IGgJ56yk",
@@ -41,14 +60,14 @@
    "views": 16,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 24,
-   "averageViewPercentage": 63.12,
+   "averageViewDuration": 32,
+   "averageViewPercentage": 83.99,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 3,
-   "estimatedMinutesWatched": 1,
+   "engagedViews": 4,
+   "estimatedMinutesWatched": 2,
    "traffic": {
-    "SHORTS": 13
+    "SHORTS": 16
    }
   },
   {
@@ -56,17 +75,17 @@
    "title": "경희궁 에피트, 당첨돼도 현금 7억 넘게 필요? #청약 #경희궁에피트 #대출규제",
    "published_kst": "2026-11-20 19:00",
    "duration_s": 54,
-   "views": 34,
+   "views": 36,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 26,
-   "averageViewPercentage": 48.43,
+   "averageViewDuration": 22,
+   "averageViewPercentage": 41.37,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 9,
-   "estimatedMinutesWatched": 4,
+   "engagedViews": 11,
+   "estimatedMinutesWatched": 5,
    "traffic": {
-    "YT_SEARCH": 20,
+    "YT_SEARCH": 24,
     "SHORTS": 9
    }
   },
@@ -75,17 +94,17 @@
    "title": "경기도 매매·전세·월세 상승폭 커졌다, 서울은 둔화 #경기도집값 #전세 #월세",
    "published_kst": "2026-11-19 19:00",
    "duration_s": 49,
-   "views": 32,
+   "views": 33,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 18,
-   "averageViewPercentage": 38.72,
+   "averageViewDuration": 17,
+   "averageViewPercentage": 36.67,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 13,
+   "engagedViews": 14,
    "estimatedMinutesWatched": 4,
    "traffic": {
-    "SHORTS": 20,
+    "SHORTS": 21,
     "YT_SEARCH": 8,
     "YT_OTHER_PAGE": 1
    }
@@ -135,7 +154,7 @@
    "title": "노도강·금관구 월세 300만원 넘는 거래 41건…1년 새 2.7배 #월세 #노도강 #금관구",
    "published_kst": "2026-11-15 19:00",
    "duration_s": 38,
-   "views": 350,
+   "views": 351,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 21,
@@ -146,7 +165,7 @@
    "estimatedMinutesWatched": 39,
    "traffic": {
     "SHORTS": 327,
-    "YT_SEARCH": 13,
+    "YT_SEARCH": 14,
     "YT_OTHER_PAGE": 3,
     "YT_CHANNEL": 2,
     "NO_LINK_OTHER": 0
@@ -168,7 +187,7 @@
    "estimatedMinutesWatched": 11,
    "traffic": {
     "SHORTS": 50,
-    "YT_SEARCH": 24,
+    "YT_SEARCH": 25,
     "YT_CHANNEL": 3,
     "NO_LINK_OTHER": 0
    }
@@ -199,7 +218,7 @@
    "title": "서울부동산정보광장, \"임대 거래 51%가 월세\" 발표 #부동산 #월세 #전세",
    "published_kst": "2026-11-13 12:30",
    "duration_s": 55,
-   "views": 24,
+   "views": 28,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 44,
@@ -260,7 +279,7 @@
    "title": "금리 올려도 집값 오르는 이유…부읽남 정태익 대표 진단 #집값 #금리 #전세",
    "published_kst": "2026-11-09 19:00",
    "duration_s": 35,
-   "views": 88,
+   "views": 89,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 193,
@@ -303,18 +322,18 @@
    "title": "서울 분양전망지수 91.4로 올해 최저…한 달 새 14.3포인트 하락 #분양 #청약 #서울아파트",
    "published_kst": "2026-11-07 19:00",
    "duration_s": 37,
-   "views": 698,
+   "views": 701,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 17,
-   "averageViewPercentage": 47.86,
+   "averageViewPercentage": 47.85,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 153,
+   "engagedViews": 154,
    "estimatedMinutesWatched": 58,
    "traffic": {
     "SHORTS": 658,
-    "YT_SEARCH": 35,
+    "YT_SEARCH": 36,
     "YT_OTHER_PAGE": 3,
     "NO_LINK_OTHER": 0,
     "YT_CHANNEL": 0
@@ -356,7 +375,7 @@
    "engagedViews": 13,
    "estimatedMinutesWatched": 6,
    "traffic": {
-    "YT_SEARCH": 28,
+    "YT_SEARCH": 29,
     "SHORTS": 16
    }
   },
@@ -365,7 +384,7 @@
    "title": "고덕강일3단지 건물값 2억8천부터…토지임대료 월 51만원 조건 정리 #토지임대부 #고덕강일 #SH",
    "published_kst": "2026-11-04 19:00",
    "duration_s": 60,
-   "views": 112,
+   "views": 119,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 54,
@@ -477,7 +496,7 @@
    "estimatedMinutesWatched": 99,
    "traffic": {
     "SHORTS": 1056,
-    "YT_SEARCH": 32,
+    "YT_SEARCH": 33,
     "YT_OTHER_PAGE": 4,
     "NOTIFICATION": 1,
     "NO_LINK_OTHER": 0
@@ -592,7 +611,7 @@
    "title": "올파포 첫 전세 만기…집주인 실거주에 59㎡ 전세 13억 #올림픽파크포레온 #전세 #전세난",
    "published_kst": "2026-10-23 19:00",
    "duration_s": 48,
-   "views": 519,
+   "views": 521,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 36,
@@ -602,7 +621,7 @@
    "engagedViews": 171,
    "estimatedMinutesWatched": 111,
    "traffic": {
-    "YT_SEARCH": 424,
+    "YT_SEARCH": 425,
     "SHORTS": 91,
     "SUBSCRIBER": 1,
     "NO_LINK_OTHER": 0
@@ -613,7 +632,7 @@
    "title": "\"분양가 지금이 가장 싸다\"…경기 집값 4년 11개월 만에 최대 상승 #분양가 #청약 #디딤돌대출",
    "published_kst": "2026-10-22 19:00",
    "duration_s": 41,
-   "views": 568,
+   "views": 569,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 19,
@@ -713,7 +732,7 @@
    "title": "강동 3억대 새 아파트…매달 토지임대료 51만원 #고덕강일 #토지임대부 #SH",
    "published_kst": "2026-10-17 19:00",
    "duration_s": 52,
-   "views": 1439,
+   "views": 1440,
    "likes": 8,
    "comments": 2,
    "averageViewDuration": 40,
@@ -723,7 +742,7 @@
    "engagedViews": 454,
    "estimatedMinutesWatched": 321,
    "traffic": {
-    "YT_SEARCH": 1331,
+    "YT_SEARCH": 1332,
     "SHORTS": 104,
     "YT_CHANNEL": 2,
     "YT_OTHER_PAGE": 1,
@@ -810,7 +829,7 @@
    "estimatedMinutesWatched": 421,
    "traffic": {
     "SHORTS": 1109,
-    "YT_SEARCH": 163,
+    "YT_SEARCH": 164,
     "YT_OTHER_PAGE": 6,
     "PLAYLIST": 3,
     "NOTIFICATION": 2,
@@ -856,7 +875,7 @@
    "estimatedMinutesWatched": 40,
    "traffic": {
     "SHORTS": 280,
-    "YT_SEARCH": 52,
+    "YT_SEARCH": 55,
     "YT_OTHER_PAGE": 1,
     "NO_LINK_OTHER": 0
    }
@@ -1168,17 +1187,17 @@
    "title": "청년 전세대출 보증 만 39세까지 확대, 조건 정리 #청년전세대출 #전세대출 #청년특례보증",
    "published_kst": "2026-10-01 12:00",
    "duration_s": 57,
-   "views": 919,
+   "views": 928,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 39,
-   "averageViewPercentage": 68.6,
+   "averageViewPercentage": 68.62,
    "subscribersGained": 0,
    "shares": 1,
-   "engagedViews": 400,
-   "estimatedMinutesWatched": 270,
+   "engagedViews": 404,
+   "estimatedMinutesWatched": 273,
    "traffic": {
-    "YT_SEARCH": 863,
+    "YT_SEARCH": 880,
     "SHORTS": 27,
     "EXT_URL": 7,
     "YT_CHANNEL": 1,
@@ -1191,7 +1210,7 @@
    "title": "강남 주춤·외곽 급등, 전문가가 꼽은 이유는 #부동산 #서울집값 #대출규제",
    "published_kst": "2026-09-30 18:00",
    "duration_s": 48,
-   "views": 273,
+   "views": 274,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 31,
@@ -1235,7 +1254,7 @@
    "title": "서울 대학가 원룸 월세 70만원 돌파…서울대 인근 26% 뛰어 #부동산 #월세 #원룸",
    "published_kst": "2026-09-29 19:59",
    "duration_s": 53,
-   "views": 353,
+   "views": 359,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 31,
@@ -1258,7 +1277,7 @@
    "title": "조정지역 일시적 2주택 처분기한 2년으로…10월 1일 시행 #부동산 #양도세 #종부세",
    "published_kst": "2026-09-29 19:40",
    "duration_s": 53,
-   "views": 350,
+   "views": 352,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 47,
@@ -1300,17 +1319,17 @@
    "title": "빌라 규모 44년 만에 확대…다가구 4층까지 허용 #부동산 #빌라 #다가구주택",
    "published_kst": "2026-09-28 17:45",
    "duration_s": 56,
-   "views": 661,
+   "views": 662,
    "likes": 3,
    "comments": 0,
    "averageViewDuration": 40,
-   "averageViewPercentage": 72.33,
+   "averageViewPercentage": 72.04,
    "subscribersGained": 0,
    "shares": 3,
-   "engagedViews": 231,
+   "engagedViews": 232,
    "estimatedMinutesWatched": 165,
    "traffic": {
-    "YT_SEARCH": 351,
+    "YT_SEARCH": 353,
     "SHORTS": 297,
     "YT_OTHER_PAGE": 6,
     "SUBSCRIBER": 3,
@@ -1376,7 +1395,7 @@
    "estimatedMinutesWatched": 216,
    "traffic": {
     "SHORTS": 182,
-    "YT_SEARCH": 45,
+    "YT_SEARCH": 46,
     "YT_OTHER_PAGE": 2,
     "NOTIFICATION": 1,
     "NO_LINK_OTHER": 0
@@ -1485,7 +1504,7 @@
    "estimatedMinutesWatched": 323,
    "traffic": {
     "SHORTS": 960,
-    "YT_SEARCH": 35,
+    "YT_SEARCH": 36,
     "YT_OTHER_PAGE": 13,
     "YT_CHANNEL": 1,
     "PLAYLIST": 1,
@@ -1734,7 +1753,7 @@
    "estimatedMinutesWatched": 381,
    "traffic": {
     "SHORTS": 1356,
-    "YT_SEARCH": 52,
+    "YT_SEARCH": 53,
     "YT_OTHER_PAGE": 9,
     "YT_CHANNEL": 2,
     "NO_LINK_OTHER": 0
@@ -1927,7 +1946,7 @@
    "estimatedMinutesWatched": 1106,
    "traffic": {
     "SHORTS": 2143,
-    "YT_SEARCH": 89,
+    "YT_SEARCH": 90,
     "YT_OTHER_PAGE": 19,
     "YT_CHANNEL": 2,
     "HASHTAGS": 1,
@@ -2091,7 +2110,7 @@
    "estimatedMinutesWatched": 376,
    "traffic": {
     "SHORTS": 1364,
-    "YT_SEARCH": 23,
+    "YT_SEARCH": 24,
     "YT_OTHER_PAGE": 11,
     "YT_CHANNEL": 3,
     "NO_LINK_OTHER": 0
@@ -2183,7 +2202,7 @@
    "estimatedMinutesWatched": 794,
    "traffic": {
     "SHORTS": 1833,
-    "YT_SEARCH": 56,
+    "YT_SEARCH": 57,
     "YT_OTHER_PAGE": 27,
     "YT_CHANNEL": 4,
     "NOTIFICATION": 1,
@@ -2706,14 +2725,14 @@
    "likes": 2,
    "comments": 1,
    "averageViewDuration": 38,
-   "averageViewPercentage": 88.47,
+   "averageViewPercentage": 88.26,
    "subscribersGained": 0,
    "shares": 1,
-   "engagedViews": 364,
+   "engagedViews": 365,
    "estimatedMinutesWatched": 244,
    "traffic": {
     "SHORTS": 702,
-    "YT_SEARCH": 42,
+    "YT_SEARCH": 43,
     "YT_OTHER_PAGE": 10,
     "YT_CHANNEL": 1,
     "NO_LINK_OTHER": 0
