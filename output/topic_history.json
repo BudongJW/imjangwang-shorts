@@ -2535,37 +2535,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "도곡렉슬 매매 3.5억 내렸는데 전세는 '신고가'…강남 전세가율 17개월만 최고치",
-    "video_id": "draft-45740532177",
-    "date": "2026-11-26T02:13:38.173715",
-    "title_style": "인용",
-    "len_mode": "normal",
-    "script_chars": 367,
-    "source": "아시아경제",
-    "age_days": 1.128962639074074,
-    "topic_score": 9,
-    "recency_score": 4,
-    "media": [
-      "p4246237",
-      "p4246110",
-      "p4498118",
-      "p27459661",
-      "p12670294",
-      "p27459652",
-      "v34676736"
-    ],
-    "layout": "2026-11-26",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "photo",
-      "outro_q": "on",
-      "title_q": "off",
-      "article_pos": "early",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
