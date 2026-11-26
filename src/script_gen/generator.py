@@ -2479,6 +2479,65 @@ def _uncited_expert_problems(script: str, source_text: str) -> list[tuple[str, s
     return out
 
 
+# 조건을 단 채 결과를 단정한 문장. 11-26 초안: 기사는 전문가들이 "입주 물량 감소 … 이사 철
+# 수요까지 겹치면 전세가격 상승 압력이 더 커질 수 있다고 내다봤다"였는데 대본은 "겹치면 전세가
+# 상승 압력은 더 커집니다"였다. _conditional_problems는 대본에 '~면'이 있으면 건너뛰므로 따로 본다.
+# 끝 동사의 마지막 글자는 받침만 달라도 같은 말로 본다(커집니다 / 커질).
+def _syllable_any_coda(ch: str) -> str:
+    c = ord(ch) - 0xAC00
+    if not 0 <= c < 11172:
+        return re.escape(ch)
+    base = 0xAC00 + c - c % 28
+    return f"[{chr(base)}-{chr(base + 27)}]"
+
+
+def _cond_hedge_drop_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_sents = [x for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if (not sent or not re.search(r"[가-힣]면\s", sent) or _SCRIPT_MAYBE_RE.search(sent)
+                or _SCRIPT_ATTR_RE.search(sent) or _Q_END_RE.search(sent)):
+            continue
+        last = re.sub(r"[^가-힣]", "", sent.split()[-1])
+        if not re.fullmatch(r"[가-힣]{1,3}니다", last) or last[-3] == "습":
+            continue
+        b = ord(last[-3]) - 0xAC00
+        if not (0 <= b < 11172 and b % 28 == 17):
+            continue
+        stem = _pred_stem(last)
+        if len(stem) < 2:
+            continue
+        pat = re.compile(re.escape(stem[:-1]) + _syllable_any_coda(stem[-1]))
+        rest = _stems(sent)
+        hits = [x for x in src_sents if pat.search(x) and len(rest & _stems(x)) >= 2]
+        if hits and all(re.search(r"수\s?있|가능성|우려|전망", x) for x in hits):
+            out.append((sent[:40], f"기사는 '{stem}'을 '~수 있다'로 썼는데 대본은 조건만 달고 단정했다"))
+    return out
+
+
+# 한 사람의 말을 '전문가들은'으로 넓힌 문장. 11-26 초안: 서진형 교수 한 사람의 "실거주 의무 정책
+# 때문에 전세 물량 공급이 이뤄지지 않고"가 대본에서 "전문가들은 실거주 의무 정책이 전세 물량
+# 감소를 불러 … 지적합니다"가 됐다. 대본 문장과 가장 많이 겹치는 기사 문장에 '전문가'가 없으면 잡는다.
+def _plural_expert_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src_st = [(x, _stems(x)) for x in _SRC_SPLIT_RE.split(source_text or "") if x.strip()]
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        sent = sent.strip()
+        if not re.search(r"전문가들|전문가\s?다수", sent):
+            continue
+        st = _stems(sent) - {"전문", "전문가", "전문가들"}
+        scored = sorted(((len(st & ss), x) for x, ss in src_st), reverse=True)
+        if not scored or scored[0][0] < 3:
+            continue
+        best = scored[0][0]
+        # 기사에도 '전문가들은'으로 쓴 문장이 거의 같은 만큼 겹치면 둔다(09-29 대학가 월세 영상).
+        plural = max((k for k, x in scored if re.search(r"전문가", x)), default=0)
+        if plural < best - 1:
+            out.append((sent[:40], "기사에서는 한 사람의 말인데 '전문가들'로 넓혔다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2778,7 +2837,8 @@ def script_defects(text: str, hay: str, title: str = "",
          + _rent_word_problems(text, hay) + _cause_hedge_problems(text, hay)
          + _only_gain_problems(text, hay) + _unanswered_question_problems(text)
          + _mult_overstate_problems(text, hay) + _injected_price_problems(text, hay)
-         + _uncited_expert_problems(text, hay)
+         + _uncited_expert_problems(text, hay) + _cond_hedge_drop_problems(text, hay)
+         + _plural_expert_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
