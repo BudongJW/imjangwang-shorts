@@ -71,6 +71,13 @@ def _story_tokens(title: str) -> set[str]:
         if len(w) < 2 or w in _STOP or w.isdigit():
             continue
         out.add(w)
+        # 붙여 쓴 네 글자 말은 두 낱말로도 센다. 11-26 초안: 11-23에 올린 "서울 청약신청 80%
+        # '소형평수'"와 같은 소재("청약 신청 80% 쏠린 '소형의 반전'")를 '청약신청'과 '신청',
+        # '소형평수'와 '소형'이 달라 못 걸렀다.
+        if len(w) == 4 and re.fullmatch(r"[가-힣]{4}", w):
+            for half in (w[:2], w[2:]):
+                if half not in _STOP and not _VERBISH_RE.search(half):
+                    out.add(half)
     return out
 
 
@@ -111,6 +118,20 @@ def _recent_entries(history: list[dict], days: int):
             yield entry
 
 
+def _shared_count(a: set[str], b: set[str]) -> int:
+    """겹친 낱말 수. 네 글자 붙임말과 그 반쪽은 한 낱말로 센다('공공임대'가 양쪽에 있으면
+    '공공'·'임대'까지 세 번이 아니라 한 번, 한쪽 붙임말의 두 반쪽이 겹쳐도 한 번)."""
+    sh = a & b
+    n = len(sh)
+    for c in {w for w in (a | b) if len(w) == 4 and re.fullmatch(r"[가-힣]{4}", w)}:
+        parts = [p for p in (c[:2], c[2:]) if p in sh]
+        if c in sh:
+            n -= len(parts)
+        elif len(parts) == 2:
+            n -= 1
+    return n
+
+
 def is_recent_same_story(title: str, history: list[dict] | None = None,
                          days: int = STORY_DAYS) -> str | None:
     """최근 같은 사건(days일)이나 같은 소재(SUBJECT_DAYS일)를 다룬 기록이 있으면 그 제목."""
@@ -119,7 +140,7 @@ def is_recent_same_story(title: str, history: list[dict] | None = None,
     mine = _story_tokens(title)
     if len(mine) >= STORY_MIN_SHARED:
         for entry in _recent_entries(history, days):
-            if len(mine & _story_tokens(entry.get("title", ""))) >= STORY_MIN_SHARED:
+            if _shared_count(mine, _story_tokens(entry.get("title", ""))) >= STORY_MIN_SHARED:
                 return entry.get("title", "")
     freq = _token_freq(history)
     rare = {w for w in mine if not w[0].isdigit() and not _VERBISH_RE.search(w)
@@ -128,7 +149,7 @@ def is_recent_same_story(title: str, history: list[dict] | None = None,
         for entry in _recent_entries(history, SUBJECT_DAYS):
             if entry.get("title") == title:
                 continue
-            if len(rare & _story_tokens(entry.get("title", ""))) >= SUBJECT_MIN_SHARED:
+            if _shared_count(rare, _story_tokens(entry.get("title", ""))) >= SUBJECT_MIN_SHARED:
                 return entry.get("title", "")
     return None
 

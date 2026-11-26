@@ -85,3 +85,16 @@ def test_newsis_body_skips_photo_caption_box():
             f'{body}</article></div>')
     text = _extract_body(BeautifulSoup(html, "lxml"))
     assert "기사 본문" in text and "사진 설명" not in text
+
+
+def test_same_subject_with_compound_words_is_caught():
+    # 11-26 초안: 11-23 영상과 같은 소재인데 '청약신청'·'소형평수'가 붙여 쓰여 못 걸렀다.
+    from datetime import datetime
+    from src.collector.history import is_recent_same_story
+    hist = [{"title": "“더 작은집 없나요?”…분양가 치솟자 서울 청약신청 80% ‘소형평수’",
+             "video_id": "x", "date": datetime.now().isoformat()}]
+    assert is_recent_same_story("\"작아도 서울 새 아파트\"…청약 신청 80% 쏠린 '소형의 반전'", hist)
+    # 같은 붙임말 하나('공공임대')만 겹치면 같은 소재로 보지 않는다.
+    hist2 = [{"title": "분담금 폭탄 우려에 들끓더니…광명 재건축 공공임대 1%로 대폭 축소",
+              "video_id": "y", "date": datetime.now().isoformat()}]
+    assert not is_recent_same_story("\"공공임대 체질개선은 긍정적 … 당장 전월세난 잡기엔 한계\"", hist2)
