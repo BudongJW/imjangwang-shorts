@@ -106,6 +106,8 @@ _OFFTOPIC_RE = re.compile(
     r"buddha|statue|sculpture|temple|shrine|church|cathedral|mosque|religio|"
     r"monk|pray|candle|portrait|selfie|food|dish|meal|cat\b|dog\b|pet\b|"
     r"flower|bouquet|wedding|bikini|model\b|"
+    # 11-27 지정 영상: 'paperwork desk calculator'로 미국 개인소득세 신고서(1040) 사진이 떴다.
+    r"tax[\s_-]?form|tax[\s_-]?return|\b1040\b|\bIRS\b|\bW-?2\b|세금\s?양식|세금\s?신고서|"
     # '기도'는 '경기도'에 걸려 경기도 사진이 다 빠졌다(10-17 파주 사진, 10-19 확인).
     r"불상|부처|불교|사찰|사원|성당|교회|성전|동상|조각상|(?<!경)기도|승려|스님|양초|촛불|"
     r"음식|요리|고양이|강아지|반려|꽃다발|웨딩|결혼|셀카|초상|"
