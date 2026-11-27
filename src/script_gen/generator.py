@@ -2538,6 +2538,37 @@ def _plural_expert_problems(script: str, source_text: str) -> list[tuple[str, st
     return out
 
 
+# 발표 기관을 바꿔 단 문장. 11-27 초안: 종부세 고지 현황은 재정경제부가 발표했고 국세청은
+# 고지서를 보낸 곳이었는데 대본은 "국세청 발표"였다. 대본이 '○○ 발표·○○에 따르면'으로 댄
+# 기관이 기사에서 발표·집계 주체로 나온 적이 없고, 다른 기관이 그 자리에 있으면 잡는다.
+_ANNOUNCER_ORG_RE = re.compile(
+    r"(국세청|국토교통부|국토부|한국부동산원|부동산원|재정경제부|재경부|기획재정부|기재부|금융위원회|"
+    r"금융위|금융감독원|금감원|통계청|국가데이터처|한국은행|한은|KB부동산|부동산114|주택산업연구원|주산연)")
+_ANNOUNCER_RE = re.compile(_ANNOUNCER_ORG_RE.pattern
+                           + r"(?:이|가|은|는)?\s?(?:발표|에\s?따르면|자료|통계|집계)")
+
+
+def _announcer_problems(script: str, source_text: str) -> list[tuple[str, str]]:
+    src = source_text or ""
+    out = []
+    for sent in _CHECK_SPLIT_RE.split(script or ""):
+        m = _ANNOUNCER_RE.search(sent)
+        if not m:
+            continue
+        org = m.group(1)
+        if org not in src:
+            continue
+        def announces(o: str) -> bool:
+            return bool(re.search(re.escape(o) + r"[^.。]{0,40}?(?:발표|밝혔|따르면|집계|자료|조사|통계|분석)", src))
+        if announces(org):
+            continue
+        names = set(_ANNOUNCER_ORG_RE.findall(src))
+        others = [o for o in names if o != org and announces(o)]
+        if others:
+            out.append((sent.strip()[:40], f"기사에서 발표한 곳은 '{others[0]}'인데 대본은 '{org}'라고 했다"))
+    return out
+
+
 # 기사가 'N월 누적'으로 쓴 숫자를 N월 한 달 값처럼 말한 문장. 11-08 초안: 기사는 "10월 누적
 # 통계 기준 서울 강남구 아파트값 변동률 … 한국부동산원은 -1.38%"였는데 대본은 "10월 서울 강남
 # 아파트값 통계, 기관별 하락률이 …"로 열고 바로 1.38% 하락을 댔다. 10월 한 달 하락률로 들린다.
@@ -2838,7 +2869,7 @@ def script_defects(text: str, hay: str, title: str = "",
          + _only_gain_problems(text, hay) + _unanswered_question_problems(text)
          + _mult_overstate_problems(text, hay) + _injected_price_problems(text, hay)
          + _uncited_expert_problems(text, hay) + _cond_hedge_drop_problems(text, hay)
-         + _plural_expert_problems(text, hay)
+         + _plural_expert_problems(text, hay) + _announcer_problems(text, hay)
          + _host_voice_problems(text, hay, title)
          + _dequoted_title_problems(text, title)
          + _direction_problems(text))
@@ -2965,6 +2996,12 @@ def generate(art) -> ShortPlan:
                 left, lwhy = _defects(str(data.get("script", "")))
                 data["script"] = _drop_sentences_with(str(data.get("script", "")), left)
                 note(f"대본: 사실 대조 실패 {len(left)}건 → 해당 문장 삭제 ({lwhy[0][:40]})")
+                # 지운 문장이 첫 질문의 답이었으면 질문만 남는다. 11-27 초안: "내 종부세, 158만
+                # 6천 원 넘게 나올까요"의 답 문장이 분모 검사로 지워져 질문만 남았다. 질문도 지운다.
+                ua = _unanswered_question_problems(str(data.get("script", "")))
+                if ua:
+                    data["script"] = _drop_sentences_with(str(data.get("script", "")), [n for n, _ in ua])
+                    note("대본: 지운 문장이 첫 질문의 답이라 질문도 지움")
                 log.info(f"  재요청도 실패 → 문장 {len(left)}건 삭제")
                 # 지우고 나니 너무 짧으면 한 번 더 쓰게 한다. 10-16 초안: 안심신탁을
                 # 설명하던 문장이 지워져 165자(24초)만 남았고, 제목의 주제가 영상에서 빠졌다.
