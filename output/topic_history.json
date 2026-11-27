@@ -2569,5 +2569,36 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
+  },
+  {
+    "title": "“집값 올랐다고 좋아할게 아녔어”…종부세 대상·세액 4년 만에 최대",
+    "video_id": "draft-45918929846",
+    "date": "2026-11-27T00:52:30.463955",
+    "title_style": "질문",
+    "len_mode": "normal",
+    "script_chars": 234,
+    "source": "매일경제",
+    "age_days": 0.7069280377662037,
+    "topic_score": 12,
+    "recency_score": 4,
+    "media": [
+      "p8296948",
+      "p8297537",
+      "p6928995",
+      "p18087834",
+      "p37384708",
+      "p20849989"
+    ],
+    "layout": "2026-11-26",
+    "exp": {
+      "len_mode": "normal",
+      "hook_card": "off",
+      "bg_mode": "photo",
+      "outro_q": "on",
+      "title_q": "on",
+      "article_pos": "late",
+      "bgm": "on",
+      "cut_pace": "3s"
+    }
   }
 ]
