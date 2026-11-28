@@ -1,12 +1,28 @@
 {
- "taken_at": "2026-11-27T02:08:00.323302+00:00",
+ "taken_at": "2026-11-28T00:33:20.432412+00:00",
  "videos": [
+  {
+   "video_id": "bl_7leF1GO4",
+   "title": "1주택자 종부세, 평균 얼마나 나올까? #종부세 #종합부동산세 #1주택자",
+   "published_kst": "2026-11-27 19:00",
+   "duration_s": 45,
+   "views": 6,
+   "likes": 0,
+   "comments": 0,
+   "averageViewDuration": null,
+   "averageViewPercentage": null,
+   "subscribersGained": null,
+   "shares": null,
+   "engagedViews": null,
+   "estimatedMinutesWatched": null,
+   "traffic": {}
+  },
   {
    "video_id": "MxT4OaiUCA0",
    "title": "강남구 전세가율 17개월 만에 최고, 도곡렉슬 전세 신고가 #전세가율 #강남전세 #도곡렉슬",
    "published_kst": "2026-11-26 19:00",
    "duration_s": 48,
-   "views": 9,
+   "views": 12,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": null,
@@ -22,16 +38,19 @@
    "title": "서울 오피스텔 매매 22개월 만에 하락, 월세는 0.30% 올라 #오피스텔 #월세 #전세",
    "published_kst": "2026-11-25 19:00",
    "duration_s": 48,
-   "views": 21,
+   "views": 25,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": null,
-   "averageViewPercentage": null,
-   "subscribersGained": null,
-   "shares": null,
-   "engagedViews": null,
-   "estimatedMinutesWatched": null,
-   "traffic": {}
+   "averageViewDuration": 27,
+   "averageViewPercentage": 56.95,
+   "subscribersGained": 0,
+   "shares": 0,
+   "engagedViews": 8,
+   "estimatedMinutesWatched": 3,
+   "traffic": {
+    "SHORTS": 12,
+    "YT_SEARCH": 5
+   }
   },
   {
    "video_id": "O9u7SbXBqmw",
@@ -41,14 +60,15 @@
    "views": 5,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 5,
-   "averageViewPercentage": 11.23,
+   "averageViewDuration": 4,
+   "averageViewPercentage": 9.9,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 1,
+   "engagedViews": 2,
    "estimatedMinutesWatched": 0,
    "traffic": {
-    "SHORTS": 3
+    "SHORTS": 4,
+    "YT_SEARCH": 1
    }
   },
   {
@@ -59,15 +79,15 @@
    "views": 28,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 33,
-   "averageViewPercentage": 80.54,
+   "averageViewDuration": 31,
+   "averageViewPercentage": 75.65,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 15,
+   "engagedViews": 16,
    "estimatedMinutesWatched": 8,
    "traffic": {
     "SHORTS": 23,
-    "YT_SEARCH": 4
+    "YT_SEARCH": 5
    }
   },
   {
@@ -75,7 +95,7 @@
    "title": "정태익 대표 \"서울 외곽으로 풍선효과가 번지고 있다\" #풍선효과 #서울아파트 #전월세",
    "published_kst": "2026-11-22 19:00",
    "duration_s": 55,
-   "views": 24,
+   "views": 25,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 17,
@@ -86,7 +106,7 @@
    "estimatedMinutesWatched": 1,
    "traffic": {
     "SHORTS": 13,
-    "YT_SEARCH": 6
+    "YT_SEARCH": 7
    }
   },
   {
@@ -104,7 +124,8 @@
    "engagedViews": 4,
    "estimatedMinutesWatched": 2,
    "traffic": {
-    "SHORTS": 16
+    "SHORTS": 16,
+    "YT_SEARCH": 1
    }
   },
   {
@@ -115,14 +136,14 @@
    "views": 40,
    "likes": 0,
    "comments": 0,
-   "averageViewDuration": 22,
-   "averageViewPercentage": 41.83,
+   "averageViewDuration": 24,
+   "averageViewPercentage": 45.73,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 12,
-   "estimatedMinutesWatched": 5,
+   "engagedViews": 13,
+   "estimatedMinutesWatched": 6,
    "traffic": {
-    "YT_SEARCH": 27,
+    "YT_SEARCH": 31,
     "SHORTS": 9
    }
   },
@@ -142,7 +163,7 @@
    "estimatedMinutesWatched": 4,
    "traffic": {
     "SHORTS": 22,
-    "YT_SEARCH": 10,
+    "YT_SEARCH": 11,
     "YT_OTHER_PAGE": 1
    }
   },
@@ -162,7 +183,7 @@
    "estimatedMinutesWatched": 1,
    "traffic": {
     "SHORTS": 15,
-    "YT_CHANNEL": 2
+    "YT_CHANNEL": 3
    }
   },
   {
@@ -213,7 +234,7 @@
    "title": "서울 매매 매물 연초보다 40% 이상 늘어…토허제 조정 12월 결론 #매물 #전세 #월세",
    "published_kst": "2026-11-14 19:00",
    "duration_s": 57,
-   "views": 79,
+   "views": 78,
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 28,
@@ -402,7 +423,7 @@
    "title": "서울 외곽 전셋값 6.9% 매매가 4.6% 올라…전세 매물 부족 #전세 #서울아파트 #노원",
    "published_kst": "2026-11-05 19:00",
    "duration_s": 34,
-   "views": 45,
+   "views": 46,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 26,
@@ -421,7 +442,7 @@
    "title": "고덕강일3단지 건물값 2억8천부터…토지임대료 월 51만원 조건 정리 #토지임대부 #고덕강일 #SH",
    "published_kst": "2026-11-04 19:00",
    "duration_s": 60,
-   "views": 124,
+   "views": 125,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 67,
@@ -464,14 +485,14 @@
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 27,
-   "averageViewPercentage": 49.8,
+   "averageViewPercentage": 49.41,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 12,
+   "engagedViews": 13,
    "estimatedMinutesWatched": 6,
    "traffic": {
     "SHORTS": 17,
-    "YT_SEARCH": 14
+    "YT_SEARCH": 16
    }
   },
   {
@@ -648,7 +669,7 @@
    "title": "올파포 첫 전세 만기…집주인 실거주에 59㎡ 전세 13억 #올림픽파크포레온 #전세 #전세난",
    "published_kst": "2026-10-23 19:00",
    "duration_s": 48,
-   "views": 522,
+   "views": 523,
    "likes": 2,
    "comments": 0,
    "averageViewDuration": 36,
@@ -773,13 +794,13 @@
    "likes": 8,
    "comments": 2,
    "averageViewDuration": 40,
-   "averageViewPercentage": 77.04,
+   "averageViewPercentage": 77.09,
    "subscribersGained": 2,
    "shares": 5,
-   "engagedViews": 454,
-   "estimatedMinutesWatched": 321,
+   "engagedViews": 455,
+   "estimatedMinutesWatched": 322,
    "traffic": {
-    "YT_SEARCH": 1333,
+    "YT_SEARCH": 1342,
     "SHORTS": 104,
     "YT_CHANNEL": 2,
     "YT_OTHER_PAGE": 1,
@@ -866,7 +887,7 @@
    "estimatedMinutesWatched": 421,
    "traffic": {
     "SHORTS": 1109,
-    "YT_SEARCH": 165,
+    "YT_SEARCH": 166,
     "YT_OTHER_PAGE": 6,
     "PLAYLIST": 3,
     "NOTIFICATION": 2,
@@ -905,15 +926,15 @@
    "likes": 1,
    "comments": 0,
    "averageViewDuration": 21,
-   "averageViewPercentage": 36.86,
+   "averageViewPercentage": 36.36,
    "subscribersGained": 0,
    "shares": 0,
-   "engagedViews": 98,
+   "engagedViews": 100,
    "estimatedMinutesWatched": 40,
    "traffic": {
-    "SHORTS": 280,
-    "YT_SEARCH": 55,
-    "YT_OTHER_PAGE": 1,
+    "SHORTS": 281,
+    "YT_SEARCH": 56,
+    "YT_OTHER_PAGE": 2,
     "NO_LINK_OTHER": 0
    }
   },
@@ -1225,17 +1246,17 @@
    "title": "청년 전세대출 보증 만 39세까지 확대, 조건 정리 #청년전세대출 #전세대출 #청년특례보증",
    "published_kst": "2026-10-01 12:00",
    "duration_s": 57,
-   "views": 941,
+   "views": 945,
    "likes": 2,
    "comments": 0,
-   "averageViewDuration": 39,
-   "averageViewPercentage": 68.49,
+   "averageViewDuration": 38,
+   "averageViewPercentage": 68.32,
    "subscribersGained": 0,
    "shares": 1,
-   "engagedViews": 407,
-   "estimatedMinutesWatched": 275,
+   "engagedViews": 411,
+   "estimatedMinutesWatched": 277,
    "traffic": {
-    "YT_SEARCH": 896,
+    "YT_SEARCH": 904,
     "SHORTS": 27,
     "EXT_URL": 7,
     "YT_CHANNEL": 1,
@@ -1357,7 +1378,7 @@
    "title": "빌라 규모 44년 만에 확대…다가구 4층까지 허용 #부동산 #빌라 #다가구주택",
    "published_kst": "2026-09-28 17:45",
    "duration_s": 56,
-   "views": 673,
+   "views": 678,
    "likes": 3,
    "comments": 0,
    "averageViewDuration": 40,
@@ -1367,7 +1388,7 @@
    "engagedViews": 233,
    "estimatedMinutesWatched": 166,
    "traffic": {
-    "YT_SEARCH": 359,
+    "YT_SEARCH": 365,
     "SHORTS": 297,
     "YT_OTHER_PAGE": 6,
     "SUBSCRIBER": 3,
@@ -1422,7 +1443,7 @@
    "title": "\"강남 30평대 3억에 가능\"? 마곡은 건물값만 4억 #부동산 #토지임대부 #반값아파트",
    "published_kst": "2026-09-27 15:30",
    "duration_s": 61,
-   "views": 232,
+   "views": 233,
    "likes": 0,
    "comments": 0,
    "averageViewDuration": 143,
@@ -1780,7 +1801,7 @@
    "title": "나경원 \"86주 연속 상승…매매·전세·월세 트리플 재앙\" #부동산 #집값 #서울아파트",
    "published_kst": "2026-09-11 13:55",
    "duration_s": 49,
-   "views": 1420,
+   "views": 1421,
    "likes": 47,
    "comments": 4,
    "averageViewDuration": 26,
@@ -2434,14 +2455,14 @@
    "likes": 13,
    "comments": 0,
    "averageViewDuration": 54,
-   "averageViewPercentage": 67.77,
+   "averageViewPercentage": 67.72,
    "subscribersGained": 3,
    "shares": 1,
-   "engagedViews": 533,
+   "engagedViews": 534,
    "estimatedMinutesWatched": 494,
    "traffic": {
     "SHORTS": 1025,
-    "YT_SEARCH": 19,
+    "YT_SEARCH": 20,
     "YT_OTHER_PAGE": 17,
     "YT_CHANNEL": 2,
     "NO_LINK_OTHER": 1,
