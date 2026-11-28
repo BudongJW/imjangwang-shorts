@@ -2603,39 +2603,5 @@
       "bgm": "on",
       "cut_pace": "3s"
     }
-  },
-  {
-    "title": "\"세금 날벼락 피하자\"…'집주인 대출' 매물 넉달새 100배",
-    "video_id": "draft-46086795359",
-    "date": "2026-11-28T00:17:59.027901",
-    "title_style": "질문",
-    "len_mode": "normal",
-    "script_chars": 205,
-    "source": "매일경제",
-    "age_days": 0.6495714605092593,
-    "topic_score": 12,
-    "recency_score": 4,
-    "media": [
-      "p40591840",
-      "p11851265",
-      "p2246789",
-      "p2246792",
-      "p37384708",
-      "p20849989",
-      "v7710753",
-      "v6964001",
-      "v7247831"
-    ],
-    "layout": "2026-11-26",
-    "exp": {
-      "len_mode": "normal",
-      "hook_card": "off",
-      "bg_mode": "graphic",
-      "outro_q": "off",
-      "title_q": "on",
-      "article_pos": "early",
-      "bgm": "on",
-      "cut_pace": "3s"
-    }
   }
 ]
